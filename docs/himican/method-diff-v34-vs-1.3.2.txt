@@ -1,0 +1,1953 @@
+CHG   Lcom/example/wayfindr/MainActivity$$ExternalSyntheticLambda0;
+         + <init>(Lcom/example/wayfindr/MainActivity;)V
+         - <init>(Lcom/example/wayfindr/MainActivity;Lcom/example/wayfindr/data/SyncRepository;)V
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - run()V
+CHG   Lcom/example/wayfindr/MainActivity$$ExternalSyntheticLambda1;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/MainActivity$$ExternalSyntheticLambda2;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/MainActivity$$ExternalSyntheticLambda3;
+CHG   Lcom/example/wayfindr/MainActivity;
+         - onCreate$lambda$0(Lcom/example/wayfindr/MainActivity;Lcom/example/wayfindr/data/SyncRepository;)V
+         + onCreate$lambda$2$lambda$1$lambda$0(Lcom/example/wayfindr/MainActivity;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + onCreate$lambda$2$lambda$1(Lcom/example/wayfindr/MainActivity;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + onCreate$lambda$2(Lcom/example/wayfindr/MainActivity;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - onCreate$lambda$3$lambda$2$lambda$1(Lcom/example/wayfindr/MainActivity;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - onCreate$lambda$3$lambda$2(Lcom/example/wayfindr/MainActivity;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - onCreate$lambda$3(Lcom/example/wayfindr/MainActivity;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ onCreate(Landroid/os/Bundle;)V
+CHG   Lcom/example/wayfindr/dash/DashConfig;
+         ~ <init>(Landroid/content/Context;)V
+         + getAutoConnectOnStart()Lkotlinx/coroutines/flow/StateFlow;
+         - getMapSource()Lkotlinx/coroutines/flow/StateFlow;
+         + getMapTheme()Lkotlinx/coroutines/flow/StateFlow;
+         - getOfflineMapFile()Lkotlinx/coroutines/flow/StateFlow;
+         + setAutoConnectOnStart(Z)V
+         - setMapSource(Lcom/example/wayfindr/dash/MapSource;)V
+         + setMapTheme(Lcom/example/wayfindr/dash/MapTheme;)V
+         - setOfflineMapFile(Ljava/lang/String;)V
+CHG   Lcom/example/wayfindr/dash/DashKeepAliveService$Companion;
+         + pauseForReconnect(Landroid/content/Context;)V
+CHG   Lcom/example/wayfindr/dash/DashKeepAliveService;
+         ~ buildNotification()Landroid/app/Notification;
+         ~ createChannel()V
+         ~ onStartCommand(Landroid/content/Intent;II)I
+CHG   Lcom/example/wayfindr/dash/DashWifiManager$requestNetwork$cb$1;
+         ~ onAvailable(Landroid/net/Network;)V
+         ~ onCapabilitiesChanged(Landroid/net/Network;Landroid/net/NetworkCapabilities;)V
+         ~ onLost(Landroid/net/Network;)V
+         ~ onUnavailable()V
+CHG   Lcom/example/wayfindr/dash/DashWifiManager$scheduleReconnect$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/DashWifiManager;
+         + access$getNetworkCallback$p(Lcom/example/wayfindr/dash/DashWifiManager;)Landroid/net/ConnectivityManager$NetworkCallback;
+         ~ requestNetwork()V
+CHG   Lcom/example/wayfindr/dash/GoogleKey;
+         ~ getPresent()Z
+GONE  Lcom/example/wayfindr/dash/MapSource$Companion;
+GONE  Lcom/example/wayfindr/dash/MapSource;
+NEW   Lcom/example/wayfindr/dash/MapTheme$Companion; 3 methods
+NEW   Lcom/example/wayfindr/dash/MapTheme; 14 methods
+NEW   Lcom/example/wayfindr/dash/map/LocPlus$Exec; 2 methods
+NEW   Lcom/example/wayfindr/dash/map/LocPlus; 7 methods
+CHG   Lcom/example/wayfindr/dash/map/LocationTracker$$ExternalSyntheticLambda0;
+         ~ onLocationChanged(Landroid/location/Location;)V
+CHG   Lcom/example/wayfindr/dash/map/LocationTracker$Companion;
+         + access$elapsedDeltaSeconds(Lcom/example/wayfindr/dash/map/LocationTracker$Companion;Landroid/location/Location;Landroid/location/Location;)D
+         + access$fixAgeMs(Lcom/example/wayfindr/dash/map/LocationTracker$Companion;Landroid/location/Location;JJ)Ljava/lang/Long;
+         + elapsedDeltaSeconds(Landroid/location/Location;Landroid/location/Location;)D
+         + fixAgeMs(Landroid/location/Location;JJ)Ljava/lang/Long;
+         + isFreshForNavigation$default(Lcom/example/wayfindr/dash/map/LocationTracker$Companion;Landroid/location/Location;JJILjava/lang/Object;)Z
+         + isFreshForNavigation(Landroid/location/Location;JJ)Z
+CHG   Lcom/example/wayfindr/dash/map/LocationTracker;
+         ~ acceptFix(Landroid/location/Location;Landroid/location/Location;)Z
+         + bestKnown(Z)Landroid/location/Location;
+         + isFreshForNavigation(Landroid/location/Location;JJ)Z
+         ~ lastKnown()Landroid/location/Location;
+         + lastKnownAny()Landroid/location/Location;
+         + lastKnownForDisplay()Landroid/location/Location;
+         - listener$lambda$1(Lcom/example/wayfindr/dash/map/LocationTracker;Landroid/location/Location;)V
+         + listener$lambda$2(Lcom/example/wayfindr/dash/map/LocationTracker;Landroid/location/Location;)V
+         ~ start()V
+CHG   Lcom/example/wayfindr/dash/map/MapRenderer$Frame;
+         ~ <init>(DDIFFZFFLjava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/lang/Double;Ljava/util/List;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/String
+CHG   Lcom/example/wayfindr/dash/map/MapRenderer;
+         ~ draw(Landroid/graphics/Canvas;Lcom/example/wayfindr/dash/map/MapRenderer$Frame;II)V
+GONE  Lcom/example/wayfindr/dash/map/MbTiles$Companion$Result$Error;
+GONE  Lcom/example/wayfindr/dash/map/MbTiles$Companion$Result$Ok;
+GONE  Lcom/example/wayfindr/dash/map/MbTiles$Companion$Result;
+GONE  Lcom/example/wayfindr/dash/map/MbTiles$Companion;
+GONE  Lcom/example/wayfindr/dash/map/MbTiles;
+NEW   Lcom/example/wayfindr/dash/map/NavigationReliability; 7 methods
+NEW   Lcom/example/wayfindr/dash/map/OffRouteConfirmation; 6 methods
+GONE  Lcom/example/wayfindr/dash/map/OfflineMapFiles$$ExternalSyntheticLambda0;
+GONE  Lcom/example/wayfindr/dash/map/OfflineMapFiles$list$$inlined$sortedByDescending$1;
+GONE  Lcom/example/wayfindr/dash/map/OfflineMapFiles;
+GONE  Lcom/example/wayfindr/dash/map/TileProvider$get$2$2;
+NEW   Lcom/example/wayfindr/dash/map/TileProvider$get$2; 5 methods
+GONE  Lcom/example/wayfindr/dash/map/TileProvider$get$4;
+CHG   Lcom/example/wayfindr/dash/map/TileProvider$prefetchRoute$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/map/TileProvider;
+         ~ <clinit>()V
+         ~ <init>(Landroid/content/Context;Lkotlinx/coroutines/CoroutineScope;)V
+         - access$getOfflineMisses$p(Lcom/example/wayfindr/dash/map/TileProvider;)Ljava/util/concurrent/ConcurrentHashMap$KeySetView;
+         - access$offlineCovers(Lcom/example/wayfindr/dash/map/TileProvider;III)Z
+         ~ diskFile(Ljava/lang/String;)Ljava/io/File;
+         ~ download(IIILjava/lang/String;I)Landroid/graphics/Bitmap;
+         ~ fetch(IIILjava/lang/String;)Landroid/graphics/Bitmap;
+         ~ get(III)Landroid/graphics/Bitmap;
+         ~ getCached(III)Landroid/graphics/Bitmap;
+         - getFreeTiles()Z
+         - getOffline()Lcom/example/wayfindr/dash/map/MbTiles;
+         ~ keyOf(III)Ljava/lang/String;
+         ~ loadDisk(Ljava/lang/String;)Landroid/graphics/Bitmap;
+         - offlineCovers(III)Z
+         - offlineKey(III)Ljava/lang/String;
+         ~ prefetch(DDLjava/lang/Double;Ljava/lang/Double;)V
+         ~ prefetchAround(DDII)I
+         ~ prefetchRoute(Ljava/util/List;)V
+         ~ prefetchZoom(DDII)V
+         - setFreeTiles(Z)V
+         - setOffline(Lcom/example/wayfindr/dash/map/MbTiles;)V
+NEW   Lcom/example/wayfindr/dash/nav/FreeRouter$requestRoutes$2; 5 methods
+NEW   Lcom/example/wayfindr/dash/nav/FreeRouter$route$1; 2 methods
+GONE  Lcom/example/wayfindr/dash/nav/FreeRouter$route$2;
+CHG   Lcom/example/wayfindr/dash/nav/FreeRouter;
+         ~ <clinit>()V
+         - access$parse(Lcom/example/wayfindr/dash/nav/FreeRouter;Ljava/lang/String;)Lcom/example/wayfindr/dash/nav/Route;
+         + access$requestRoutes(Lcom/example/wayfindr/dash/nav/FreeRouter;Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Lj
+         + alternatives$default(Lcom/example/wayfindr/dash/nav/FreeRouter;Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Lj
+         + alternatives(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Lja
+         + buildRequest$app$default(Lcom/example/wayfindr/dash/nav/FreeRouter;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;ZILjava
+         + buildRequest$app(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Z)Lorg/json/JSONObject;
+         - parse(Ljava/lang/String;)Lcom/example/wayfindr/dash/nav/Route;
+         + parseRoutes$app(Ljava/lang/String;)Ljava/util/List;
+         + parseTrip(Lorg/json/JSONObject;)Lcom/example/wayfindr/dash/nav/Route;
+         + requestRoutes(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;ZLkotlin/coroutines/Continuation;)L
+         + route$default(Lcom/example/wayfindr/dash/nav/FreeRouter;Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/uti
+         - route$default(Lcom/example/wayfindr/dash/nav/FreeRouter;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines
+         + route(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang
+         - route(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/dash/nav/GPlus; 30 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$BrJob; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$Export; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$Idx; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$RdFetch; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$RoadFetch; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$SpdFetch; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus$Vx; 1 methods
+NEW   Lcom/example/wayfindr/dash/nav/NavPlus; 168 methods
+NEW   Lcom/example/wayfindr/dash/nav/OfflineMapActivity$Ui; 2 methods
+NEW   Lcom/example/wayfindr/dash/nav/OfflineMapActivity; 16 methods
+CHG   Lcom/example/wayfindr/dash/nav/OfflineRouter;
+         ~ callService(Landroid/content/Context;Ljava/util/List;Landroid/os/Bundle;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + mapWarnShim(Ljava/lang/String;)V
+         + navAlt1(Lbtools/routingapp/IBRouterService;Landroid/os/Bundle;ILjava/util/List;)Lcom/example/wayfindr/dash/nav/Route;
+         + navAlts(Lbtools/routingapp/IBRouterService;Landroid/os/Bundle;Ljava/util/List;Ljava/lang/String;)V
+         ~ route(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;
+         - <init>(Ljava/lang/String;DDLjava/lang/String;)V
+         + <init>(Ljava/lang/String;DDLjava/lang/String;Ljava/lang/String;)V
+         + <init>(Ljava/lang/String;DDLjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+         + component5()Ljava/lang/String;
+         - copy$default(Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;Ljava/lang/String;DDLjava/lang/String;ILjava/lang/Object;)Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;
+         + copy$default(Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;Ljava/lang/String;DDLjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lcom/example/wayfindr/dash/nav/Pla
+         - copy(Ljava/lang/String;DDLjava/lang/String;)Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;
+         + copy(Ljava/lang/String;DDLjava/lang/String;Ljava/lang/String;)Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;
+         ~ equals(Ljava/lang/Object;)Z
+         + getSubtitle()Ljava/lang/String;
+         ~ hashCode()I
+         ~ toString()Ljava/lang/String;
+CHG   Lcom/example/wayfindr/dash/nav/PlaceSearch$google$2;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/nav/PlaceSearch$nominatim$2;
+         + <init>(Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)V
+         - <init>(Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/nav/PlaceSearch$osm$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/nav/PlaceSearch$photon$2;
+         + <init>(Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)V
+         - <init>(Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/dash/nav/PlaceSearch$suggestions$2; 5 methods
+CHG   Lcom/example/wayfindr/dash/nav/PlaceSearch;
+         ~ <clinit>()V
+         + access$httpGet(Lcom/example/wayfindr/dash/nav/PlaceSearch;Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;
+         - access$httpGet(Lcom/example/wayfindr/dash/nav/PlaceSearch;Ljava/lang/String;)Ljava/lang/String;
+         + access$nominatim(Lcom/example/wayfindr/dash/nav/PlaceSearch;Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - access$nominatim(Lcom/example/wayfindr/dash/nav/PlaceSearch;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + access$osm(Lcom/example/wayfindr/dash/nav/PlaceSearch;Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - access$osm(Lcom/example/wayfindr/dash/nav/PlaceSearch;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + access$photon(Lcom/example/wayfindr/dash/nav/PlaceSearch;Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - access$photon(Lcom/example/wayfindr/dash/nav/PlaceSearch;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + httpGet(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;
+         - httpGet(Ljava/lang/String;)Ljava/lang/String;
+         + nominatim(Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - nominatim(Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + osm(Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - osm(Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + photon(Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - photon(Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + photonLanguageCode$app(Ljava/lang/String;)Ljava/lang/String;
+         ~ savedMatch$app(Ljava/lang/String;Ljava/util/List;)Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;
+         ~ search(Landroid/content/Context;Ljava/lang/String;Lcom/example/wayfindr/dash/RoutingSource;Lkotlin/Pair;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object
+         + suggestions(Landroid/content/Context;Ljava/lang/String;Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/dash/nav/RouteProgressMatch; 15 methods
+NEW   Lcom/example/wayfindr/dash/nav/RouteProgressMatcher; 6 methods
+NEW   Lcom/example/wayfindr/dash/nav/Router$alternatives$1; 2 methods
+CHG   Lcom/example/wayfindr/dash/nav/Router$googleRoute$2;
+         + <init>(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Landroid/content/Context;Lkotlin/coroutines/Continuation;)V
+         - <init>(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/nav/Router$route$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/dash/nav/Router;
+         + access$googleRoute(Lcom/example/wayfindr/dash/nav/Router;Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/ut
+         - access$googleRoute(Lcom/example/wayfindr/dash/nav/Router;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutine
+         + alternatives$default(Lcom/example/wayfindr/dash/nav/Router;Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/
+         + alternatives(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Lja
+         + alternatives0(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Lj
+         ~ buildRequest(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;)Lorg/json/JSONObject;
+         + googleRoute(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljav
+         - googleRoute(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + route$default(Lcom/example/wayfindr/dash/nav/Router;Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/Li
+         - route$default(Lcom/example/wayfindr/dash/nav/Router;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Con
+         + route(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang
+         - route(Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + route0(Landroid/content/Context;Lcom/example/wayfindr/dash/nav/GeoPoint;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lan
+         ~ setSource(Lcom/example/wayfindr/dash/RoutingSource;)V
+         + setSource0(Lcom/example/wayfindr/dash/RoutingSource;)V
+NEW   Lcom/example/wayfindr/dash/nav/SearchPlus; 7 methods
+NEW   Lcom/example/wayfindr/dash/nav/Ui2; 12 methods
+CHG   Lcom/example/wayfindr/dash/nav/VoiceManager;
+         ~ announceNextStop(Ljava/lang/String;)V
+         ~ ensureTts$lambda$1(Lcom/example/wayfindr/dash/nav/VoiceManager;I)V
+         ~ maybeAnnounce(Lcom/example/wayfindr/dash/nav/Maneuver;DD)V
+         ~ roundDist(D)Ljava/lang/String;
+         ~ turnPhrase(Lcom/example/wayfindr/dash/nav/Maneuver;)Ljava/lang/String;
+GONE  Lcom/example/wayfindr/data/MaintenanceNotifier$$ExternalSyntheticLambda0;
+GONE  Lcom/example/wayfindr/data/MaintenanceNotifier$$ExternalSyntheticLambda1;
+GONE  Lcom/example/wayfindr/data/MaintenanceNotifier;
+CHG   Lcom/example/wayfindr/data/RideDiagnostics;
+         ~ start(Ljava/lang/String;)V
+         ~ stop(Ljava/lang/String;)V
+CHG   Lcom/example/wayfindr/data/RideRecorder;
+         ~ add(DDFFJ)V
+         ~ start()V
+         ~ stop()Lcom/example/wayfindr/data/Ride;
+CHG   Lcom/example/wayfindr/data/UpdateChecker;
+         ~ <clinit>()V
+CHG   Lcom/example/wayfindr/media/MediaInfoProvider$Companion;
+         ~ isAccessGranted(Landroid/content/Context;)Z
+CHG   Lcom/example/wayfindr/media/MediaInfoProvider;
+         ~ publish()V
+CHG   Lcom/example/wayfindr/ui/components/ComposableSingletons$UpdatePromptKt;
+         ~ lambda_1180414343$lambda$1(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda_1774979970$lambda$0(Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$$ExternalSyntheticLambda0;
+         + <init>(Landroidx/lifecycle/LifecycleOwner;Lorg/maplibre/android/maps/MapView;Ljava/util/concurrent/atomic/AtomicBoolean;)V
+         - <init>(Lorg/maplibre/android/maps/MapView;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - onStateChanged(Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$$ExternalSyntheticLambda1;
+         - <init>(Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;ZLandroidx/compose/ui/Modifier;ZZFJZZLjava/lang/Double;Ljava/lang/
+         + <init>(Lorg/maplibre/android/maps/MapView;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$$ExternalSyntheticLambda2;
+         - <init>(Landroidx/lifecycle/LifecycleOwner;Lorg/maplibre/android/maps/MapView;Ljava/util/concurrent/atomic/AtomicBoolean;)V
+         + <init>(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILandroidx/compose/ui/Modifier;Z
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$$ExternalSyntheticLambda3;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + onStateChanged(Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$$ExternalSyntheticLambda4;
+         + <init>(Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;IZLandroidx/compose/ui/Modifier;ZZFJZZLjava/lang/D
+         - <init>(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Landroidx/compose/ui/Modifier;ZZFJZZLjava/lang/D
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$3$1$$ExternalSyntheticLambda0;
+         + <init>(Ljava/util/concurrent/atomic/AtomicBoolean;Ljava/lang/String;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Lorg/maplibre/android/maps/MapV
+         - <init>(Ljava/util/concurrent/atomic/AtomicBoolean;Lkotlin/ranges/IntRange;Ljava/lang/String;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Lorg/ma
+         ~ onMapReady(Lorg/maplibre/android/maps/MapLibreMap;)V
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$3$1$$ExternalSyntheticLambda1;
+         ~ onMapClick(Lorg/maplibre/android/geometry/LatLng;)Z
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$3$1$$ExternalSyntheticLambda2;
+         ~ onStyleLoaded(Lorg/maplibre/android/maps/Style;)V
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$3$1;
+         + <init>(Lorg/maplibre/android/maps/MapView;Ljava/util/concurrent/atomic/AtomicBoolean;Ljava/lang/String;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/St
+         - <init>(Lorg/maplibre/android/maps/MapView;Ljava/util/concurrent/atomic/AtomicBoolean;Lkotlin/ranges/IntRange;Ljava/lang/String;Landroidx/compose/runtime/MutableState;Land
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         + invokeSuspend$lambda$4$lambda$1(Landroidx/compose/runtime/State;Lorg/maplibre/android/geometry/LatLng;)Z
+         + invokeSuspend$lambda$4$lambda$3(Ljava/util/concurrent/atomic/AtomicBoolean;Lorg/maplibre/android/maps/MapView;Lorg/maplibre/android/maps/MapLibreMap;Landroidx/compose/run
+         + invokeSuspend$lambda$4(Ljava/util/concurrent/atomic/AtomicBoolean;Ljava/lang/String;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Lorg/maplibre/a
+         - invokeSuspend$lambda$5$lambda$2(Landroidx/compose/runtime/State;Lorg/maplibre/android/geometry/LatLng;)Z
+         - invokeSuspend$lambda$5$lambda$4(Ljava/util/concurrent/atomic/AtomicBoolean;Lorg/maplibre/android/maps/MapView;Lorg/maplibre/android/maps/MapLibreMap;Landroidx/compose/run
+         - invokeSuspend$lambda$5(Ljava/util/concurrent/atomic/AtomicBoolean;Lkotlin/ranges/IntRange;Ljava/lang/String;Landroidx/compose/runtime/MutableState;Landroidx/compose/runti
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$4$1$WhenMappings;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$4$1;
+         + <init>(Ljava/util/concurrent/atomic/AtomicBoolean;Ljava/util/List;ILjava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/Double;Ljava/lang/Double;ZFLandroidx/compose
+         - <init>(Ljava/util/concurrent/atomic/AtomicBoolean;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/lang/Double;Ljava/lang/Double;ZFLandroidx/compose/runtime/MutableS
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$7$1;
+         + <init>(Ljava/util/List;ZLjava/util/List;Ljava/util/concurrent/atomic/AtomicBoolean;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Lkotlin/c
+         - <init>(ZLjava/util/List;Ljava/util/concurrent/atomic/AtomicBoolean;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Lkotlin/coroutines/Contin
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$lambda$26$lambda$25$$inlined$onDispose$1; 2 methods
+GONE  Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$FreeWayfindrMap$lambda$31$lambda$30$$inlined$onDispose$1;
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt$WhenMappings;
+         ~ <clinit>()V
+CHG   Lcom/example/wayfindr/ui/components/FreeWayfindrMapKt;
+         ~ FreeWayfindrMap$animate(Ljava/util/concurrent/atomic/AtomicBoolean;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/cam
+         + FreeWayfindrMap$lambda$10(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/maps/MapLibreMap;)V
+         + FreeWayfindrMap$lambda$12(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/LineManager;
+         + FreeWayfindrMap$lambda$13(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/LineManager;)V
+         - FreeWayfindrMap$lambda$14(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/maps/MapLibreMap;
+         + FreeWayfindrMap$lambda$15(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/SymbolManager;
+         - FreeWayfindrMap$lambda$15(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/maps/MapLibreMap;)V
+         + FreeWayfindrMap$lambda$16(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/SymbolManager;)V
+         - FreeWayfindrMap$lambda$17(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/LineManager;
+         + FreeWayfindrMap$lambda$18(Landroidx/compose/runtime/MutableState;)Z
+         - FreeWayfindrMap$lambda$18(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/LineManager;)V
+         + FreeWayfindrMap$lambda$19(Landroidx/compose/runtime/MutableState;Z)V
+         - FreeWayfindrMap$lambda$20(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/SymbolManager;
+         + FreeWayfindrMap$lambda$20(Landroidx/compose/runtime/State;)Lkotlin/jvm/functions/Function1;
+         - FreeWayfindrMap$lambda$21(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/SymbolManager;)V
+         - FreeWayfindrMap$lambda$23(Landroidx/compose/runtime/MutableState;)Z
+         - FreeWayfindrMap$lambda$24(Landroidx/compose/runtime/MutableState;Z)V
+         - FreeWayfindrMap$lambda$25(Landroidx/compose/runtime/State;)Lkotlin/jvm/functions/Function1;
+         + FreeWayfindrMap$lambda$26$lambda$25$lambda$21(Lorg/maplibre/android/maps/MapView;Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+         + FreeWayfindrMap$lambda$26$lambda$25(Landroidx/lifecycle/LifecycleOwner;Lorg/maplibre/android/maps/MapView;Ljava/util/concurrent/atomic/AtomicBoolean;Landroidx/compose/run
+         - FreeWayfindrMap$lambda$31$lambda$30$lambda$26(Lorg/maplibre/android/maps/MapView;Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+         - FreeWayfindrMap$lambda$31$lambda$30(Landroidx/lifecycle/LifecycleOwner;Lorg/maplibre/android/maps/MapView;Ljava/util/concurrent/atomic/AtomicBoolean;Landroidx/compose/run
+         + FreeWayfindrMap$lambda$37$lambda$36(Lorg/maplibre/android/maps/MapView;Landroid/content/Context;)Lorg/maplibre/android/maps/MapView;
+         + FreeWayfindrMap$lambda$38(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILandroidx/co
+         - FreeWayfindrMap$lambda$42$lambda$41(Lorg/maplibre/android/maps/MapView;Landroid/content/Context;)Lorg/maplibre/android/maps/MapView;
+         - FreeWayfindrMap$lambda$43(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Landroidx/compose/ui/Modifier
+         + FreeWayfindrMap$lambda$9(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/maps/MapLibreMap;
+         - FreeWayfindrMap(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Landroidx/compose/ui/Modifier;ZZFJZZLja
+         + FreeWayfindrMap(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILandroidx/compose/ui/M
+         - WayfindrMap$lambda$1(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/MapSource;
+         + WayfindrMap$lambda$1(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/MapTheme;
+         - WayfindrMap$lambda$2(Landroidx/compose/runtime/State;)Ljava/lang/String;
+         + WayfindrMap$lambda$3(Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;IZLandroidx/compose/ui/Modifier;ZZFJ
+         - WayfindrMap$lambda$8(Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;ZLandroidx/compose/ui/Modifier;ZZFJZZLjava/lang/Doub
+         + WayfindrMap(Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;IZLandroidx/compose/ui/Modifier;ZZFJZZLjava/l
+         - WayfindrMap(Ljava/lang/Double;Ljava/lang/Double;Lkotlin/Pair;Ljava/util/List;Ljava/util/List;Ljava/util/List;ZLandroidx/compose/ui/Modifier;ZZFJZZLjava/lang/Double;Ljava/
+         + access$FreeWayfindrMap$lambda$10(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/maps/MapLibreMap;)V
+         + access$FreeWayfindrMap$lambda$12(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/LineManager;
+         + access$FreeWayfindrMap$lambda$13(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/LineManager;)V
+         + access$FreeWayfindrMap$lambda$15(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/SymbolManager;
+         - access$FreeWayfindrMap$lambda$15(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/maps/MapLibreMap;)V
+         + access$FreeWayfindrMap$lambda$16(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/SymbolManager;)V
+         - access$FreeWayfindrMap$lambda$17(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/LineManager;
+         - access$FreeWayfindrMap$lambda$18(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/LineManager;)V
+         + access$FreeWayfindrMap$lambda$19(Landroidx/compose/runtime/MutableState;Z)V
+         - access$FreeWayfindrMap$lambda$20(Landroidx/compose/runtime/MutableState;)Lorg/maplibre/android/plugins/annotation/SymbolManager;
+         + access$FreeWayfindrMap$lambda$20(Landroidx/compose/runtime/State;)Lkotlin/jvm/functions/Function1;
+         - access$FreeWayfindrMap$lambda$21(Landroidx/compose/runtime/MutableState;Lorg/maplibre/android/plugins/annotation/SymbolManager;)V
+         - access$FreeWayfindrMap$lambda$24(Landroidx/compose/runtime/MutableState;Z)V
+         - access$FreeWayfindrMap$lambda$25(Landroidx/compose/runtime/State;)Lkotlin/jvm/functions/Function1;
+         + access$drawTraffic(Lorg/maplibre/android/plugins/annotation/LineManager;Ljava/util/List;Ljava/util/List;)V
+         + drawTraffic(Lorg/maplibre/android/plugins/annotation/LineManager;Ljava/util/List;Ljava/util/List;)V
+GONE  Lcom/example/wayfindr/ui/components/OfflineMapStyleKt;
+NEW   Lcom/example/wayfindr/ui/components/OsmMapStyleKt$WhenMappings; 1 methods
+NEW   Lcom/example/wayfindr/ui/components/OsmMapStyleKt; 11 methods
+NEW   Lcom/example/wayfindr/ui/components/RouteAlternativeStyle; 4 methods
+NEW   Lcom/example/wayfindr/ui/components/RouteAlternativeStyleKt; 1 methods
+CHG   Lcom/example/wayfindr/ui/components/RouteQrDialogKt;
+         ~ RouteQrDialog$lambda$6$lambda$5$lambda$4$lambda$3(Landroid/content/Context;Landroid/graphics/Bitmap;Lcom/example/wayfindr/data/SavedLocation;)Lkotlin/Unit;
+         ~ RouteQrDialog$lambda$6(Landroid/graphics/Bitmap;Lcom/example/wayfindr/data/SavedLocation;Landroid/content/Context;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtim
+         ~ RouteQrDialog(Lcom/example/wayfindr/data/SavedLocation;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)V
+NEW   Lcom/example/wayfindr/ui/components/StylePlus; 1 methods
+CHG   Lcom/example/wayfindr/ui/components/UpdatePromptKt;
+         ~ UpdatePrompt$lambda$23$lambda$22(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ UpdatePrompt$lambda$23(Lkotlinx/coroutines/CoroutineScope;Landroid/content/Context;Lcom/example/wayfindr/data/UpdateChecker$ReleaseInfo;Landroidx/compose/runtime/MutableS
+         ~ UpdatePrompt$lambda$26(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ UpdatePrompt$lambda$31(Lcom/example/wayfindr/data/UpdateChecker$ReleaseInfo;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableFloatState;Landroidx/c
+         ~ UpdatePrompt(Landroidx/compose/runtime/Composer;I)V
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda10;
+         - <init>(Landroidx/navigation/NavHostController;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;II)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda11;
+         - <init>(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;II)V
+         + <init>(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/ui/navigation/NavTab;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda12;
+         - <init>()V
+         + <init>(Ljava/lang/String;Lkotlin/jvm/functions/Function1;I)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda13;
+         + <init>()V
+         - <init>(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/ui/navigation/NavTab;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda14;
+         + <init>(Landroidx/navigation/NavHostController;)V
+         - <init>(Ljava/lang/String;Lkotlin/jvm/functions/Function1;I)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda15;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda16;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda17;
+         + <init>()V
+         - <init>(Lcom/example/wayfindr/viewmodel/AppViewModel;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda18;
+GONE  Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda19;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda1;
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda20;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda2;
+         + <init>(Landroidx/navigation/NavHostController;)V
+         - <init>(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda3;
+         - <init>(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         + <init>(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda4;
+         + <init>(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda5;
+         - <init>(Lcom/example/wayfindr/viewmodel/AppViewModel;Landroidx/compose/runtime/State;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda6;
+         + <init>(Lcom/example/wayfindr/viewmodel/AppViewModel;Landroidx/navigation/NavHostController;Landroidx/compose/runtime/State;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda7;
+         + <init>(Landroidx/compose/runtime/State;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/AppViewModel;Landroidx/navigation/NavHostController;Landroidx/compose/runtime/State;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda8;
+         - <init>(Landroidx/compose/runtime/State;)V
+         + <init>(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$$ExternalSyntheticLambda9;
+         + <init>(Landroidx/navigation/NavHostController;)V
+         - <init>(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$AppNavigation$1$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt$AppNavigation$2$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/AppNavigationKt;
+         ~ <clinit>()V
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$11$lambda$10$lambda$9(Landroidx/navigation/NavHostController;Ljava/lang/String;)Lkotlin/Unit;
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$11(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/ru
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$17$lambda$13$lambda$12(Landroidx/navigation/NavHostController;)Lkotlin/Unit;
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$17$lambda$16$lambda$15$lambda$14(Landroidx/navigation/NavOptionsBuilder;)Lkotlin/Unit;
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$17$lambda$16$lambda$15(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/navigation/NavHostController;L
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$17(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$18(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/animation/AnimatedContentScope;Landroidx/n
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$23$lambda$20$lambda$19(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/Connectio
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$23$lambda$22$lambda$21(Landroidx/navigation/NavHostController;)Lkotlin/Unit;
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24$lambda$23(Lcom/example/wayfindr/viewmodel/AppViewModel;Landroidx/navigation/NavHostController;Landroidx/compose/runt
+         + AppNavigation$lambda$29$lambda$26$lambda$25$lambda$24(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/Stat
+         + AppNavigation$lambda$29$lambda$28$lambda$27(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/ui/navigation/Screen;)Lkotlin/Unit;
+         + AppNavigation$lambda$3(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/RouteState;
+         - AppNavigation$lambda$3(Landroidx/compose/runtime/State;)Ljava/lang/String;
+         + AppNavigation$lambda$30(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;IILandro
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$12$lambda$11$lambda$10(Landroidx/navigation/NavHostController;Ljava/lang/String;)Lkotlin/Unit;
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$12(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/ru
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$18$lambda$14$lambda$13(Landroidx/navigation/NavHostController;)Lkotlin/Unit;
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$18$lambda$17$lambda$16$lambda$15(Landroidx/navigation/NavOptionsBuilder;)Lkotlin/Unit;
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$18$lambda$17$lambda$16(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/navigation/NavHostController;L
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$18(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$19(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/animation/AnimatedContentScope;Landroidx/n
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$22$lambda$21$lambda$20(Lcom/example/wayfindr/viewmodel/AppViewModel;Ljava/lang/String;)Lkotlin/Unit;
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$22(Lcom/example/wayfindr/viewmodel/AppViewModel;Landroidx/compose/runtime/State;Landroidx/compose/animation/A
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$23(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/animation/AnimatedContentScope;Landroidx/n
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$28$lambda$25$lambda$24(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/Connectio
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$28$lambda$27$lambda$26(Landroidx/navigation/NavHostController;)Lkotlin/Unit;
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29$lambda$28(Lcom/example/wayfindr/viewmodel/AppViewModel;Landroidx/navigation/NavHostController;Landroidx/compose/runt
+         - AppNavigation$lambda$34$lambda$31$lambda$30$lambda$29(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/Stat
+         - AppNavigation$lambda$34$lambda$33$lambda$32(Landroidx/navigation/NavHostController;Lcom/example/wayfindr/ui/navigation/Screen;)Lkotlin/Unit;
+         - AppNavigation$lambda$35(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;IILandro
+         - AppNavigation$lambda$4(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/RouteState;
+         + AppNavigation$lambda$5$lambda$4(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/ConnectionState;
+         - AppNavigation$lambda$6$lambda$5(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/ConnectionState;
+         + AppNavigation$lambda$6(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/ConnectionState;
+         - AppNavigation$lambda$7(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/ConnectionState;
+         ~ AppNavigation$navigateTab$lambda$2(Landroidx/navigation/NavHostController;Landroidx/navigation/NavOptionsBuilder;)Lkotlin/Unit;
+         ~ AppNavigation(Lcom/example/wayfindr/viewmodel/AppViewModel;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/
+         + WayfindrBottomNav$lambda$37$lambda$36$lambda$33$lambda$32(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/ui/navigation/NavTab;)Lkotlin/Unit;
+         + WayfindrBottomNav$lambda$38(Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - WayfindrBottomNav$lambda$42$lambda$41$lambda$38$lambda$37(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/ui/navigation/NavTab;)Lkotlin/Unit;
+         - WayfindrBottomNav$lambda$43(Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ WayfindrBottomNav(Ljava/lang/String;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)V
+         + access$AppNavigation$lambda$3(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/RouteState;
+         - access$AppNavigation$lambda$4(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/viewmodel/RouteState;
+CHG   Lcom/example/wayfindr/ui/navigation/ComposableSingletons$AppNavigationKt$$ExternalSyntheticLambda0;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/navigation/ComposableSingletons$AppNavigationKt;
+         ~ <clinit>()V
+         + getLambda$-2055826793$app()Lkotlin/jvm/functions/Function4;
+         - getLambda$31749145$app()Lkotlin/jvm/functions/Function4;
+         - lambda_31749145$lambda$0(Landroidx/compose/animation/AnimatedContentScope;Landroidx/navigation/NavBackStackEntry;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + lambda__2055826793$lambda$0(Landroidx/compose/animation/AnimatedContentScope;Landroidx/navigation/NavBackStackEntry;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+GONE  Lcom/example/wayfindr/ui/navigation/Screen$Garage;
+GONE  Lcom/example/wayfindr/ui/navigation/Screen$Live;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda0;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda10;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda11;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda12;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda13;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda14;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda15;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda16;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda17;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda18;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda19;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda1;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda20;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda21;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda22;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda23;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda24;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda25;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda26;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda27;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda28;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda29;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda2;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda3;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda4;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda5;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda6;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda7;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda8;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt$$ExternalSyntheticLambda9;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$GarageScreenKt;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$HomeScreenKt;
+         ~ lambda__967594650$lambda$0(Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$LiveDataScreenKt$$ExternalSyntheticLambda0;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$LiveDataScreenKt;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$RidesScreenKt;
+         ~ lambda_1900764168$lambda$2(Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$RouteScreenKt$$ExternalSyntheticLambda0;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$RouteScreenKt$$ExternalSyntheticLambda1;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$RouteScreenKt;
+         ~ <clinit>()V
+         + getLambda$-835303176$app()Lkotlin/jvm/functions/Function3;
+         - getLambda$-848835977$app()Lkotlin/jvm/functions/Function3;
+         + getLambda$600090294$app()Lkotlin/jvm/functions/Function2;
+         - getLambda$842715583$app()Lkotlin/jvm/functions/Function2;
+         ~ lambda_1136666397$lambda$4(Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda_1619674018$lambda$5(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda_568965429$lambda$10(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + lambda_600090294$lambda$0(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda_73407262$lambda$11(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda_837491251$lambda$6(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - lambda_842715583$lambda$0(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda__1113408602$lambda$9(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda__1895094998$lambda$7(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ lambda__660152949$lambda$8(Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + lambda__835303176$lambda$3(Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - lambda__848835977$lambda$3(Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$SettingsScreenKt$$ExternalSyntheticLambda0;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$SettingsScreenKt$$ExternalSyntheticLambda1;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/screens/ComposableSingletons$SettingsScreenKt$$ExternalSyntheticLambda2;
+CHG   Lcom/example/wayfindr/ui/screens/ComposableSingletons$SettingsScreenKt;
+         ~ <clinit>()V
+         - getLambda$-2029559538$app()Lkotlin/jvm/functions/Function2;
+         + lambda_1102592676$lambda$0(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - lambda_1102592676$lambda$1(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + lambda_720111070$lambda$1(Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - lambda_720111070$lambda$2(Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - lambda__2029559538$lambda$0(Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda0;
+         + <init>(Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Landroidx/compose/foundation/layout/RowScope;Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/lang/String;Landroidx/compose/runtime/State;Landroid/c
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda10;
+         + <init>(Landroidx/lifecycle/LifecycleOwner;Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime
+         - <init>([Ljava/lang/String;Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/activity/compose/Managed
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda11;
+         - <init>()V
+         + <init>(ZLandroidx/compose/runtime/State;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda12;
+         + <init>(Landroid/content/Context;)V
+         - <init>(Landroidx/lifecycle/LifecycleOwner;Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda13;
+         + <init>(Landroidx/compose/runtime/State;Landroid/content/Context;[Ljava/lang/String;Landroidx/activity/compose/ManagedActivityResultLauncher;Lcom/example/wayfindr/viewmode
+         - <init>(ZLandroidx/compose/runtime/State;)V
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda14;
+         - <init>(Landroid/content/Context;)V
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda15;
+         - <init>(Landroidx/compose/runtime/State;Landroid/content/Context;[Ljava/lang/String;Landroidx/activity/compose/ManagedActivityResultLauncher;Lcom/example/wayfindr/viewmode
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda16;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda17;
+         + <init>(Landroidx/compose/foundation/layout/RowScope;Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/lang/String;Landroidx/compose/runtime/State;Landroid/c
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda18;
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda19;
+         - <init>(Landroid/content/Context;)V
+         + <init>(Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;[Ljava/lang/String;)V
+         - invoke()Ljava/lang/Object;
+         + onStateChanged(Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda1;
+         + <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda20;
+         + <init>(Landroid/content/Context;)V
+         - <init>(Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;[Ljava/lang/String;)V
+         + invoke()Ljava/lang/Object;
+         - onStateChanged(Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda2;
+         - <init>(Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda3;
+         - <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda4;
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda5;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda6;
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda7;
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;II)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda8;
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + <init>([Ljava/lang/String;Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/activity/compose/Managed
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$$ExternalSyntheticLambda9;
+         + <init>()V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;II)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$DashScreen$1$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$DashScreen$2$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt$DashScreen$3$1;
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;[Ljava/lang/String;Landroid/content/Context;Lk
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;[Ljava/lang/St
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/screens/DashScreenKt$DashScreen$lambda$36$lambda$35$$inlined$onDispose$1;
+NEW   Lcom/example/wayfindr/ui/screens/DashScreenKt$DashScreen$lambda$38$lambda$37$$inlined$onDispose$1; 2 methods
+CHG   Lcom/example/wayfindr/ui/screens/DashScreenKt;
+         ~ DashScreen$connectWithBackgroundCheck(Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/activity/com
+         - DashScreen$lambda$10(Landroidx/compose/runtime/MutableState;Z)V
+         + DashScreen$lambda$11(Landroidx/compose/runtime/MutableState;)Z
+         - DashScreen$lambda$12$lambda$11(Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/activity/result/Act
+         + DashScreen$lambda$12(Landroidx/compose/runtime/MutableState;Z)V
+         + DashScreen$lambda$14$lambda$13(Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/activity/result/Act
+         - DashScreen$lambda$16$lambda$15([Ljava/lang/String;Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/
+         + DashScreen$lambda$18$lambda$17([Ljava/lang/String;Landroid/content/Context;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;Landroidx/
+         - DashScreen$lambda$18(Landroidx/compose/runtime/MutableState;)J
+         - DashScreen$lambda$19(Landroidx/compose/runtime/MutableState;J)V
+         + DashScreen$lambda$20(Landroidx/compose/runtime/MutableState;)J
+         - DashScreen$lambda$21(Landroidx/compose/runtime/MutableState;)Z
+         + DashScreen$lambda$21(Landroidx/compose/runtime/MutableState;J)V
+         - DashScreen$lambda$22(Landroidx/compose/runtime/MutableState;Z)V
+         + DashScreen$lambda$23(Landroidx/compose/runtime/MutableState;)Z
+         - DashScreen$lambda$24(Landroidx/compose/runtime/MutableState;)J
+         + DashScreen$lambda$24(Landroidx/compose/runtime/MutableState;Z)V
+         - DashScreen$lambda$25(Landroidx/compose/runtime/MutableState;J)V
+         + DashScreen$lambda$26(Landroidx/compose/runtime/MutableState;)J
+         + DashScreen$lambda$27(Landroidx/compose/runtime/MutableState;J)V
+         - DashScreen$lambda$29$lambda$28()Landroidx/compose/runtime/MutableState;
+         + DashScreen$lambda$3(Landroidx/compose/runtime/State;)Z
+         - DashScreen$lambda$30(Landroidx/compose/runtime/MutableState;)Z
+         + DashScreen$lambda$31$lambda$30()Landroidx/compose/runtime/MutableState;
+         - DashScreen$lambda$31(Landroidx/compose/runtime/MutableState;Z)V
+         + DashScreen$lambda$32(Landroidx/compose/runtime/MutableState;)Z
+         + DashScreen$lambda$33(Landroidx/compose/runtime/MutableState;Z)V
+         - DashScreen$lambda$36$lambda$35$lambda$33(Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/
+         - DashScreen$lambda$36$lambda$35(Landroidx/lifecycle/LifecycleOwner;Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;L
+         + DashScreen$lambda$38$lambda$37$lambda$35(Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/
+         + DashScreen$lambda$38$lambda$37(Landroidx/lifecycle/LifecycleOwner;Landroid/content/Context;Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/DashViewModel;L
+         - DashScreen$lambda$9(Landroidx/compose/runtime/MutableState;)Z
+         - DashScreen$lambda$94$lambda$38(ZLandroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$43$lambda$42$lambda$41$lambda$40(Landroid/content/Context;)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$43(Landroid/content/Context;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$52$lambda$50$lambda$47$lambda$46(Landroidx/compose/foundation/layout/RowScope;Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/
+         - DashScreen$lambda$94$lambda$52$lambda$50$lambda$49$lambda$48(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$52(Landroidx/compose/runtime/State;Landroid/content/Context;[Ljava/lang/String;Landroidx/activity/compose/ManagedActivityResultLauncher;Lcom/e
+         - DashScreen$lambda$94$lambda$68$lambda$67$lambda$66(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$73$lambda$72$lambda$71(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$78$lambda$77$lambda$76(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$89$lambda$81$lambda$80$lambda$79(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/ui/geometry/O
+         - DashScreen$lambda$94$lambda$89$lambda$88$lambda$83$lambda$82(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$89$lambda$88$lambda$85$lambda$84(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$89$lambda$88$lambda$87$lambda$86(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$91$lambda$90(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         - DashScreen$lambda$94$lambda$93$lambda$92(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         - DashScreen$lambda$95(Lcom/example/wayfindr/viewmodel/DashViewModel;IILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$40(ZLandroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$45$lambda$44$lambda$43$lambda$42(Landroid/content/Context;)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$45(Landroid/content/Context;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$54$lambda$52$lambda$49$lambda$48(Landroidx/compose/foundation/layout/RowScope;Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/
+         + DashScreen$lambda$96$lambda$54$lambda$52$lambda$51$lambda$50(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$54(Landroidx/compose/runtime/State;Landroid/content/Context;[Ljava/lang/String;Landroidx/activity/compose/ManagedActivityResultLauncher;Lcom/e
+         + DashScreen$lambda$96$lambda$70$lambda$69$lambda$68(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$75$lambda$74$lambda$73(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$80$lambda$79$lambda$78(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$91$lambda$83$lambda$82$lambda$81(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/ui/geometry/O
+         + DashScreen$lambda$96$lambda$91$lambda$90$lambda$85$lambda$84(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$91$lambda$90$lambda$87$lambda$86(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$91$lambda$90$lambda$89$lambda$88(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$93$lambda$92(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         + DashScreen$lambda$96$lambda$95$lambda$94(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlin/Unit;
+         + DashScreen$lambda$97(Lcom/example/wayfindr/viewmodel/DashViewModel;IILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ DashScreen(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroidx/compose/runtime/Composer;II)V
+         - access$DashScreen$lambda$18(Landroidx/compose/runtime/MutableState;)J
+         - access$DashScreen$lambda$19(Landroidx/compose/runtime/MutableState;J)V
+         + access$DashScreen$lambda$20(Landroidx/compose/runtime/MutableState;)J
+         - access$DashScreen$lambda$21(Landroidx/compose/runtime/MutableState;)Z
+         + access$DashScreen$lambda$21(Landroidx/compose/runtime/MutableState;J)V
+         + access$DashScreen$lambda$23(Landroidx/compose/runtime/MutableState;)Z
+         - access$DashScreen$lambda$24(Landroidx/compose/runtime/MutableState;)J
+         + access$DashScreen$lambda$26(Landroidx/compose/runtime/MutableState;)J
+         + access$DashScreen$lambda$3(Landroidx/compose/runtime/State;)Z
+         - access$DashScreen$lambda$30(Landroidx/compose/runtime/MutableState;)Z
+         - access$DashScreen$lambda$31(Landroidx/compose/runtime/MutableState;Z)V
+         + access$DashScreen$lambda$32(Landroidx/compose/runtime/MutableState;)Z
+         + access$DashScreen$lambda$33(Landroidx/compose/runtime/MutableState;Z)V
+         + turkishConnectionError(Ljava/lang/String;)Ljava/lang/String;
+         + turkishManeuver(Ljava/lang/String;)Ljava/lang/String;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda0;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda100;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda101;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda102;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda103;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda104;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda105;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda106;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda107;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda108;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda109;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda10;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda110;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda111;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda112;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda113;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda114;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda115;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda116;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda117;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda118;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda119;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda11;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda120;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda121;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda122;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda123;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda124;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda125;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda126;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda127;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda128;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda129;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda12;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda130;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda131;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda13;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda14;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda15;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda16;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda17;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda18;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda19;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda1;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda20;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda21;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda22;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda23;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda24;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda25;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda26;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda27;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda28;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda29;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda2;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda30;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda31;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda32;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda33;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda34;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda35;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda36;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda37;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda38;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda39;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda3;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda40;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda41;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda42;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda43;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda44;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda45;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda46;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda47;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda48;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda49;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda4;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda50;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda51;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda52;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda53;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda54;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda55;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda56;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda57;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda58;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda59;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda5;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda60;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda61;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda62;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda63;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda64;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda65;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda66;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda67;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda68;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda69;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda6;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda70;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda71;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda72;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda73;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda74;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda75;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda76;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda77;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda78;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda79;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda7;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda80;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda81;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda82;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda83;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda84;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda85;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda86;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda87;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda88;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda89;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda8;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda90;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda91;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda92;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda93;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda94;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda95;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda96;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda97;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda98;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda99;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt$$ExternalSyntheticLambda9;
+GONE  Lcom/example/wayfindr/ui/screens/GarageScreenKt;
+CHG   Lcom/example/wayfindr/ui/screens/HomeScreenKt;
+         ~ HomeScreen$lambda$30$lambda$10(Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ HomeScreen$lambda$30$lambda$17(Lcom/example/wayfindr/viewmodel/ConnectionState;Ljava/lang/String;JLjava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/foun
+         ~ HomeScreen$lambda$30$lambda$29(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/Mu
+         ~ HomeScreen(Lcom/example/wayfindr/viewmodel/ConnectionState;Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/Compos
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda0;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda1;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda2;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda3;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda4;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda5;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$$ExternalSyntheticLambda6;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$ApiUsageCard$lambda$17$$inlined$sortedByDescending$1;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt$LiveDataScreen$1$1;
+GONE  Lcom/example/wayfindr/ui/screens/LiveDataScreenKt;
+CHG   Lcom/example/wayfindr/ui/screens/RidesScreenKt;
+         ~ EmptyRides(Landroidx/compose/runtime/Composer;I)V
+         ~ MiniStat(Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
+         ~ RideCard$lambda$22(Lcom/example/wayfindr/data/Ride;Ljava/util/List;Lkotlin/jvm/functions/Function0;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runti
+         ~ RideCard(Lcom/example/wayfindr/data/Ride;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)V
+         ~ RideTotals$lambda$9(Ljava/util/List;DJLandroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + RideTotals$lambda$9o(Ljava/util/List;DJLandroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ RideTotals(Ljava/util/List;Landroidx/compose/runtime/Composer;I)V
+         ~ RidesScreen(Lcom/example/wayfindr/viewmodel/RidesViewModel;Landroidx/compose/runtime/Composer;II)V
+         ~ Stat(Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
+         ~ TrackSketch$lambda$32$lambda$31(Ljava/util/List;Landroidx/compose/ui/graphics/drawscope/DrawScope;)Lkotlin/Unit;
+         ~ TrackSketch(Ljava/util/List;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;I)V
+         ~ fmtDate(J)Ljava/lang/String;
+         ~ fmtDuration(J)Ljava/lang/String;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda0;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda10;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda11;
+         + <init>(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landro
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda12;
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda13;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda14;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda15;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;II)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda16;
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda17;
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda18;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Landroidx/compose/runtime/State;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda19;
+         - <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;)V
+         + <init>(Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lcom/example/wayfindr/viewmodel/RouteViewModel;II)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda1;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda20;
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         - <init>(Ljava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda21;
+         - <init>(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda22;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda23;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + <init>(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landro
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda24;
+         + <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;)V
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda25;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Ljava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda26;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda27;
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)V
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda28;
+         - <init>(Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda29;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda2;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda30;
+         + <init>(Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Ljava/lang/String;Ljava/lang/String;I)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda31;
+         + <init>(Ljava/lang/String;Ljava/lang/String;I)V
+         - <init>(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda32;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lkotlin/jvm/functions/Function0;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda33;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda34;
+         - <init>(Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;I)V
+         + <init>(Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;II)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda35;
+         + <init>(Lkotlin/jvm/functions/Function1;I)V
+         - <init>(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda36;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;II)V
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda37;
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda38;
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda39;
+         + <init>(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda3;
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda40;
+         + <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lkotlin/jvm/functions/Function0;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda41;
+         - <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Landroidx/compose/runtime/State;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda42;
+         + <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/data/SavedLocation;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;I)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda43;
+         + <init>(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;)V
+         - <init>(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda44;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda45;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lkotlin/jvm/functions/Function0;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda46;
+         + <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda47;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;I)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda48;
+         - <init>(Landroidx/compose/runtime/State;Landroidx/compose/runtime/State;)V
+         + <init>(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda49;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lkotlin/jvm/functions/Function0;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda4;
+         - <init>(Lcom/example/wayfindr/dash/nav/VoiceManager;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda50; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda51; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda52; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda53; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda54; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda55; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda56; 2 methods
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda5;
+         - <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/lang/String;Landroid/content/Context;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda6;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Lcom/example/wayfindr/dash/MapTheme;)V
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda7;
+         - <init>(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/nav/VoiceManager;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda8;
+         + <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/lang/String;Landroid/content/Context;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$$ExternalSyntheticLambda9;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$1$1;
+         - <init>(Ljava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;Lkotlin/coroutines/Continuation;)V
+         + <init>(Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$2$1;
+         + <init>(Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/run
+         - <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/activity/compose/ManagedActivityResultLauncher;Landroid/content/Context;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$3$1;
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/activity/compose/ManagedActivityResultLauncher;Landroid/content/Context;Lkotlin/coroutines/Continuation;)V
+         - <init>(Lkotlin/jvm/functions/Function1;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$4$1$4$1$1;
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$4$1; 5 methods
+GONE  Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$4$2$5$1$1;
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$5$1$5$1$1; 3 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$5$1$6$1; 3 methods
+NEW   Lcom/example/wayfindr/ui/screens/RouteScreenKt$RouteScreen$5$2$5$1$1; 3 methods
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt$WhenMappings;
+         ~ <clinit>()V
+CHG   Lcom/example/wayfindr/ui/screens/RouteScreenKt;
+         - ChoiceHeader$lambda$162(Ljava/lang/String;Ljava/lang/String;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + ChoiceHeader$lambda$206(Ljava/lang/String;Ljava/lang/String;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ ChoiceHeader(Ljava/lang/String;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
+         - EditLocationDialog$lambda$144(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - EditLocationDialog$lambda$145(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - EditLocationDialog$lambda$147(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - EditLocationDialog$lambda$148(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - EditLocationDialog$lambda$152$lambda$150$lambda$149(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)Lkotlin
+         - EditLocationDialog$lambda$152$lambda$151(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/
+         - EditLocationDialog$lambda$152(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Comp
+         - EditLocationDialog$lambda$153(Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - EditLocationDialog$lambda$159$lambda$158$lambda$155$lambda$154(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         - EditLocationDialog$lambda$159$lambda$158$lambda$157$lambda$156(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         - EditLocationDialog$lambda$159(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - EditLocationDialog$lambda$160(Lcom/example/wayfindr/data/SavedLocation;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILa
+         + EditLocationDialog$lambda$179(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + EditLocationDialog$lambda$180(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + EditLocationDialog$lambda$182(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + EditLocationDialog$lambda$183(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + EditLocationDialog$lambda$187$lambda$185$lambda$184(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)Lkotlin
+         + EditLocationDialog$lambda$187$lambda$186(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/
+         + EditLocationDialog$lambda$187(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Comp
+         + EditLocationDialog$lambda$188(Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + EditLocationDialog$lambda$194$lambda$193$lambda$190$lambda$189(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         + EditLocationDialog$lambda$194$lambda$193$lambda$192$lambda$191(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         + EditLocationDialog$lambda$194(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + EditLocationDialog$lambda$195(Lcom/example/wayfindr/data/SavedLocation;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;ILa
+         ~ EditLocationDialog(Lcom/example/wayfindr/data/SavedLocation;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/comp
+         + RouteMapLegend$lambda$196(Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;IILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + RouteMapLegend$lambda$203$lambda$202$lambda$201$lambda$198$lambda$197(Lkotlin/jvm/functions/Function1;I)Lkotlin/Unit;
+         + RouteMapLegend$lambda$204(Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;IILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + RouteMapLegend(Ljava/util/List;ILkotlin/jvm/functions/Function1;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
+         + RouteScreen$lambda$10(Landroidx/compose/runtime/MutableState;)Z
+         - RouteScreen$lambda$10(Landroidx/compose/runtime/MutableState;Z)V
+         - RouteScreen$lambda$109$lambda$108$lambda$107$lambda$106$lambda$105$lambda$102$lambda$101(Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)
+         - RouteScreen$lambda$109$lambda$108$lambda$107$lambda$106$lambda$105$lambda$104$lambda$103(Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)
+         - RouteScreen$lambda$109$lambda$108$lambda$107$lambda$106$lambda$98$lambda$97(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;)Lkotl
+         - RouteScreen$lambda$109$lambda$108$lambda$107(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroi
+         - RouteScreen$lambda$109$lambda$108$lambda$48$lambda$41$lambda$40(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/fo
+         - RouteScreen$lambda$109$lambda$108$lambda$48$lambda$43$lambda$42(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$48$lambda$44(Landroidx/compose/runtime/State;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$48$lambda$47$lambda$46$lambda$45(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$48$lambda$47(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$48(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Landroid
+         - RouteScreen$lambda$109$lambda$108$lambda$51$lambda$50(Landroidx/activity/compose/ManagedActivityResultLauncher;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$57$lambda$56$lambda$55$lambda$54$lambda$53(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$57$lambda$56(Ljava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;Landroidx/compose/foundatio
+         - RouteScreen$lambda$109$lambda$108$lambda$68$lambda$67$lambda$66$lambda$61$lambda$60(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$68$lambda$67$lambda$66$lambda$63$lambda$62(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$68$lambda$67$lambda$66$lambda$65$lambda$64(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$68(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/foundation/layout/ColumnScope
+         - RouteScreen$lambda$109$lambda$108$lambda$77(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/RoutingSource;
+         - RouteScreen$lambda$109$lambda$108$lambda$78(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/MapSource;
+         - RouteScreen$lambda$109$lambda$108$lambda$79(Landroidx/compose/runtime/State;)Ljava/lang/String;
+         - RouteScreen$lambda$109$lambda$108$lambda$85$lambda$84(Lcom/example/wayfindr/dash/DashConfig;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/State
+         - RouteScreen$lambda$109$lambda$108$lambda$89$lambda$88(Lcom/example/wayfindr/dash/DashConfig;Ljava/lang/String;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$92$lambda$91(Lcom/example/wayfindr/dash/nav/VoiceManager;Ljava/lang/String;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$108$lambda$94$lambda$93(Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/lang/String;Landroid/content/Context;Landroidx/compo
+         - RouteScreen$lambda$109$lambda$108$lambda$96$lambda$95(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$109$lambda$39$lambda$36$lambda$35(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/google/android/gms/maps/model/LatLng;)Lkotlin/Unit;
+         + RouteScreen$lambda$11(Landroidx/compose/runtime/MutableState;Z)V
+         - RouteScreen$lambda$111$lambda$110(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Ljava/lang/String;Ljava/lang/String;)Lkotlin/Unit;
+         - RouteScreen$lambda$113$lambda$112(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$116$lambda$115$lambda$114(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$12(Landroidx/compose/runtime/MutableState;)Lcom/example/wayfindr/data/SavedLocation;
+         - RouteScreen$lambda$123$lambda$118$lambda$117(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableStat
+         - RouteScreen$lambda$123$lambda$120$lambda$119(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableStat
+         - RouteScreen$lambda$123$lambda$122$lambda$121(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$124(Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;IILandroidx/compose/runtime/Composer
+         + RouteScreen$lambda$13(Landroidx/compose/runtime/MutableState;)Lcom/example/wayfindr/data/SavedLocation;
+         - RouteScreen$lambda$13(Landroidx/compose/runtime/MutableState;Lcom/example/wayfindr/data/SavedLocation;)V
+         + RouteScreen$lambda$14(Landroidx/compose/runtime/MutableState;Lcom/example/wayfindr/data/SavedLocation;)V
+         + RouteScreen$lambda$144$lambda$143$lambda$103$lambda$102$lambda$99$lambda$98(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$108(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/RoutingSource;
+         + RouteScreen$lambda$144$lambda$143$lambda$109(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/MapTheme;
+         + RouteScreen$lambda$144$lambda$143$lambda$114$lambda$113(Lcom/example/wayfindr/dash/DashConfig;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/Sta
+         + RouteScreen$lambda$144$lambda$143$lambda$121$lambda$120$lambda$119$lambda$118$lambda$116$lambda$115(Lcom/example/wayfindr/dash/DashConfig;Lcom/example/wayfindr/dash/MapTh
+         + RouteScreen$lambda$144$lambda$143$lambda$124$lambda$123(Lcom/example/wayfindr/dash/nav/VoiceManager;Ljava/lang/String;)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$126$lambda$125(Landroidx/activity/compose/ManagedActivityResultLauncher;[Ljava/lang/String;Landroid/content/Context;Landroidx/com
+         + RouteScreen$lambda$144$lambda$143$lambda$128$lambda$127(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$131$lambda$130$lambda$129(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$142$lambda$141$lambda$133$lambda$132(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Land
+         + RouteScreen$lambda$144$lambda$143$lambda$142$lambda$141$lambda$140$lambda$137$lambda$136(Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)
+         + RouteScreen$lambda$144$lambda$143$lambda$142$lambda$141$lambda$140$lambda$139$lambda$138(Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableState;)
+         + RouteScreen$lambda$144$lambda$143$lambda$142(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroi
+         + RouteScreen$lambda$144$lambda$143$lambda$74$lambda$73$lambda$60$lambda$59(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose
+         + RouteScreen$lambda$144$lambda$143$lambda$74$lambda$73$lambda$62$lambda$61(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/
+         + RouteScreen$lambda$144$lambda$143$lambda$74$lambda$73$lambda$63(Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$74$lambda$73$lambda$66$lambda$65$lambda$64(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroid
+         + RouteScreen$lambda$144$lambda$143$lambda$74$lambda$73$lambda$66(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Mu
+         + RouteScreen$lambda$144$lambda$143$lambda$74$lambda$73$lambda$72$lambda$69$lambda$68(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;)Lkotli
+         + RouteScreen$lambda$144$lambda$143$lambda$74(Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroid
+         + RouteScreen$lambda$144$lambda$143$lambda$77$lambda$76(Landroidx/activity/compose/ManagedActivityResultLauncher;)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$83$lambda$82$lambda$81$lambda$80$lambda$79(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$83$lambda$82(Ljava/lang/String;Landroidx/compose/runtime/State;Landroidx/compose/runtime/MutableState;Landroidx/compose/foundatio
+         + RouteScreen$lambda$144$lambda$143$lambda$94$lambda$93$lambda$92$lambda$87$lambda$86(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$94$lambda$93$lambda$92$lambda$89$lambda$88(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$94$lambda$93$lambda$92$lambda$91$lambda$90(Lcom/example/wayfindr/viewmodel/RouteViewModel;I)Lkotlin/Unit;
+         + RouteScreen$lambda$144$lambda$143$lambda$94(Landroidx/compose/runtime/State;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/foundation/layout/ColumnScope
+         + RouteScreen$lambda$144$lambda$58$lambda$54$lambda$53(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/google/android/gms/maps/model/LatLng;)Lkotlin/Unit;
+         + RouteScreen$lambda$146$lambda$145(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Ljava/lang/String;Ljava/lang/String;)Lkotlin/Unit;
+         + RouteScreen$lambda$148$lambda$147(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - RouteScreen$lambda$15(Landroidx/compose/runtime/MutableState;)Lcom/example/wayfindr/data/SavedLocation;
+         + RouteScreen$lambda$151$lambda$150$lambda$149(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         + RouteScreen$lambda$158$lambda$153$lambda$152(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableStat
+         + RouteScreen$lambda$158$lambda$155$lambda$154(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lcom/example/wayfindr/data/SavedLocation;Landroidx/compose/runtime/MutableStat
+         + RouteScreen$lambda$158$lambda$157$lambda$156(Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         + RouteScreen$lambda$159(Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lcom/example/wayfindr/viewmodel/RouteViewModel;IILandroidx/compose/runtime/Composer
+         + RouteScreen$lambda$16(Landroidx/compose/runtime/MutableState;)Lcom/example/wayfindr/data/SavedLocation;
+         - RouteScreen$lambda$16(Landroidx/compose/runtime/MutableState;Lcom/example/wayfindr/data/SavedLocation;)V
+         + RouteScreen$lambda$17(Landroidx/compose/runtime/MutableState;Lcom/example/wayfindr/data/SavedLocation;)V
+         - RouteScreen$lambda$18(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + RouteScreen$lambda$19(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - RouteScreen$lambda$19(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + RouteScreen$lambda$20(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - RouteScreen$lambda$21(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/RoutingSource;
+         + RouteScreen$lambda$22(Landroidx/compose/runtime/MutableState;)Z
+         + RouteScreen$lambda$23(Landroidx/compose/runtime/MutableState;Z)V
+         + RouteScreen$lambda$25(Landroidx/compose/runtime/MutableState;)Ljava/util/List;
+         - RouteScreen$lambda$26$lambda$25(Landroidx/compose/runtime/MutableState;Ljava/util/Map;)Lkotlin/Unit;
+         + RouteScreen$lambda$26(Landroidx/compose/runtime/MutableState;Ljava/util/List;)V
+         - RouteScreen$lambda$28$lambda$27(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroid/net/Uri;)Lkotlin/Unit;
+         + RouteScreen$lambda$28(Landroidx/compose/runtime/MutableState;)Z
+         + RouteScreen$lambda$29(Landroidx/compose/runtime/MutableState;Z)V
+         - RouteScreen$lambda$30$lambda$29(Lcom/example/wayfindr/viewmodel/RouteViewModel;Z)Lkotlin/Unit;
+         + RouteScreen$lambda$31(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + RouteScreen$lambda$32(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + RouteScreen$lambda$34(Landroidx/compose/runtime/MutableState;)Z
+         + RouteScreen$lambda$35(Landroidx/compose/runtime/MutableState;Z)V
+         + RouteScreen$lambda$39$lambda$38(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/com
+         - RouteScreen$lambda$4(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/nav/VoiceMode;
+         + RouteScreen$lambda$43$lambda$42(Landroidx/compose/runtime/MutableState;Ljava/util/Map;)Lkotlin/Unit;
+         + RouteScreen$lambda$45$lambda$44(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroid/net/Uri;)Lkotlin/Unit;
+         + RouteScreen$lambda$47$lambda$46(Lcom/example/wayfindr/viewmodel/RouteViewModel;Z)Lkotlin/Unit;
+         + RouteScreen$lambda$5(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/nav/VoiceMode;
+         - RouteScreen$lambda$6(Landroidx/compose/runtime/MutableState;)Z
+         + RouteScreen$lambda$7(Landroidx/compose/runtime/MutableState;)Z
+         - RouteScreen$lambda$7(Landroidx/compose/runtime/MutableState;Z)V
+         + RouteScreen$lambda$8(Landroidx/compose/runtime/MutableState;Z)V
+         - RouteScreen$lambda$9(Landroidx/compose/runtime/MutableState;)Z
+         - RouteScreen(Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/Composer;II)V
+         + RouteScreen(Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function2;Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroidx/compose/runtime/Composer;II)V
+         - SaveLocationDialog$lambda$126(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - SaveLocationDialog$lambda$127(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - SaveLocationDialog$lambda$129(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - SaveLocationDialog$lambda$130(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - SaveLocationDialog$lambda$134$lambda$132$lambda$131(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)Lkotlin
+         - SaveLocationDialog$lambda$134$lambda$133(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/
+         - SaveLocationDialog$lambda$134(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Comp
+         - SaveLocationDialog$lambda$135(Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SaveLocationDialog$lambda$141$lambda$140$lambda$137$lambda$136(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         - SaveLocationDialog$lambda$141$lambda$140$lambda$139$lambda$138(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         - SaveLocationDialog$lambda$141(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SaveLocationDialog$lambda$142(Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SaveLocationDialog$lambda$161(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + SaveLocationDialog$lambda$162(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + SaveLocationDialog$lambda$164(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + SaveLocationDialog$lambda$165(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + SaveLocationDialog$lambda$169$lambda$167$lambda$166(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)Lkotlin
+         + SaveLocationDialog$lambda$169$lambda$168(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/runtime/Composer;I)Lkotlin/
+         + SaveLocationDialog$lambda$169(Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Comp
+         + SaveLocationDialog$lambda$170(Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SaveLocationDialog$lambda$176$lambda$175$lambda$172$lambda$171(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         + SaveLocationDialog$lambda$176$lambda$175$lambda$174$lambda$173(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         + SaveLocationDialog$lambda$176(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SaveLocationDialog$lambda$177(Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ SaveLocationDialog(Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)V
+         + access$RouteScreen$lambda$19(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - access$RouteScreen$lambda$19(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + access$RouteScreen$lambda$20(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + access$RouteScreen$lambda$26(Landroidx/compose/runtime/MutableState;Ljava/util/List;)V
+         + access$RouteScreen$lambda$29(Landroidx/compose/runtime/MutableState;Z)V
+         + access$RouteScreen$lambda$32(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + access$RouteScreen$lambda$34(Landroidx/compose/runtime/MutableState;)Z
+         + access$RouteScreen$lambda$35(Landroidx/compose/runtime/MutableState;Z)V
+         - access$RouteScreen$lambda$6(Landroidx/compose/runtime/MutableState;)Z
+         + access$RouteScreen$lambda$7(Landroidx/compose/runtime/MutableState;)Z
+         + formatAlternativeDistance(D)Ljava/lang/String;
+         + formatAlternativeDuration(D)Ljava/lang/String;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda0;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/ConnectionState;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda10;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/ConnectionState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;I)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda11;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda12;
+         - <init>(Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function0;II)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda13;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function0;II)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda14;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda15;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         + <init>(Lcom/example/wayfindr/dash/nav/VoiceManager;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda16;
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         - <init>(ZLcom/example/wayfindr/dash/DashConfig;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda17;
+         - <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda18;
+         + <init>(Landroidx/compose/foundation/layout/ColumnScope;Landroid/content/Context;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda19;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda1;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda20;
+         + <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         + invoke()Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda21;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda22;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         + <init>(Ljava/lang/String;I)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda23;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda24;
+         + <init>(Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + onStateChanged(Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda25;
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         - <init>(Ljava/lang/String;I)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda26;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda27;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda28;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Lcom/example/wayfindr/dash/nav/VoiceManager;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda29;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda2;
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/ConnectionState;Landroidx/compose/runtime/MutableState;Landroid/content/Context;)V
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda30;
+         - <init>(Lcom/example/wayfindr/viewmodel/ConnectionState;)V
+         + <init>(ZLcom/example/wayfindr/dash/DashConfig;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda31;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda32;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda33;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda34;
+         - <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda35;
+         - <init>(Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;)V
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - onStateChanged(Landroidx/lifecycle/LifecycleOwner;Landroidx/lifecycle/Lifecycle$Event;)V
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda36;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda37;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda38;
+         - <init>(Landroidx/compose/foundation/layout/ColumnScope;Landroid/content/Context;)V
+         + <init>(Lcom/example/wayfindr/dash/DashConfig;)V
+         - invoke()Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda39;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda3;
+         + <init>(Lcom/example/wayfindr/viewmodel/ConnectionState;Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroid/content/Context;)V
+         - <init>(Lkotlinx/coroutines/CoroutineScope;Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/MutableState;Landroid/content/Context;Landroidx/compose/runtime/
+         - invoke(Ljava/lang/Object;)Ljava/lang/Object;
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda40;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda41;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda4;
+         - <init>(Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/St
+         + <init>(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Lcom/example/wayfindr/dash/DashConfig;Landroidx/compo
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda5;
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda6;
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda7;
+         - <init>(Landroid/content/Context;Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;)V
+         + <init>(Ljava/lang/String;Lcom/example/wayfindr/dash/nav/VoiceManager;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda8;
+         + <init>(Landroidx/compose/runtime/MutableState;)V
+         - <init>(Ljava/lang/String;Lcom/example/wayfindr/dash/nav/VoiceManager;)V
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$$ExternalSyntheticLambda9;
+         - <init>(Landroidx/compose/runtime/MutableState;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/ConnectionState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;I)V
+         + invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$MediaCard; 2 methods
+NEW   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$OffRow; 3 methods
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$SettingsScreen$1$2$1$1;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$SettingsScreen$1$2$1;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$SettingsScreen$1$importLauncher$1$1$1$f$1;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$SettingsScreen$1$importLauncher$1$1$1;
+GONE  Lcom/example/wayfindr/ui/screens/SettingsScreenKt$SettingsScreen$lambda$102$lambda$84$lambda$83$$inlined$onDispose$1;
+NEW   Lcom/example/wayfindr/ui/screens/SettingsScreenKt$SettingsScreen$lambda$86$lambda$68$lambda$67$$inlined$onDispose$1; 2 methods
+CHG   Lcom/example/wayfindr/ui/screens/SettingsScreenKt;
+         - SectionLabel$lambda$104(Ljava/lang/String;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SectionLabel$lambda$88(Ljava/lang/String;ILandroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         ~ SectionLabel(Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
+         - SettingRow$lambda$109(Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function
+         + SettingRow$lambda$93(Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function0
+         ~ SettingRow(Landroidx/compose/ui/graphics/vector/ImageVector;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function2;ZLkotlin/jvm/functions/Function0;Landroidx
+         - SettingsScreen$lambda$1(Landroidx/compose/runtime/MutableState;)Z
+         + SettingsScreen$lambda$1(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$10(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         + SettingsScreen$lambda$10(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - SettingsScreen$lambda$102$answerGranted(Landroid/content/Context;)Z
+         - SettingsScreen$lambda$102$lambda$100$lambda$99$lambda$98(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$100(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/U
+         - SettingsScreen$lambda$102$lambda$23$lambda$14(Lcom/example/wayfindr/viewmodel/ConnectionState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$23$lambda$17$lambda$16$lambda$15(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$23$lambda$17(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$23$lambda$19(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$23$lambda$22$lambda$21$lambda$20(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$23$lambda$22(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$23(Lcom/example/wayfindr/viewmodel/ConnectionState;Landroidx/compose/runtime/MutableState;Landroid/content/Context;Landroidx/compose/foun
+         - SettingsScreen$lambda$102$lambda$25(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$26(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$27(Landroidx/compose/runtime/State;)Ljava/lang/String;
+         - SettingsScreen$lambda$102$lambda$29(Landroidx/compose/runtime/MutableState;)Z
+         - SettingsScreen$lambda$102$lambda$30(Landroidx/compose/runtime/MutableState;Z)V
+         - SettingsScreen$lambda$102$lambda$32(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         - SettingsScreen$lambda$102$lambda$33(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - SettingsScreen$lambda$102$lambda$35(Landroidx/compose/runtime/MutableState;)I
+         - SettingsScreen$lambda$102$lambda$36(Landroidx/compose/runtime/MutableState;I)V
+         - SettingsScreen$lambda$102$lambda$39$lambda$38(Lkotlinx/coroutines/CoroutineScope;Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/MutableState;Landroid/con
+         - SettingsScreen$lambda$102$lambda$40(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$41(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$42(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$43(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$44(Landroidx/compose/runtime/State;)Z
+         - SettingsScreen$lambda$102$lambda$74$lambda$47$lambda$46$lambda$45(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$47(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$50$lambda$49$lambda$48(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$50(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$53$lambda$52$lambda$51(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$53(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$56$lambda$55$lambda$54(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$56(ZLcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$58$lambda$57(Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$61$lambda$60$lambda$59(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$61(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$64$lambda$63$lambda$62(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$64(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$67$lambda$66$lambda$65(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$67(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$70$lambda$69$lambda$68(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$70(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$73$lambda$72$lambda$71(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74$lambda$73(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$74(Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState
+         - SettingsScreen$lambda$102$lambda$76(Landroidx/compose/runtime/MutableState;)Z
+         - SettingsScreen$lambda$102$lambda$77(Landroidx/compose/runtime/MutableState;Z)V
+         - SettingsScreen$lambda$102$lambda$79(Landroidx/compose/runtime/MutableState;)Z
+         - SettingsScreen$lambda$102$lambda$80(Landroidx/compose/runtime/MutableState;Z)V
+         - SettingsScreen$lambda$102$lambda$84$lambda$83$lambda$81(Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/l
+         - SettingsScreen$lambda$102$lambda$84$lambda$83(Landroidx/lifecycle/LifecycleOwner;Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime
+         - SettingsScreen$lambda$102$lambda$86$lambda$85(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$94$lambda$87(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$94$lambda$90$lambda$89(Landroidx/compose/foundation/layout/ColumnScope;Landroid/content/Context;)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$94$lambda$91(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$94$lambda$93$lambda$92(Landroidx/activity/compose/ManagedActivityResultLauncher;)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$94(Landroid/content/Context;Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;Landroidx/com
+         - SettingsScreen$lambda$102$lambda$97$lambda$96$lambda$95(Lcom/example/wayfindr/dash/nav/VoiceManager;Ljava/lang/String;)Lkotlin/Unit;
+         - SettingsScreen$lambda$102$lambda$97(Ljava/lang/String;Lcom/example/wayfindr/dash/nav/VoiceManager;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtim
+         - SettingsScreen$lambda$103(Lcom/example/wayfindr/viewmodel/ConnectionState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ILandroidx/compose/runtime/Compo
+         - SettingsScreen$lambda$11(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         + SettingsScreen$lambda$12(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/nav/VoiceMode;
+         - SettingsScreen$lambda$13(Landroidx/compose/runtime/State;)Lcom/example/wayfindr/dash/nav/VoiceMode;
+         - SettingsScreen$lambda$2(Landroidx/compose/runtime/MutableState;Z)V
+         + SettingsScreen$lambda$3(Landroidx/compose/runtime/MutableState;)Z
+         - SettingsScreen$lambda$4(Landroidx/compose/runtime/MutableState;)Z
+         + SettingsScreen$lambda$4(Landroidx/compose/runtime/MutableState;Z)V
+         - SettingsScreen$lambda$5(Landroidx/compose/runtime/MutableState;Z)V
+         + SettingsScreen$lambda$6(Landroidx/compose/runtime/MutableState;)Z
+         - SettingsScreen$lambda$7(Landroidx/compose/runtime/MutableState;)Z
+         + SettingsScreen$lambda$7(Landroidx/compose/runtime/MutableState;Z)V
+         - SettingsScreen$lambda$8(Landroidx/compose/runtime/MutableState;Z)V
+         + SettingsScreen$lambda$86$answerGranted(Landroid/content/Context;)Z
+         + SettingsScreen$lambda$86$lambda$22$lambda$13(Lcom/example/wayfindr/viewmodel/ConnectionState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$22$lambda$16$lambda$15$lambda$14(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$22$lambda$16(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$22$lambda$18(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$22$lambda$21$lambda$20$lambda$19(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$22$lambda$21(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$22(Lcom/example/wayfindr/viewmodel/ConnectionState;Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroid/content/
+         + SettingsScreen$lambda$86$lambda$24(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$25(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$26(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$27(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$28(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$29(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$30(Landroidx/compose/runtime/State;)Z
+         + SettingsScreen$lambda$86$lambda$58$lambda$33$lambda$32$lambda$31(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$33(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$36$lambda$35$lambda$34(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$36(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$39$lambda$38$lambda$37(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$39(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$42$lambda$41$lambda$40(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$42(ZLcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$45$lambda$44$lambda$43(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$45(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$48$lambda$47$lambda$46(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$48(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$51$lambda$50$lambda$49(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$51(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$54$lambda$53$lambda$52(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$54(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$57$lambda$56$lambda$55(Lcom/example/wayfindr/dash/DashConfig;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58$lambda$57(Lcom/example/wayfindr/dash/DashConfig;Landroidx/compose/runtime/State;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$58(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/State;Lcom/example/wayfindr/das
+         + SettingsScreen$lambda$86$lambda$60(Landroidx/compose/runtime/MutableState;)Z
+         + SettingsScreen$lambda$86$lambda$61(Landroidx/compose/runtime/MutableState;Z)V
+         + SettingsScreen$lambda$86$lambda$63(Landroidx/compose/runtime/MutableState;)Z
+         + SettingsScreen$lambda$86$lambda$64(Landroidx/compose/runtime/MutableState;Z)V
+         + SettingsScreen$lambda$86$lambda$68$lambda$67$lambda$65(Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/MutableState;Landroidx/li
+         + SettingsScreen$lambda$86$lambda$68$lambda$67(Landroidx/lifecycle/LifecycleOwner;Landroid/content/Context;Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/
+         + SettingsScreen$lambda$86$lambda$70$lambda$69(Landroidx/compose/runtime/MutableState;Z)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$78$lambda$71(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$78$lambda$74$lambda$73(Landroidx/compose/foundation/layout/ColumnScope;Landroid/content/Context;)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$78$lambda$75(Landroidx/compose/runtime/MutableState;Landroidx/compose/runtime/Composer;I)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$78$lambda$77$lambda$76(Landroidx/activity/compose/ManagedActivityResultLauncher;)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$78(Landroid/content/Context;Landroidx/activity/compose/ManagedActivityResultLauncher;Landroidx/compose/runtime/MutableState;Landroidx/comp
+         + SettingsScreen$lambda$86$lambda$81$lambda$80$lambda$79(Lcom/example/wayfindr/dash/nav/VoiceManager;Ljava/lang/String;)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$81(Ljava/lang/String;Lcom/example/wayfindr/dash/nav/VoiceManager;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime
+         + SettingsScreen$lambda$86$lambda$84$lambda$83$lambda$82(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)Lkotlin/Unit;
+         + SettingsScreen$lambda$86$lambda$84(Landroidx/compose/runtime/MutableState;Landroidx/compose/foundation/layout/ColumnScope;Landroidx/compose/runtime/Composer;I)Lkotlin/Uni
+         + SettingsScreen$lambda$87(Lcom/example/wayfindr/viewmodel/ConnectionState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;ILandroidx/compose/runtime/Compos
+         + SettingsScreen$lambda$9(Landroidx/compose/runtime/MutableState;)Ljava/lang/String;
+         ~ SettingsScreen(Lcom/example/wayfindr/viewmodel/ConnectionState;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)V
+         - access$SettingsScreen$lambda$102$lambda$27(Landroidx/compose/runtime/State;)Ljava/lang/String;
+         - access$SettingsScreen$lambda$102$lambda$30(Landroidx/compose/runtime/MutableState;Z)V
+         - access$SettingsScreen$lambda$102$lambda$33(Landroidx/compose/runtime/MutableState;Ljava/lang/String;)V
+         - access$SettingsScreen$lambda$102$lambda$35(Landroidx/compose/runtime/MutableState;)I
+         - access$SettingsScreen$lambda$102$lambda$36(Landroidx/compose/runtime/MutableState;I)V
+GONE  Lcom/example/wayfindr/ui/screens/VisitCtx;
+CHG   Lcom/example/wayfindr/util/CrashGuard;
+         ~ writeCrash(Landroid/content/Context;Ljava/lang/Thread;Ljava/lang/Throwable;)V
+CHG   Lcom/example/wayfindr/util/ExitInfoCollector;
+         ~ writeExit(Landroid/content/Context;Ljava/io/File;Landroid/app/ApplicationExitInfo;)V
+NEW   Lcom/example/wayfindr/util/InternetNetwork; 4 methods
+CHG   Lcom/example/wayfindr/viewmodel/AppViewModel;
+         ~ <init>()V
+         - getGarageTab()Lkotlinx/coroutines/flow/StateFlow;
+         - setGarageTab(Ljava/lang/String;)V
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$$ExternalSyntheticLambda5;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$$ExternalSyntheticLambda6;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$$ExternalSyntheticLambda7;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$$ExternalSyntheticLambda8;
+         ~ invoke()Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$$ExternalSyntheticLambda9;
+         ~ invoke(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$3$1;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$3;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$4$1;
+         - invoke(Lcom/example/wayfindr/dash/MapSource;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + invoke(Lcom/example/wayfindr/dash/WifiState;Lcom/example/wayfindr/dash/DashState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         ~ invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$4$2$1;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$4$2$emit$1;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$4$2;
+         + <clinit>()V
+         + <init>()V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         ~ emit(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - emit(Lkotlin/Pair;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + emit(ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$4;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/viewmodel/DashViewModel$5$1; 3 methods
+NEW   Lcom/example/wayfindr/viewmodel/DashViewModel$5; 5 methods
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$6$1;
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         - <init>(Lkotlin/coroutines/Continuation;)V
+         + emit(Landroid/location/Location;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         + emit(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - invoke(Lcom/example/wayfindr/dash/WifiState;Lcom/example/wayfindr/dash/DashState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+         - invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$6$2;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$6;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/viewmodel/DashViewModel$7$1$WhenMappings; 1 methods
+NEW   Lcom/example/wayfindr/viewmodel/DashViewModel$7$1$emit$1; 2 methods
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$7$1;
+         + emit(Lcom/example/wayfindr/dash/WifiState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         ~ emit(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - emit(ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$7;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$8$1$WhenMappings;
+         ~ <clinit>()V
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$8$1$emit$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$8$1;
+         + emit(Lcom/example/wayfindr/dash/DashState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         - emit(Lcom/example/wayfindr/dash/WifiState;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+         ~ emit(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$8;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$9$1$WhenMappings;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$9$1$emit$1;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$9$1;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$9;
+GONE  Lcom/example/wayfindr/viewmodel/DashViewModel$Match;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$armConnLostAlert$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$armReconnectGiveup$1;
+         + <init>(JLcom/example/wayfindr/viewmodel/DashViewModel;Lkotlin/coroutines/Continuation;)V
+         - <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$debugButtonRx$1;
+         ~ onReceive(Landroid/content/Context;Landroid/content/Intent;)V
+NEW   Lcom/example/wayfindr/viewmodel/DashViewModel$fetchRoute$1$origin$2$1; 5 methods
+NEW   Lcom/example/wayfindr/viewmodel/DashViewModel$fetchRoute$1$origin$2; 5 methods
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$fetchRoute$1;
+         - <init>(Landroid/location/Location;DDLjava/util/List;Lcom/example/wayfindr/viewmodel/DashViewModel;Lkotlin/coroutines/Continuation;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;JDDLjava/util/List;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$maybeRefreshTraffic$1;
+         - <init>(Landroid/location/Location;DDLcom/example/wayfindr/viewmodel/DashViewModel;Lkotlin/coroutines/Continuation;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroid/location/Location;DDLjava/util/List;JILkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel$maybeReroute$1;
+         - <init>(Landroid/location/Location;Ljava/lang/Double;Ljava/lang/Double;Lcom/example/wayfindr/viewmodel/DashViewModel;JLkotlin/coroutines/Continuation;)V
+         + <init>(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroid/location/Location;Ljava/lang/Double;Ljava/lang/Double;Ljava/util/List;JIJLkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/DashViewModel;
+         ~ <clinit>()V
+         ~ <init>(Landroid/app/Application;)V
+         - access$armReconnectGiveup(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         + access$armReconnectGiveup(Lcom/example/wayfindr/viewmodel/DashViewModel;J)V
+         + access$fetchRoute(Lcom/example/wayfindr/viewmodel/DashViewModel;DDLjava/util/List;)V
+         + access$getDashWifiWasConnected$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)Z
+         + access$getHasStreamedThisConnection$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)Z
+         + access$getOffRouteConfirmation$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lcom/example/wayfindr/dash/map/OffRouteConfirmation;
+         + access$getRouteRequestGeneration$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)J
+         + access$getRouteRequestJob$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)Lkotlinx/coroutines/Job;
+         + access$getWaitingForFreshRouteOrigin$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)Z
+         - access$getZoomBeforeOfflineClamp$p(Lcom/example/wayfindr/viewmodel/DashViewModel;)Ljava/lang/Integer;
+         + access$isFallbackRouteOrigin(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroid/location/Location;)Z
+         + access$isPreciseRouteOrigin(Lcom/example/wayfindr/viewmodel/DashViewModel;Landroid/location/Location;)Z
+         + access$setDashWifiWasConnected$p(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)V
+         + access$setHasStreamedThisConnection$p(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)V
+         + access$setRouteRequestGeneration$p(Lcom/example/wayfindr/viewmodel/DashViewModel;J)V
+         + access$setRouteRequestJob$p(Lcom/example/wayfindr/viewmodel/DashViewModel;Lkotlinx/coroutines/Job;)V
+         + access$setWaitingForFreshRouteOrigin$p(Lcom/example/wayfindr/viewmodel/DashViewModel;Z)V
+         - access$setZoom(Lcom/example/wayfindr/viewmodel/DashViewModel;I)V
+         - access$setZoomBeforeOfflineClamp$p(Lcom/example/wayfindr/viewmodel/DashViewModel;Ljava/lang/Integer;)V
+         + access$teardown(Lcom/example/wayfindr/viewmodel/DashViewModel;)V
+         ~ advanceWaypointIfReached(Landroid/location/Location;Lcom/example/wayfindr/viewmodel/DashViewModel$NavState;)Z
+         - armReconnectGiveup()V
+         + armReconnectGiveup(J)V
+         ~ cancelConnLostAlert()V
+         ~ cancelRows()Ljava/util/List;
+         ~ connect()V
+         ~ exitNavigation()V
+         ~ fetchRoute(DDLjava/util/List;)V
+         + isFallbackRouteOrigin(Landroid/location/Location;)Z
+         + isPreciseRouteOrigin(Landroid/location/Location;)Z
+         ~ maybeRefreshTraffic(Landroid/location/Location;)V
+         ~ maybeReroute(ZLandroid/location/Location;)V
+         ~ menuRows()Ljava/util/List;
+         + menuRows0()Ljava/util/List;
+         + nav10Progress(Lcom/example/wayfindr/viewmodel/DashViewModel;)D
+         + navplusNotice()V
+         + navplusPredict(Lkotlin/Pair;D)Lkotlin/Pair;
+         - ovAccent_delegate$lambda$69()Landroid/graphics/Paint;
+         + ovAccent_delegate$lambda$71()Landroid/graphics/Paint;
+         - ovBg_delegate$lambda$63()Landroid/graphics/Paint;
+         + ovBg_delegate$lambda$65()Landroid/graphics/Paint;
+         - ovSub_delegate$lambda$67()Landroid/graphics/Paint;
+         + ovSub_delegate$lambda$69()Landroid/graphics/Paint;
+         - ovTitle_delegate$lambda$65()Landroid/graphics/Paint;
+         + ovTitle_delegate$lambda$67()Landroid/graphics/Paint;
+         ~ predictedDistance(FD)D
+         ~ redrawFrame(DDFFLjava/lang/Double;)V
+         ~ rootFixedRows()I
+         + rootFixedRows0()I
+         ~ selectPickerItem()Ljava/lang/String;
+         + selectPickerItem0()Ljava/lang/String;
+         ~ setDestination(Ljava/lang/String;Ljava/lang/Double;Ljava/lang/Double;)V
+         + setDestinations$default(Lcom/example/wayfindr/viewmodel/DashViewModel;Ljava/util/List;Lcom/example/wayfindr/dash/nav/Route;ILjava/lang/Object;)V
+         - setDestinations(Ljava/util/List;)V
+         + setDestinations(Ljava/util/List;Lcom/example/wayfindr/dash/nav/Route;)V
+         ~ takeAutoRouteCall(Ljava/lang/String;)Z
+         - teardown$lambda$83$lambda$82(Ljava/util/concurrent/atomic/AtomicInteger;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/dash/video/DashEncoder;Ljava/l
+         + teardown$lambda$85$lambda$84(Ljava/util/concurrent/atomic/AtomicInteger;Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/dash/video/DashEncoder;Ljava/l
+         ~ tick()Z
+         + trackProgress$default(Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/dash/nav/Route;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/lang/Float;DZILjava
+         - trackProgress$search(Lcom/example/wayfindr/viewmodel/DashViewModel;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/util/List;[DDD)Lcom/example/wayfindr/viewmodel/DashViewMo
+         - trackProgress(Lcom/example/wayfindr/dash/nav/Route;Lcom/example/wayfindr/dash/nav/GeoPoint;)Lcom/example/wayfindr/viewmodel/DashViewModel$NavState;
+         + trackProgress(Lcom/example/wayfindr/dash/nav/Route;Lcom/example/wayfindr/dash/nav/GeoPoint;Ljava/lang/Float;DZ)Lcom/example/wayfindr/viewmodel/DashViewModel$NavState;
+         ~ zoomRange()Lkotlin/ranges/IntRange;
+GONE  Lcom/example/wayfindr/viewmodel/FuelRow;
+GONE  Lcom/example/wayfindr/viewmodel/GarageUi;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$addFuel$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$addFuel$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$addScheduledService$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$addScheduledService$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$addService$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$addService$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteDocument$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteDocument$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteFuel$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteFuel$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteScheduledService$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteScheduledService$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteService$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteService$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteServiceRecord$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$deleteServiceRecord$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$logVisit$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$logVisit$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$reload$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$reload$1$ui$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$reload$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$saveDocument$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$saveDocument$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$saveIdentity$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$saveIdentity$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$setOdometer$1$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel$setOdometer$1;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModel;
+GONE  Lcom/example/wayfindr/viewmodel/GarageViewModelKt;
+GONE  Lcom/example/wayfindr/viewmodel/MaintRow;
+CHG   Lcom/example/wayfindr/viewmodel/RouteState;
+         ~ <init>()V
+         + <init>(Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;Ljava/util/List;IZLjava/lang/String;Ljava/lang/Stri
+         + <init>(Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;Ljava/util/List;IZLjava/lang/String;Ljava/lang/Stri
+         - <init>(Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/Str
+         - <init>(Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/Str
+         + component10()I
+         - component10()Ljava/lang/String;
+         - component11()Ljava/lang/String;
+         + component11()Z
+         ~ component12()Ljava/lang/String;
+         ~ component13()Ljava/lang/String;
+         ~ component14()Ljava/lang/String;
+         + component15()Ljava/lang/String;
+         - component15()Z
+         + component16()Ljava/lang/String;
+         + component17()Z
+         + component9()Ljava/util/List;
+         - component9()Z
+         + copy$default(Lcom/example/wayfindr/viewmodel/RouteState;Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;Lj
+         - copy$default(Lcom/example/wayfindr/viewmodel/RouteState;Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;ZL
+         + copy(Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;Ljava/util/List;IZLjava/lang/String;Ljava/lang/String
+         - copy(Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/Pair;FJZZLcom/example/wayfindr/dash/nav/Route;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/Strin
+         ~ equals(Ljava/lang/Object;)Z
+         + getRouteAlternatives()Ljava/util/List;
+         + getSelectedRouteIndex()I
+         ~ hashCode()I
+         ~ toString()Ljava/lang/String;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$1$1;
+         ~ emit(Landroid/location/Location;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+NEW   Lcom/example/wayfindr/viewmodel/RouteViewModel$computeRoute$1$origin$2$1; 5 methods
+NEW   Lcom/example/wayfindr/viewmodel/RouteViewModel$computeRoute$1$origin$2; 5 methods
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$computeRoute$1;
+         - <init>(Landroid/location/Location;Lcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lcom/example/wayfindr/viewmodel/RouteViewModel;Lkotlin/coroutines/Continuation
+         + <init>(Lcom/example/wayfindr/viewmodel/RouteViewModel;JLcom/example/wayfindr/data/SharedLocation;Ljava/util/List;Lkotlin/coroutines/Continuation;)V
+         ~ create(Ljava/lang/Object;Lkotlin/coroutines/Continuation;)Lkotlin/coroutines/Continuation;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$handleSharedText$2;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$importQrImage$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$loadSharedStops$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$search$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel$selectLocation$1;
+         ~ invokeSuspend(Ljava/lang/Object;)Ljava/lang/Object;
+CHG   Lcom/example/wayfindr/viewmodel/RouteViewModel;
+         ~ <init>(Landroid/app/Application;)V
+         + access$getRouteRequestGeneration$p(Lcom/example/wayfindr/viewmodel/RouteViewModel;)J
+         + access$isFallbackRouteOrigin(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroid/location/Location;)Z
+         + access$isPreciseRouteOrigin(Lcom/example/wayfindr/viewmodel/RouteViewModel;Landroid/location/Location;)Z
+         + access$setRouteRequestJob$p(Lcom/example/wayfindr/viewmodel/RouteViewModel;Lkotlinx/coroutines/Job;)V
+         ~ addWaypoint(Lcom/example/wayfindr/data/SharedLocation;Z)V
+         ~ clear()V
+         ~ clearDestinations()V
+         ~ computeRoute(Ljava/util/List;)V
+         ~ freshState(Lcom/example/wayfindr/viewmodel/RouteState;)Lcom/example/wayfindr/viewmodel/RouteState;
+         ~ handleSharedText(Ljava/lang/String;)V
+         ~ importQrImage(Landroid/net/Uri;)V
+         + isFallbackRouteOrigin(Landroid/location/Location;)Z
+         + isPreciseRouteOrigin(Landroid/location/Location;)Z
+         ~ loadSharedStops(Ljava/util/List;Z)V
+         ~ moveWaypoint(II)V
+         ~ onNavigated()V
+         ~ refreshCurrentLocation()V
+         ~ removeWaypoint(I)V
+         ~ saveCurrentDestination(Ljava/lang/String;Ljava/lang/String;)V
+         ~ search(Ljava/lang/String;)V
+         + selectPlaceSuggestion(Lcom/example/wayfindr/dash/nav/PlaceSearch$Hit;)V
+         + selectRoute(I)V
+         ~ selectSaved(Lcom/example/wayfindr/data/SavedLocation;)V
+GONE  Lcom/example/wayfindr/viewmodel/ScheduledRow;
