@@ -1,0 +1,31 @@
+name: v34 APK çözümle
+
+on:
+  push:
+    branches: ["himican/decompile"]
+  workflow_dispatch:
+
+jobs:
+  jadx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: jadx indir
+        run: |
+          curl -sSL -o jadx.zip https://github.com/skylot/jadx/releases/download/v1.5.1/jadx-1.5.1.zip
+          unzip -q jadx.zip -d jadx
+      - name: Çözümle
+        run: |
+          ./jadx/bin/jadx --no-res --show-bad-code -j 4 -d out apk/v34.apk || true
+          mkdir -p src && cp -r out/sources/com/example src/
+          find src -name "*.java" | wc -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v34-java
+          path: src
+          retention-days: 30
