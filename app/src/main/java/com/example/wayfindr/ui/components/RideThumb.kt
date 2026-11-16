@@ -173,7 +173,7 @@ internal object RideThumbs {
     }
 
     private fun drawTiles(ctx: Context, c: Canvas, z: Int, cx: Double, cy: Double, w: Int, h: Int, tile: Float) {
-        try { GPlus.init(ctx) } catch (_: Throwable)
+        try { GPlus.init(ctx) } catch (_: Throwable) {}
         val dir = try { GPlus.tileDir(File(ctx.cacheDir, "tiles_osm_v1")) } catch (_: Throwable) { File(ctx.cacheDir, "tiles_osm_v1") }
         val x0 = floor(cx - w / 2.0 / tile).toInt(); val x1 = floor(cx + w / 2.0 / tile).toInt()
         val y0 = floor(cy - h / 2.0 / tile).toInt(); val y1 = floor(cy + h / 2.0 / tile).toInt()
