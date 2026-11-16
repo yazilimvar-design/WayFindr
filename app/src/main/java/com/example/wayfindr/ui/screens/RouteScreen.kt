@@ -437,25 +437,6 @@ fun RouteScreen(
                 }
             }
 
-            if ((dest?.lat == null || dest.lng == null) && !routeState.isResolving) {
-                WayfindrCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), padding = 16.dp) {
-                    Row(verticalAlignment = Alignment.Top) {
-                        Icon(WayfindrIcons.Share, contentDescription = null, tint = Gold, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text("Google Haritalar'dan rota başlatın", color = TextHi, fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
-                            Text(
-                                "Google Haritalar'ı açın → bir yer seçin → Paylaş'a dokunun → Wayfindr'ı seçin. " +
-                                    "Hedef burada görünür; ardından gösterge ekranına göndermek için Navigasyonu başlat'a dokunun.",
-                                color = TextMid, fontSize = 13.sp, fontFamily = GeistFamily,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
-                }
-            }
-
             Eyebrow(if (routeState.waypoints.size > 1) "Son hedef" else "Hedef", Modifier.padding(bottom = 6.dp))
 
             Row(verticalAlignment = Alignment.Top) {

@@ -282,7 +282,7 @@ public final class GPlus {
                 }
             }
         }
-        PlaceSearch.Hit hit = new PlaceSearch.Hit(str2, d, d2, testKey, "Wayfindr");
+        PlaceSearch.Hit hit = new PlaceSearch.Hit(str2, d, d2, "Wayfindr", testKey); // test result ("Harita ✓ · Rota ✓ · Arama ✓") shown under the title
         ArrayList arrayList = new ArrayList();
         arrayList.add(hit);
         return arrayList;
