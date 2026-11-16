@@ -52,14 +52,14 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import android.graphics.BitmapFactory
+import com.example.wayfindr.R
 import com.example.wayfindr.data.Ride
 import com.example.wayfindr.data.RideStats
 import com.example.wayfindr.ui.WayfindrIcons
 import com.example.wayfindr.ui.components.RideThumbs
 import com.example.wayfindr.ui.theme.*
 import com.example.wayfindr.util.RouteQr
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /** "Rotayı paylaş": preview of the ride image + Instagram / WhatsApp / Facebook / Diğer. */
 @Composable
@@ -143,12 +143,14 @@ private fun WhatsAppGlyph() = Box(contentAlignment = Alignment.Center) {
 // ── The shared image ──────────────────────────────────────────────────────
 
 private const val CARD_W = 1080
-private const val MAP_TOP = 250
+private const val BANNER_H = 520        // res/drawable-nodpi/share_banner.jpg is 1080×520
+private const val MAP_TOP = 480         // map's top fade overlaps the banner's
 private const val MAP_H = 900
-private const val ROW1_Y = 1310
-private const val ROW2_Y = 1490
-private const val CARD_H_FULL = 1660
-private const val CARD_H_SHORT = 1480   // old rides without altitude: no second stat row
+private const val Y0 = MAP_TOP + MAP_H  // text block below the map
+private const val ROW1_Y = Y0 + 160
+private const val ROW2_Y = Y0 + 340
+private const val CARD_H_FULL = Y0 + 510
+private const val CARD_H_SHORT = Y0 + 330   // old rides without altitude: no second stat row
 private val CARD_BG = Color(0xFF0F1214)
 
 private class Stat(val icon: VectorPainter, val tint: Color, val value: String, val label: String)
@@ -164,7 +166,8 @@ private fun rememberShareCard(ride: Ride, name: String, stats: RideStats): Image
     val terrain = rememberVectorPainter(Icons.Outlined.Terrain)
     val land = rememberVectorPainter(Icons.Outlined.Landscape)
     val card by produceState<ImageBitmap?>(null, ride.sid, name, stats) {
-        val map = withContext(Dispatchers.IO) { RideThumbs.render(ctx, ride, CARD_W, MAP_H, 3f) }
+        val map = RideThumbs.renderLive(ctx, ride, CARD_W, MAP_H, 3f)
+        val banner = BitmapFactory.decodeResource(ctx.resources, R.drawable.share_banner).asImageBitmap()
         val row1 = listOf(
             Stat(pin, Gold, fmtKm(ride.distanceKm), "MESAFE"),
             Stat(clock, Color(0xFF5AA9E6), fmtDuration(ride.durationSec), "SÜRE"),
@@ -175,24 +178,24 @@ private fun rememberShareCard(ride: Ride, name: String, stats: RideStats): Image
             stats.climbM?.let { Stat(terrain, Gold, fmtClimb(it), "YÜKSEKLİK KAZANCI") },
             fmtAltRange(stats)?.let { Stat(land, Gold, it, "RAKIM") },
         )
-        value = drawCard(measurer, map?.asImageBitmap(), name, "${fmtDate(ride.startMs)} · ${fmtTime(ride.startMs)}", row1, row2)
+        value = drawCard(measurer, banner, map?.asImageBitmap(), name, "${fmtDate(ride.startMs)} · ${fmtTime(ride.startMs)}", row1, row2)
     }
     return card
 }
 
 private fun drawCard(
-    tm: TextMeasurer, map: ImageBitmap?, name: String, date: String, row1: List<Stat>, row2: List<Stat>,
+    tm: TextMeasurer, banner: ImageBitmap, map: ImageBitmap?, name: String, date: String, row1: List<Stat>, row2: List<Stat>,
 ): ImageBitmap {
     val h = if (row2.isEmpty()) CARD_H_SHORT else CARD_H_FULL
     val out = ImageBitmap(CARD_W, h)
     // Density 1: 1.sp == 1 px of the 1080-wide image.
     CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, GCanvas(out), Size(CARD_W.toFloat(), h.toFloat())) {
         drawRect(CARD_BG)
-        // Wordmark: "Himalayan" in the app's display face, gold; "4 5 0" letter-spaced in the odometer red.
-        centered(tm, "Himalayan", TextStyle(color = Gold, fontSize = 104.sp, fontFamily = GeistFamily,
-            fontWeight = FontWeight.Bold, letterSpacing = (-3).sp), 48f)
-        centered(tm, "4 5 0", TextStyle(color = Alert, fontSize = 38.sp, fontFamily = GeistMonoFamily,
-            fontWeight = FontWeight.Bold, letterSpacing = 22.sp), 168f)
+        // The user's "Himalayan 450" banner, fading into the card.
+        drawImage(banner)
+        val bannerFade = BANNER_H - 160f
+        drawRect(Brush.verticalGradient(listOf(Color.Transparent, CARD_BG), bannerFade, BANNER_H.toFloat()),
+            topLeft = Offset(0f, bannerFade), size = Size(CARD_W.toFloat(), 160f))
 
         if (map != null) drawImage(map, topLeft = Offset(0f, MAP_TOP.toFloat()))
         // Fade the map edges into the card.
@@ -203,8 +206,8 @@ private fun drawCard(
             topLeft = Offset(0f, fadeTop), size = Size(CARD_W.toFloat(), 240f))
 
         centered(tm, name, TextStyle(color = TextHi, fontSize = 64.sp, fontFamily = GeistFamily,
-            fontWeight = FontWeight.Bold, letterSpacing = (-1).sp), 1110f)
-        centered(tm, date, TextStyle(color = TextMid, fontSize = 32.sp, fontFamily = GeistFamily), 1200f)
+            fontWeight = FontWeight.Bold, letterSpacing = (-1).sp), Y0 - 40f)
+        centered(tm, date, TextStyle(color = TextMid, fontSize = 32.sp, fontFamily = GeistFamily), Y0 + 50f)
 
         statRow(tm, row1, ROW1_Y.toFloat(), colW = 260f)
         if (row2.isNotEmpty()) statRow(tm, row2, ROW2_Y.toFloat(), colW = 420f)

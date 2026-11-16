@@ -511,7 +511,7 @@ private fun FullMap(ride: Ride, hasSpeed: Boolean, onClose: () -> Unit) {
                     }
                 },
         ) {
-            RideThumb(ride, Modifier.fillMaxSize().graphicsLayer {
+            RideThumb(ride, live = true, modifier = Modifier.fillMaxSize().graphicsLayer {
                 scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y
             })
             WayfindrIconBtn(WayfindrIcons.X, onClick = onClose,
