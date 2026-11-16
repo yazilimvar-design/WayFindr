@@ -2,7 +2,7 @@ name: APK derle
 
 on:
   push:
-    branches: ["himican/**"]
+    branches: ["himican/**", "main"]
   workflow_dispatch:
 
 jobs:
