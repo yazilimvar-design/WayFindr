@@ -34,6 +34,18 @@ for t in "Rota" "Konsol" "Sürüşler" "Ana Sayfa"; do
   adb exec-out screencap -p > "$OUT/$i-$t.png"; i=$((i+1))
 done
 
+# Second pass like a real phone: GPS fix + notification access granted, cold start.
+adb shell cmd notification allow_listener "$PKG/com.example.wayfindr.media.WayfindrNotificationListener" || true
+adb emu geo fix 32.85 39.92
+adb shell am force-stop "$PKG"
+adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
+for n in 1 2 3 4; do adb emu geo fix 32.85$n 39.92$n; sleep 5; done
+adb exec-out screencap -p > "$OUT/5-gps.png"
+for t in "Rota" "Konsol" "Sürüşler" "Ana Sayfa"; do
+  adb emu geo fix 32.86 39.93; tap "$t"; sleep 6
+  adb exec-out screencap -p > "$OUT/$i-gps-$t.png"; i=$((i+1))
+done
+
 adb shell pidof "$PKG" > "$OUT/pid.txt" && echo "process alive: $(cat $OUT/pid.txt)" || echo "process NOT running"
 adb logcat -d > "$OUT/logcat.txt"
 adb pull "/sdcard/Android/data/$PKG/files/diag" "$OUT/diag" 2>/dev/null || true
