@@ -1,6 +1,7 @@
 package com.example.wayfindr.viewmodel
 
 import android.app.Application
+import android.location.Geocoder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wayfindr.data.Ride
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 /** Recorded rides for RidesScreen. Rides are written by [DashViewModel] on disconnect. */
 class RidesViewModel(app: Application) : AndroidViewModel(app) {
@@ -17,6 +19,12 @@ class RidesViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _rides = MutableStateFlow<List<Ride>>(emptyList())
     val rides = _rides.asStateFlow()
+
+    // Ride sid → place name of where the ride ended. Persisted so it is looked up once (online)
+    // and still shows offline.
+    private val namePrefs = app.getSharedPreferences("ride_names", 0)
+    private val _names = MutableStateFlow<Map<String, String>>(emptyMap())
+    val names = _names.asStateFlow()
 
     init {
         reload()
@@ -26,9 +34,39 @@ class RidesViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun reload() = viewModelScope.launch {
         _rides.value = withContext(Dispatchers.IO) { repo.rides() }
+        resolveNames()
+    }
+
+    private suspend fun resolveNames() = withContext(Dispatchers.IO) {
+        val known = HashMap<String, String>()
+        namePrefs.all.forEach { (k, v) -> if (v is String) known[k] = v }
+        _names.value = known.toMap()
+        if (!Geocoder.isPresent()) return@withContext
+        for (r in _rides.value) {
+            if (r.sid.isEmpty() || known.containsKey(r.sid) || (r.endLat == 0.0 && r.endLng == 0.0)) continue
+            val name = reverseGeocode(r.endLat, r.endLng) ?: continue   // offline: retried next time
+            known[r.sid] = name
+            namePrefs.edit().putString(r.sid, name).apply()
+            _names.value = known.toMap()
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun reverseGeocode(lat: Double, lng: Double): String? = try {
+        com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.REVERSE_GEOCODE)
+        val a = Geocoder(getApplication(), Locale.forLanguageTag("tr-TR")).getFromLocation(lat, lng, 1)?.firstOrNull()
+        // featureName is often just a house number; prefer the street / district then.
+        listOf(a?.featureName, a?.thoroughfare, a?.subLocality, a?.locality)
+            .firstOrNull { !it.isNullOrBlank() && !it.all { c -> c.isDigit() || c == '/' || c == '-' } }
+    } catch (_: Exception) {
+        null
     }
 
     fun deleteRide(r: Ride) = viewModelScope.launch {
         withContext(Dispatchers.IO) { repo.deleteRide(r) }
+    }
+
+    fun deleteAll() = viewModelScope.launch {
+        withContext(Dispatchers.IO) { _rides.value.forEach { repo.deleteRide(it) } }
     }
 }
