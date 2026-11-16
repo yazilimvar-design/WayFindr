@@ -58,7 +58,7 @@ fun UpdatePrompt() {
         textContentColor = TextMid,
         title = {
             Text(
-                "Update available",
+                "Güncelleme mevcut",
                 color = TextHi,
                 fontWeight = FontWeight.Bold,
                 fontFamily = GeistFamily,
@@ -97,7 +97,7 @@ fun UpdatePrompt() {
                         trackColor = Line,
                     )
                     Text(
-                        if (progress > 0f) "Downloading… ${(progress * 100).toInt()}%" else "Downloading…",
+                        if (progress > 0f) "İndiriliyor… ${(progress * 100).toInt()}%" else "İndiriliyor…",
                         color = TextLo,
                         fontSize = 12.sp,
                         fontFamily = GeistFamily,
@@ -105,7 +105,7 @@ fun UpdatePrompt() {
                 }
                 if (failed) {
                     Text(
-                        "Download failed — opening the Releases page instead.",
+                        "İndirme başarısız oldu — bunun yerine Releases sayfası açılıyor.",
                         color = Warn,
                         fontSize = 12.sp,
                         fontFamily = GeistFamily,
@@ -137,7 +137,7 @@ fun UpdatePrompt() {
                 },
             ) {
                 Text(
-                    if (downloading) "Downloading…" else "Update",
+                    if (downloading) "İndiriliyor…" else "Güncelle",
                     color = if (downloading) TextLo else Gold,
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = GeistFamily,
@@ -149,7 +149,7 @@ fun UpdatePrompt() {
                 enabled = !downloading,
                 onClick = { dismissed = true },
             ) {
-                Text("Later", color = TextLo, fontFamily = GeistFamily)
+                Text("Daha sonra", color = TextLo, fontFamily = GeistFamily)
             }
         },
     )

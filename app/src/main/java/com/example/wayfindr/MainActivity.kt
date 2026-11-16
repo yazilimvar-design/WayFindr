@@ -9,7 +9,6 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.example.wayfindr.data.SyncRepository
 import com.example.wayfindr.ui.navigation.AppNavigation
 import com.example.wayfindr.ui.theme.Bg1
 import com.example.wayfindr.ui.theme.WayfindrTheme
@@ -21,20 +20,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        val sync = SyncRepository.get(applicationContext)
-
-        // Maintenance + document-expiry reminders on app open (fire even if Garage is never
-        // opened). Only on a fresh launch — savedInstanceState != null means this is a config
-        // change (e.g. rotation), where re-running it is wasted work.
-        if (savedInstanceState == null) {
-            Thread {
-                com.example.wayfindr.data.MaintenanceNotifier.check(
-                    applicationContext, sync.maintenanceItems(), sync.odometer().toInt()
-                )
-                com.example.wayfindr.data.MaintenanceNotifier.checkDocuments(applicationContext, sync.documents())
-            }.start()
-        }
 
         handleIntent(intent)
         setContent {

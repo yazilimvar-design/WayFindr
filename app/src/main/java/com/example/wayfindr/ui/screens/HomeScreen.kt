@@ -39,9 +39,9 @@ fun HomeScreen(
     var sharing by remember { mutableStateOf<com.example.wayfindr.data.SavedLocation?>(null) }
     sharing?.let { loc -> RouteQrDialog(loc, onDismiss = { sharing = null }) }
     val status = when (conn) {
-        ConnectionState.Connected -> Triple("Connected", "Streaming to Console Dash", Gold)
-        ConnectionState.Searching -> Triple("Searching…", "Looking for Console Dash", Warn)
-        ConnectionState.Offline   -> Triple("Offline", "Dash not detected", Offline)
+        ConnectionState.Connected -> Triple("Bağlandı", "Konsol ekranına aktarılıyor", Gold)
+        ConnectionState.Searching -> Triple("Aranıyor…", "Konsol ekranı aranıyor", Warn)
+        ConnectionState.Offline   -> Triple("Çevrimdışı", "Konsol ekranı algılanmadı", Offline)
     }
     val (statusLabel, statusSub, statusDot) = status
 
@@ -81,7 +81,7 @@ fun HomeScreen(
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(
-                    "TEST BUILD",
+                    "TEST SÜRÜMÜ",
                     color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold,
                     fontFamily = GeistMonoFamily, letterSpacing = 0.1.sp,
                 )
@@ -117,7 +117,7 @@ fun HomeScreen(
                 Spacer(Modifier.width(18.dp))
 
                 Column(Modifier.weight(1f)) {
-                    Eyebrow("Common Remington · Console")
+                    Eyebrow("Common Remington · Konsol")
 
                     Spacer(Modifier.height(7.dp))
 
@@ -151,7 +151,7 @@ fun HomeScreen(
         Spacer(Modifier.height(18.dp))
 
         WayfindrBtn(
-            "Start navigation", onClick = { onNavigate("route") },
+            "Navigasyonu başlat", onClick = { onNavigate("route") },
             icon = WayfindrIcons.Navi, variant = BtnVariant.Primary, size = BtnSize.Lg,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -159,19 +159,19 @@ fun HomeScreen(
         Spacer(Modifier.height(10.dp))
 
         WayfindrBtn(
-            "Open dash view", onClick = { onNavigate("dash") },
+            "Konsol ekranını aç", onClick = { onNavigate("dash") },
             icon = WayfindrIcons.Dash, variant = BtnVariant.Secondary, size = BtnSize.Md,
             modifier = Modifier.fillMaxWidth(),
         )
 
         Spacer(Modifier.height(18.dp))
 
-        Eyebrow("Saved destinations", Modifier.padding(bottom = 6.dp, start = 4.dp))
+        Eyebrow("Kaydedilen varış noktaları", Modifier.padding(bottom = 6.dp, start = 4.dp))
 
         if (saved.isEmpty()) {
             WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 16.dp) {
                 Text(
-                    "No saved destinations yet. Share a place from Google Maps, then tap “Save this destination”.",
+                    "Henüz kaydedilmiş bir varış noktası yok. Google Maps'ten bir yer paylaşın, ardından “Bu varış noktasını kaydet” seçeneğine dokunun.",
                     color = TextLo, fontSize = 13.sp,
                 )
             }
@@ -188,7 +188,7 @@ fun HomeScreen(
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
-                            WayfindrIcons.Share, "Share ${loc.name}", tint = TextLo,
+                            WayfindrIcons.Share, "${loc.name} konumunu paylaş", tint = TextLo,
                             modifier = Modifier.clip(CircleShape)
                                 .clickable { sharing = loc }
                                 .padding(12.dp).size(18.dp),
