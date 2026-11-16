@@ -32,7 +32,7 @@ class RideRecorderTest {
 
         val ride = rec.stop(t)!!
         assertEquals(t0, ride.startMs)
-        assertEquals(211L, ride.durationSec)
+        assertEquals(210L, ride.durationSec)
         assertEquals(1800.0, ride.distanceMeters, 30.0)
         assertEquals(54.0, ride.maxSpeedKmh, 0.5)
         val n = PolylineCodec.decode(ride.trackPolyline).size

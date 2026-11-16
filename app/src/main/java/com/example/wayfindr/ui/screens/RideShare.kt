@@ -24,7 +24,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Canvas
+import androidx.compose.ui.graphics.Canvas as GCanvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
@@ -186,7 +186,7 @@ private fun drawCard(
     val h = if (row2.isEmpty()) CARD_H_SHORT else CARD_H_FULL
     val out = ImageBitmap(CARD_W, h)
     // Density 1: 1.sp == 1 px of the 1080-wide image.
-    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(out), Size(CARD_W.toFloat(), h.toFloat())) {
+    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, GCanvas(out), Size(CARD_W.toFloat(), h.toFloat())) {
         drawRect(CARD_BG)
         // Wordmark: "Himalayan" in the app's display face, gold; "4 5 0" letter-spaced in the odometer red.
         centered(tm, "Himalayan", TextStyle(color = Gold, fontSize = 104.sp, fontFamily = GeistFamily,
