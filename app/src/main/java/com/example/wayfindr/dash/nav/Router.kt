@@ -104,7 +104,13 @@ object Router {
             if (source == RoutingSource.OSM)
                 FreeRouter.alternatives(context, from, to, intermediates).map { it.copy(source = RoutingSource.OSM) }
             else NavPlus.googleChoices(route(context, from, to, NavPlus.altMarker(intermediates) as List<GeoPoint>)) as List<Route>
-        return NavPlus.fastestFirst(routes) as List<Route>
+        // Google often returns a single route (always with stops); top up the picker with the free OSM
+        // alternatives so the rider still gets up to 3 choices. Costs nothing extra.
+        val choices = if (source == RoutingSource.GOOGLE && routes.size < 2)
+            routes + runCatching { FreeRouter.alternatives(context, from, to, intermediates) }.getOrDefault(emptyList())
+                .map { it.copy(source = RoutingSource.OSM) }
+        else routes
+        return NavPlus.fastestFirst(choices) as List<Route>
     }
 
     private suspend fun googleRoute(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint>): Route? =
