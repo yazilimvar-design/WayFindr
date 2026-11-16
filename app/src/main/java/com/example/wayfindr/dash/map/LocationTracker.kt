@@ -5,7 +5,9 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.SystemClock
 import android.util.Log
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.util.Dbg
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +18,37 @@ class LocationTracker(context: Context) {
         private const val TAG = "LocationTracker"
         // While a GPS fix is younger than this, ignore coarse NETWORK fixes entirely.
         private const val GPS_STALE_MS = 10_000L
+        /** A fix older than this is not used for navigation (route origin, off-route, reroute). */
+        const val MAX_NAV_FIX_AGE_MS = 10_000L
+
+        @JvmStatic
+        fun isFreshForNavigation(
+            loc: Location,
+            nowElapsedNanos: Long = SystemClock.elapsedRealtimeNanos(),
+            nowWallMs: Long = System.currentTimeMillis(),
+        ): Boolean {
+            val age = fixAgeMs(loc, nowElapsedNanos, nowWallMs) ?: return false
+            return NavigationReliability.isFreshFixAge(age, MAX_NAV_FIX_AGE_MS)
+        }
+
+        /**
+         * Age of [loc] in ms, from the monotonic elapsed-realtime clock when the fix has one (wall
+         * clocks on GPS fixes can be off), else from its wall time; null if it lies in the future.
+         */
+        @JvmStatic
+        fun fixAgeMs(loc: Location, nowElapsedNanos: Long, nowWallMs: Long): Long? {
+            val fixElapsed = loc.elapsedRealtimeNanos
+            if (fixElapsed > 0 && nowElapsedNanos >= fixElapsed) return (nowElapsedNanos - fixElapsed) / 1_000_000L
+            return (nowWallMs - loc.time).takeIf { it >= 0 }
+        }
+
+        /** Seconds between two fixes, preferring the monotonic clock. */
+        private fun elapsedDeltaSeconds(previous: Location, next: Location): Double {
+            val previousElapsed = previous.elapsedRealtimeNanos
+            val nextElapsed = next.elapsedRealtimeNanos
+            if (previousElapsed > 0 && nextElapsed > 0) return (nextElapsed - previousElapsed) / 1e9
+            return (next.time - previous.time) / 1000.0
+        }
     }
 
     private val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -27,51 +60,64 @@ class LocationTracker(context: Context) {
         val cur = _location.value
         if (acceptFix(cur, loc)) {
             _location.value = loc
+            NavPlus.onFix(loc)
             Dbg.d(TAG) { "fix ${loc.provider} acc=${loc.accuracy} (${loc.latitude},${loc.longitude})" }
         } else {
-            Log.d(TAG, "REJECT ${loc.provider} acc=${loc.accuracy} dt=${loc.time - (cur?.time ?: 0)}ms")
+            Log.d(TAG, "REJECT ${loc.provider} acc=${loc.accuracy} dt=${if (cur != null) elapsedDeltaSeconds(cur, loc) else 0.0}s")
         }
     }
 
     /**
      * Decide whether [loc] should replace [cur]. This is the FIRST line against teleport/jitter:
      * a clean fix stream is what the camera smoothing and predictor assume.
-     *  - GPS always wins over a coarse NETWORK fix while a recent GPS fix exists (else the marker
+     *  - A stale first fix is never accepted, and time never runs backwards.
+     *  - [LocPlus] provider preference (GPS / fused / network) may reject the new fix.
+     *  - GPS always wins over a coarse NETWORK fix while a fresh GPS fix exists (else the marker
      *    jumps to a cell-tower estimate km away — the classic screen-off failure).
-     *  - Physically impossible jumps (>306 km/h sustained) are dropped outright.
+     *  - Physically impossible jumps (>306 km/h) are dropped outright.
      *  - Accuracy-+speed-aware outlier gate: a jump well beyond what our speed and the two fixes'
      *    error radii can explain is a GPS glitch — reject it so it never reaches the map. Recovers
      *    after a few rejects (or a long gap) so a real reposition still resyncs.
      */
     private fun acceptFix(cur: Location?, loc: Location): Boolean {
-        if (cur == null) { rejectStreak = 0; return true }
+        if (cur == null) {
+            if (!isFreshForNavigation(loc)) return false
+            rejectStreak = 0
+            return true
+        }
+        val dt = elapsedDeltaSeconds(cur, loc)
+        if (dt < 0.0) return false
+        if ((dt == 0.0 && loc.time < cur.time) || LocPlus.preferReject(cur, loc, dt)) return false
+        LocPlus.stillLock(loc)
         val isGps = loc.provider == LocationManager.GPS_PROVIDER
-        if (!isGps && cur.provider == LocationManager.GPS_PROVIDER &&
-            loc.time - cur.time < GPS_STALE_MS
+        if (LocPlus.rank(loc.provider) != 3 && !isGps && cur.provider == LocationManager.GPS_PROVIDER &&
+            isFreshForNavigation(cur)
         ) return false
-        if (loc.time < cur.time) return false
-        val dt = (loc.time - cur.time) / 1000.0
-        val jump = cur.distanceTo(loc)
+        val jump = cur.distanceTo(loc).toDouble()
+        // Hard cap: nothing on this bike sustains 85 m/s — that's a corrupt fix.
+        if (!NavigationReliability.isPlausibleJump(jump, dt)) return reject()
         // A last-known fix can be stale when navigation starts. After a long gap there is no
         // reliable way to judge the distance or speed between fixes, so accept the fresh fix to
-        // resynchronize instead of rejecting every update behind the hard jump guard.
+        // resynchronize instead of rejecting every update behind the outlier gate.
         if (dt > GPS_STALE_MS / 1000.0) {
             rejectStreak = 0
             return true
         }
-        // Hard cap: nothing on this bike sustains 85 m/s — that's a corrupt fix.
-        if (dt > 0 && jump > 200f && jump / dt > 85.0) return reject()
         // Outlier gate (skipped for long gaps, which legitimately cover ground, and after a few
         // rejects so we resync to a real reposition instead of freezing on the wrong spot).
         if (dt in 0.0..8.0 && rejectStreak < 3) {
-            val plausibleSpeed = maxOf(cur.speed, loc.speed).coerceAtLeast(1f) // m/s, floored
+            val oldSpeed = if (cur.hasSpeed()) cur.speed else 0f
+            val newSpeed = if (loc.hasSpeed()) loc.speed else 0f
+            val plausibleSpeed = maxOf(oldSpeed, newSpeed).coerceAtLeast(1f) // m/s, floored
             val expected = plausibleSpeed * dt
-            val noise = (loc.accuracy + cur.accuracy)                          // combined error radius
+            val oldAccuracy = if (cur.hasAccuracy()) cur.accuracy else 50f
+            val newAccuracy = if (loc.hasAccuracy()) loc.accuracy else 50f
+            val noise = oldAccuracy + newAccuracy                               // combined error radius
             // Urban canyon / building facade: reported accuracy is often optimistic while the
             // point jumps tens of metres. A tight gate dropped those fixes, starved the age
             // clock, and flashed "GPS lost" even though GPS was still talking.
-            val gate = expected + noise * 2.5 + 25f
-            if (jump > gate && jump > 40f) return reject()
+            val gate = expected + noise * 2.5 + 25.0
+            if (jump > gate && jump > 40.0) return reject()
         }
         rejectStreak = 0
         return true
@@ -90,9 +136,8 @@ class LocationTracker(context: Context) {
     fun start() {
         if (running) return
         try {
-            _location.value = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            
+            _location.value = bestKnown(requireFresh = true)
+
             // Move location updates to a dedicated background thread. Using the main looper
             // can lead to throttling when the screen is off and the UI thread is de-prioritized.
             handlerThread = android.os.HandlerThread("LocationTracker").apply { start() }
@@ -103,6 +148,7 @@ class LocationTracker(context: Context) {
                     lm.requestLocationUpdates(provider, 500L, 0f, listener, looper)
                 }
             }
+            LocPlus.addFused(lm, listener, looper)
             running = true
             Log.i(TAG, "Location updates started on background thread")
         } catch (e: SecurityException) {
@@ -120,14 +166,44 @@ class LocationTracker(context: Context) {
         running = false
     }
 
-    /** Best last-known fix without starting updates (for routing before connecting). */
+    /** Best fresh last-known fix without starting updates (for routing before connecting). */
     @SuppressLint("MissingPermission")
-    fun lastKnown(): android.location.Location? = try {
-        _location.value
-            ?: lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-            ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-            ?: lm.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+    fun lastKnown(): Location? = try {
+        bestKnown(requireFresh = true)
     } catch (e: Exception) {
         null
+    }
+
+    /** Best last-known fix of any age (route origin fallback when no fresh fix exists). */
+    fun lastKnownAny(): Location? = try {
+        bestKnown(requireFresh = false)
+    } catch (_: Throwable) {
+        null
+    }
+
+    /** The current fix, else the best last-known one of any age — for showing the map only. */
+    @SuppressLint("MissingPermission")
+    fun lastKnownForDisplay(): Location? = try {
+        _location.value ?: bestKnown(requireFresh = false)
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Lowest [NavigationReliability.routeOriginScore] among the providers' last-known fixes and ours. */
+    @SuppressLint("MissingPermission")
+    private fun bestKnown(requireFresh: Boolean): Location? {
+        val candidates = listOf(
+            LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER,
+        ).mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() } + listOfNotNull(_location.value)
+        val nowElapsed = SystemClock.elapsedRealtimeNanos()
+        val nowWall = System.currentTimeMillis()
+        return candidates
+            .filter { !requireFresh || isFreshForNavigation(it, nowElapsed, nowWall) }
+            .minByOrNull {
+                NavigationReliability.routeOriginScore(
+                    if (it.hasAccuracy()) it.accuracy.toDouble() else null,
+                    fixAgeMs(it, nowElapsed, nowWall) ?: Long.MAX_VALUE,
+                )
+            }
     }
 }
