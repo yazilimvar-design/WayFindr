@@ -2444,7 +2444,7 @@ public final class NavPlus {
     }
 
     /* JADX WARN: Unreachable blocks removed: 1, instructions: 1 */
-    public static void plBuild0() {
+    public static void plBuild0() throws Exception {
         SQLiteDatabase sQLiteDatabase;
         if (!mbVec || (sQLiteDatabase = mbDb) == null) {
             return;
@@ -3662,10 +3662,7 @@ public final class NavPlus {
             String str = null;
             if (i5 >= 0 && (i3 = vx.ck) >= 0) {
                 vxSet(vx, i5);
-                while (true) {
-                    if (vxPos(vx) >= i6) {
-                        break;
-                    }
+                while (vxPos(vx) < i6) {
                     int vxVar4 = vxVar(vx);
                     int vxVar5 = vxVar(vx);
                     if (vxVar4 == i3) {
@@ -3673,18 +3670,35 @@ public final class NavPlus {
                         if (vxVar5 < arrayList.size()) {
                             str = (String) arrayList.get(vxVar5);
                         }
+                        break;
                     }
                 }
             }
             int i11 = vx.kind;
             int i12 = vx.pass;
             if (i4 == 3) {
+                boolean draw = true;
+                i2 = 0;
                 if (i11 == 1) {
                     if (vxIn(str, "|wood|forest|grass|park|garden|cemetery|pitch|golf_course|recreation_ground|village_green|meadow|scrub|wetland|nature_reserve|national_park|protected_area|playground|")) {
                         i2 = -3282000;
                     } else if (vxIn(str, "|farmland|farm|orchard|vineyard|")) {
                         i2 = -1117995;
+                    } else {
+                        draw = false;
                     }
+                } else if (i11 == 2) {
+                    i2 = -5581857;
+                } else if (i11 == 4) {
+                    i2 = -2502455;
+                } else if (i11 == 6) {
+                    i2 = -3282000;
+                } else if (i11 == 5 && i12 == 3) {
+                    i2 = -790036;
+                } else {
+                    draw = false;
+                }
+                if (draw) {
                     Path path = vx.path;
                     path.reset();
                     vxPath(vx, i7, i8);
@@ -3692,48 +3706,39 @@ public final class NavPlus {
                     paint.setStyle(Paint.Style.FILL);
                     paint.setColor(i2);
                     vx.c.drawPath(path, paint);
-                } else {
-                    if (i11 == 2) {
-                        i2 = -5581857;
-                    } else if (i11 == 4) {
-                        i2 = -2502455;
-                    } else if (i11 == 6) {
-                        i2 = -3282000;
-                    } else if (i11 == 5 && i12 == 3) {
-                        i2 = -790036;
-                    }
-                    Path path2 = vx.path;
-                    path2.reset();
-                    vxPath(vx, i7, i8);
-                    Paint paint2 = vx.p;
-                    paint2.setStyle(Paint.Style.FILL);
-                    paint2.setColor(i2);
-                    vx.c.drawPath(path2, paint2);
                 }
             } else if (i4 == 2) {
+                boolean draw = false;
+                vxRoadC = 0;
+                vxRoadW = 0.0f;
                 if (i11 == 3) {
                     vxRoadC = -5581857;
                     vxRoadW = 1.5f;
+                    draw = true;
                 } else if (i11 == 5 && (vxRoadCode = vxRoadCode(str)) != 0) {
                     if (i12 == 3) {
                         if (vxRoadCode < 6) {
                             vxRoadC = -4870752;
                             vxRoadW = vxRoadW(vxRoadCode) + 1.5f;
+                            draw = true;
                         }
                     } else if (i12 == 4) {
                         vxRoadC = vxRoadC(vxRoadCode);
                         vxRoadW = vxRoadW(vxRoadCode);
+                        draw = true;
                     }
                 }
-                float f = (vxRoadW * vx.zf) / vx.s;
-                Path path3 = vx.path;
-                path3.reset();
-                vxPath(vx, i7, i8);
-                Paint paint3 = vx.p;
-                paint3.setStyle(Paint.Style.STROKE);
-                paint3.setStrokeWidth(f);
-                paint3.setColor(vxRoadC);
-                vx.c.drawPath(path3, paint3);
+                if (draw) {
+                    float f = (vxRoadW * vx.zf) / vx.s;
+                    Path path3 = vx.path;
+                    path3.reset();
+                    vxPath(vx, i7, i8);
+                    Paint paint3 = vx.p;
+                    paint3.setStyle(Paint.Style.STROKE);
+                    paint3.setStrokeWidth(f);
+                    paint3.setColor(vxRoadC);
+                    vx.c.drawPath(path3, paint3);
+                }
             }
         }
         vxSet(vx, i);
