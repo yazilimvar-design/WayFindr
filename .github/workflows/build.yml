@@ -41,14 +41,6 @@ jobs:
           name: apk-${{ github.run_number }}
           path: apk
 
-      # TEMP: the v39 APK (full, com.wayfindr.app) that crashed on the phone, for comparison.
-      - uses: actions/download-artifact@v4
-        with:
-          name: apk-18
-          path: v39
-          run-id: 43870424971
-          github-token: ${{ github.token }}
-
       - name: KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -63,16 +55,11 @@ jobs:
           target: google_apis
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: |
-            bash .github/scripts/smoke.sh "$(find v39 -name '*.apk' | head -1)" com.wayfindr.app smoke-v39 || echo "v39 smoke failed"
-            adb uninstall com.wayfindr.app || true
-            bash .github/scripts/smoke.sh "$(find apk -name '*.apk' | head -1)"
+          script: bash .github/scripts/smoke.sh "$(find apk -name '*.apk' | head -1)"
 
       - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-${{ github.run_number }}
-          path: |
-            smoke-out
-            smoke-v39
+          path: smoke-out
           retention-days: 14
