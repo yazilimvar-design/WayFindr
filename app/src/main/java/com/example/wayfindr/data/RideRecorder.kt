@@ -1,6 +1,7 @@
 package com.example.wayfindr.data
 
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.PolylineCodec
 
 /**
@@ -25,6 +26,7 @@ class RideRecorder {
     val distanceSoFarM: Double get() = distanceM
 
     fun start() {
+        NavPlus.rsClear()   // reset the per-point speed log NavPlus keeps alongside the track
         points.clear(); distanceM = 0.0; maxSpeed = 0.0; last = null
         startMs = System.currentTimeMillis(); lastMs = startMs
         recording = true
@@ -39,7 +41,7 @@ class RideRecorder {
         val p = GeoPoint(lat, lng)
         val prev = last
         if (prev == null) {
-            points.add(p); last = p; lastMs = timeMs; return
+            points.add(p); NavPlus.rsAdd(speedMps); last = p; lastMs = timeMs; return
         }
         val step = GeoPoint.distMeters(prev, p)
         if (step < MIN_MOVE_M) return   // thin out jitter / stationary noise
@@ -48,7 +50,7 @@ class RideRecorder {
         if (speedMps >= STILL_SPEED) distanceM += step
         // Only count max speed on genuine movement, so parked GPS speed spikes don't inflate it.
         if (speedMps > maxSpeed) maxSpeed = speedMps.toDouble()
-        points.add(p); last = p; lastMs = timeMs
+        points.add(p); NavPlus.rsAdd(speedMps); last = p; lastMs = timeMs
     }
 
     /**
@@ -58,6 +60,7 @@ class RideRecorder {
      * (traffic/parked) for >90 s before disconnecting — distance is the only thing that makes it a ride.
      */
     fun stop(): Ride? {
+        NavPlus.rsSave(points)
         recording = false
         val end = System.currentTimeMillis()
         val durationS = ((end - startMs) / 1000L).coerceAtLeast(0)

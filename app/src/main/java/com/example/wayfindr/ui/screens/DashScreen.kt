@@ -41,6 +41,8 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
     val ui by vm.ui.collectAsState()
     val previewFrame by vm.previewFrame.collectAsState()
     val context = LocalContext.current
+    val dashConfig = remember { com.example.wayfindr.dash.DashConfig.get(context) }
+    val autoConnectOnStart by dashConfig.autoConnectOnStart.collectAsState()
 
     // WiFi network request (13+: NEARBY_WIFI_DEVICES) + GPS for the map
     // Essential perms gate the connection; notifications are requested but optional.
@@ -135,14 +137,14 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
 
     val streaming = ui.stage == ConnStage.STREAMING
 
-    // Auto-connect on opening the Dash screen, so the rider doesn't tap "Connect" every
-    // ride — just open the app. Fires once; if the dash is off it errors out quietly and
-    // the rider can retry. (Needs permissions already granted from a prior run.)
-    // rememberSaveable so a config change (rotation/theme) doesn't reset this and silently
-    // reconnect after the rider deliberately disconnected.
+    // Auto-connect on opening the Dash screen ("Auto-connect on start" setting), so the rider
+    // doesn't tap "Connect" every ride — just open the app. Fires once; if the dash is off it
+    // errors out quietly and the rider can retry. (Needs permissions already granted from a
+    // prior run.) rememberSaveable so a config change (rotation/theme) doesn't reset this and
+    // silently reconnect after the rider deliberately disconnected.
     var autoConnectTried by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        if (!autoConnectTried && ui.stage == ConnStage.OFFLINE && hasEssentialPermissions()) {
+    LaunchedEffect(autoConnectOnStart, ui.stage) {
+        if (autoConnectOnStart && !autoConnectTried && ui.stage == ConnStage.OFFLINE && hasEssentialPermissions()) {
             autoConnectTried = true
             vm.connect()
         }
@@ -177,29 +179,35 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
             .padding(bottom = 24.dp),
     ) {
         ScreenHeader(
-            eyebrow = "What the rider sees",
-            title = "Dash view",
-            hint = "A live preview of the map sent to the dash. Tap Connect to join the bike's WiFi and stream — your phone screen can stay off.",
+            eyebrow = "Sürücünün gördüğü",
+            title = "Konsol ekranı",
+            hint = "Konsol ekranına aktarılan haritanın canlı önizlemesi. Bisikletin Wi-Fi ağına bağlanıp aktarımı başlatmak için Bağlan'a dokunun — telefon ekranınız kapalı kalabilir.",
             trailing = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     if (streaming && ui.gpsStatus != com.example.wayfindr.viewmodel.GpsStatus.GOOD) {
                         WayfindrChip(
-                            if (ui.gpsStatus == com.example.wayfindr.viewmodel.GpsStatus.LOST) "GPS lost" else "GPS weak",
+                            if (ui.gpsStatus == com.example.wayfindr.viewmodel.GpsStatus.LOST) "GPS sinyali yok" else "GPS sinyali zayıf",
                             if (ui.gpsStatus == com.example.wayfindr.viewmodel.GpsStatus.LOST) ChipTone.Alert else ChipTone.Warn,
                         )
                     }
                     if (streaming && ui.thermal != "OK") {
                         WayfindrChip(
-                            ui.thermal,
+                            when (ui.thermal) {
+                                "OK" -> "Normal"
+                                "Warm" -> "Isınıyor"
+                                "Hot" -> "Aşırı sıcak"
+                                "Throttling" -> "Performans kısıtlandı"
+                                else -> ui.thermal
+                            },
                             if (ui.thermal == "Warm") ChipTone.Warn else ChipTone.Alert,
                         )
                     }
                     when (ui.stage) {
-                        ConnStage.STREAMING -> WayfindrChip("LIVE", ChipTone.Gold, dot = true)
+                        ConnStage.STREAMING -> WayfindrChip("CANLI", ChipTone.Gold, dot = true)
                         ConnStage.WIFI,
-                        ConnStage.AUTH      -> WayfindrChip("Connecting…", ChipTone.Neutral)
-                        ConnStage.ERROR     -> WayfindrChip("Error", ChipTone.Alert)
-                        ConnStage.OFFLINE   -> WayfindrChip("Offline", ChipTone.Off)
+                        ConnStage.AUTH      -> WayfindrChip("Bağlanıyor…", ChipTone.Neutral)
+                        ConnStage.ERROR     -> WayfindrChip("Hata", ChipTone.Alert)
+                        ConnStage.OFFLINE   -> WayfindrChip("Çevrimdışı", ChipTone.Off)
                     }
                 }
             },
@@ -219,16 +227,16 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                     ) {
                         Column(Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                "Set Location to \"Allow all the time\"",
+                                "Konum iznini “Her zaman izin ver” olarak ayarlayın",
                                 color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                             )
                             Text(
-                                "Essential to keep GPS fresh when the screen is off. Select \"Allow all the time\" in system settings.",
+                                "Ekran kapalıyken GPS konumunu güncel tutmak için gereklidir. Sistem ayarlarından “Her zaman izin ver” seçeneğini belirleyin.",
                                 color = TextMid, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp),
                             )
                         }
                         WayfindrBtn(
-                            "Fix",
+                            "Ayarla",
                             onClick = {
                                 context.startActivity(com.example.wayfindr.util.DeviceReadiness.appSettingsIntent(context))
                             },
@@ -247,23 +255,23 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                     Column(Modifier.weight(1f).padding(end = 12.dp)) {
                         Text(
                             when (ui.stage) {
-                                ConnStage.OFFLINE -> "Connect to Console Dash"
-                                ConnStage.WIFI    -> if (ui.ssid.isNotBlank()) "Joining ${ui.ssid}…" else "Finding your dash…"
-                                ConnStage.AUTH    -> if (ui.retryAttempt > 0) "Retrying handshake…" else "Pairing with dash…"
-                                ConnStage.ERROR   -> "Couldn't connect"
-                                ConnStage.STREAMING -> "Streaming"
+                                ConnStage.OFFLINE -> "Konsol ekranına bağlan"
+                                ConnStage.WIFI    -> if (ui.ssid.isNotBlank()) "${ui.ssid} ağına katılıyor…" else "Konsol ekranı aranıyor…"
+                                ConnStage.AUTH    -> if (ui.retryAttempt > 0) "Bağlantı doğrulaması yeniden deneniyor…" else "Konsol ekranıyla eşleştiriliyor…"
+                                ConnStage.ERROR   -> "Bağlanılamadı"
+                                ConnStage.STREAMING -> "Aktarım sürüyor"
                             },
                             color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             when (ui.stage) {
-                                ConnStage.OFFLINE -> "Turn the dash on, stand near the bike, then tap Connect"
-                                ConnStage.WIFI    -> "Accept the system dialog if it appears"
+                                ConnStage.OFFLINE -> "Konsol ekranını açın, bisikletin yanına gelin ve Bağlan'a dokunun"
+                                ConnStage.WIFI    -> "Sistem iletişim kutusu görünürse onaylayın"
                                 ConnStage.AUTH    -> if (ui.retryAttempt > 0)
-                                    "Handshake attempt ${ui.retryAttempt} of 4 — this is normal"
-                                    else "Securing the link to firmware 11.63…"
-                                ConnStage.ERROR   -> ui.errorMessage
-                                    ?: "Make sure the dash is on and you're beside the bike, then try again."
+                                    "Bağlantı doğrulama denemesi ${ui.retryAttempt}/4 — bu normal"
+                                    else "11.63 donanım yazılımına bağlantı güvenli hâle getiriliyor…"
+                                ConnStage.ERROR   -> ui.errorMessage?.let { turkishConnectionError(it) }
+                                    ?: "Konsol ekranının açık ve bisikletin yanında olduğunuzdan emin olun, ardından yeniden deneyin."
                                 ConnStage.STREAMING -> ""
                             },
                             color = if (ui.stage == ConnStage.ERROR) Warn else TextMid,
@@ -274,9 +282,9 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                     if (ui.stage == ConnStage.OFFLINE || ui.stage == ConnStage.ERROR) {
                         WayfindrBtn(
                             when {
-                                ui.needsWifiOn -> "Turn on Wi‑Fi"
-                                ui.stage == ConnStage.ERROR -> "Try again"
-                                else -> "Connect"
+                                ui.needsWifiOn -> "Wi‑Fi'yi aç"
+                                ui.stage == ConnStage.ERROR -> "Yeniden dene"
+                                else -> "Bağlan"
                             },
                             onClick = {
                                 when {
@@ -298,7 +306,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                         )
                     } else {
                         WayfindrBtn(
-                            "Cancel",
+                            "İptal",
                             onClick = { vm.disconnect() },
                             variant = BtnVariant.Ghost,
                             size = BtnSize.Sm,
@@ -308,13 +316,13 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 if (ui.frameCount > 0) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Frames encoded: ${ui.frameCount}",
+                        "Kodlanan kare: ${ui.frameCount}",
                         color = TextLo, fontSize = 11.sp, fontFamily = GeistMonoFamily,
                     )
                 }
                 ui.lastButton?.let { btn ->
                     Text(
-                        "Joystick: $btn",
+                        "Kumanda kolu: $btn",
                         color = Gold, fontSize = 11.sp, fontFamily = GeistMonoFamily,
                         modifier = Modifier.padding(top = 4.dp),
                     )
@@ -353,7 +361,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 if (dashFrame != null) {
                     androidx.compose.foundation.Image(
                         bitmap = dashFrame.asImageBitmap(),
-                        contentDescription = "Live dash frame",
+                        contentDescription = "Canlı konsol görüntüsü",
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -395,7 +403,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 Icon(WayfindrIcons.Navi, null, tint = if (ui.offRoute) Warn else Gold, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(11.dp))
                 Text(
-                    if (ui.offRoute) "Off route — rerouting…" else mv,
+                    if (ui.offRoute) "Rotanın dışındasınız — yeniden rota oluşturuluyor…" else turkishManeuver(mv),
                     color = TextHi, fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold,
                 )
             }
@@ -407,13 +415,13 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
             listOf(
                 Triple(
                     ui.remainingKm?.let { if (it >= 10) "%.0f".format(it) else "%.1f".format(it) } ?: "—",
-                    if (ui.remainingKm != null) "km" else "", "Remaining",
+                    if (ui.remainingKm != null) "km" else "", "Kalan",
                 ),
                 Triple(
-                    ui.etaMinutes?.let { if (it >= 60) "${it / 60}h ${it % 60}" else "$it" } ?: "—",
-                    ui.etaMinutes?.let { if (it >= 60) "m" else "min" } ?: "", "ETA",
+                    ui.etaMinutes?.let { if (it >= 60) "${it / 60} sa ${it % 60} dk" else "$it" } ?: "—",
+                    ui.etaMinutes?.let { if (it >= 60) "" else "dk" } ?: "", "Tahmini süre",
                 ),
-                Triple("z${ui.mapZoom}", "", "Zoom"),
+                Triple("z${ui.mapZoom}", "", "Yakınlaştırma"),
             ).forEach { (v, u, k) ->
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -453,8 +461,8 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 Icon(WayfindrIcons.Cross, null, tint = if (adjustMode) Gold else TextMid, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(11.dp))
                 Column {
-                    Text("Map adjust mode", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
-                    Text("Mirrors the bike joystick", color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
+                    Text("Harita ayarlama modu", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+                    Text("Bisikletin kumanda kolunu taklit eder", color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
                 }
             }
             WayfindrToggle(on = adjustMode, onChange = { adjustMode = it })
@@ -477,8 +485,8 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 Icon(WayfindrIcons.Navi, null, tint = if (ui.headingUp) Gold else TextMid, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(11.dp))
                 Column {
-                    Text("Heading-up map", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
-                    Text(if (ui.headingUp) "Rotates to travel direction" else "North-up", color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
+                    Text("Yönü takip eden harita", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+                    Text(if (ui.headingUp) "Sürüş yönüne göre döner" else "Kuzey yukarıda", color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
                 }
             }
             WayfindrToggle(on = ui.headingUp, onChange = { vm.toggleHeadingUp() })
@@ -500,10 +508,10 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 Icon(WayfindrIcons.Moon, null, tint = if (ui.mapDark) Gold else TextMid, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(11.dp))
                 Column {
-                    Text("Dark map", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+                    Text("Koyu harita", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
                     Text(
-                        (if (ui.mapDarkAuto) "Auto (7 pm–5 am) · " else "Manual · ") +
-                            (if (ui.mapDark) "night look" else "daylight tiles"),
+                        (if (ui.mapDarkAuto) "Otomatik (19.00–05.00) · " else "Elle · ") +
+                            (if (ui.mapDark) "gece görünümü" else "gündüz haritası"),
                         color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp),
                     )
                 }
@@ -533,7 +541,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                     onMove = { v -> joystickVelocity = if (adjustMode) v else Offset.Zero },
                 )
                 Spacer(Modifier.height(9.dp))
-                Eyebrow("Pan")
+                Eyebrow("Kaydır")
             }
 
             Column(
@@ -551,7 +559,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
         if (streaming && ui.destinationName != null) {
             Spacer(Modifier.height(16.dp))
             WayfindrBtn(
-                "Exit navigation",
+                "Navigasyondan çık",
                 onClick = { vm.exitNavigation() },
                 icon = WayfindrIcons.Navi,
                 variant = BtnVariant.Ghost,
@@ -564,7 +572,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
         if (streaming) {
             Spacer(Modifier.height(20.dp))
             WayfindrBtn(
-                "Disconnect",
+                "Bağlantıyı kes",
                 onClick = { vm.disconnect() },
                 icon = WayfindrIcons.Power,
                 variant = BtnVariant.Danger,
@@ -574,3 +582,33 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
         }
     }
 }
+
+/** Turkish text for the routing engine's English turn instruction ("Turn left onto X" → "Sola dön X yoluna"). */
+private fun turkishManeuver(instruction: String): String {
+    val translations = listOf(
+        "Take the exit on the left" to "Soldaki çıkıştan çık",
+        "Take the exit on the right" to "Sağdaki çıkıştan çık",
+        "Make a U-turn" to "U dönüşü yap",
+        "Sharp left" to "Keskin sola dön",
+        "Sharp right" to "Keskin sağa dön",
+        "Slight left" to "Hafif sola dön",
+        "Slight right" to "Hafif sağa dön",
+        "Turn left" to "Sola dön",
+        "Turn right" to "Sağa dön",
+        "Keep left" to "Solda kal",
+        "Keep right" to "Sağda kal",
+        "Head out" to "Yola çık",
+        "Continue" to "Düz devam et",
+    )
+    val match = translations.firstOrNull { (en, _) -> instruction.startsWith(en, ignoreCase = true) }
+        ?: return "Rotaya devam edin"
+    val suffix = instruction.drop(match.first.length)
+        .replace(" onto ", " yoluna ", ignoreCase = true)
+        .replace(" on ", " üzerinde ", ignoreCase = true)
+    return match.second + suffix
+}
+
+/** Turkish text for a connection error from the view model. */
+private fun turkishConnectionError(error: String): String =
+    if (error == "Turn on Wi‑Fi to connect to the dash") "Konsol ekranına bağlanmak için Wi‑Fi'yi açın"
+    else "Bağlantı sırasında bir sorun oluştu. Yeniden deneyin."

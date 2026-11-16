@@ -16,7 +16,9 @@ import com.example.wayfindr.dash.map.LocationTracker
 import com.example.wayfindr.dash.map.MapRenderer
 import com.example.wayfindr.dash.map.Mercator
 import com.example.wayfindr.dash.map.TileProvider
+import com.example.wayfindr.dash.map.OffRouteConfirmation
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.Route
 import com.example.wayfindr.dash.nav.Router
 import com.example.wayfindr.dash.nav.TrafficInterval
@@ -29,6 +31,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.update
 
@@ -157,9 +161,15 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var giveupJob: Job? = null
     private var connLostAlertJob: Job? = null
     private var connLostAlerted = false
+    // Dash Wi‑Fi was up on the last state update (to spot a mid-ride drop).
+    private var dashWifiWasConnected = false
 
     private var userWantsConnection = false
     private var authAttempts = 0       // bounded auto-retry of the (flaky) auth handshake
+    // This connection reached STREAMING at least once → a drop gets the long reconnect window.
+    @Volatile private var hasStreamedThisConnection = false
+    // A route request is waiting for a usable GPS origin fix (see fetchRoute).
+    @Volatile private var waitingForFreshRouteOrigin = false
 
     // ── Navigation/map state read by the 4 fps frame loop ──
     @Volatile private var destLat: Double? = null
@@ -169,12 +179,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var activeStopIndex = 0
     // A reroute starts at the current stop, so its leg zero may be a later itinerary stop.
     @Volatile private var routeLegOffset = 0
-    @Volatile private var route: Route? = null
+    @JvmField @Volatile var route: Route? = null  // read by NavPlus.pickPlanned
     @Volatile private var panX = 0f
     @Volatile private var panY = 0f
     @Volatile private var zoom = 19          // nav-level zoom on the dash (street-level default)
     @Volatile private var headingUp = true
-    @Volatile private var mapDark = false
+    @JvmField @Volatile var mapDark = false  // read by NavPlus (dash menu)
     @Volatile private var followMode = true
     @Volatile private var lastManualPanAt = 0L
 
@@ -220,9 +230,15 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     // Off-route → reroute, debounced. Now feasible because the app keeps cellular
     // internet while bound to the dash (per-socket binding), so Router can run mid-ride.
     @Volatile private var offRouteSince = 0L
+    // Several distinct off-route fixes over a short span before a reroute (not one GPS wobble).
+    private val offRouteConfirmation = OffRouteConfirmation()
     @Volatile private var lastRerouteAt = 0L
     @Volatile private var rerouting = false
     @Volatile private var trafficRefreshInFlight = false
+    // Bumped by every new route request (initial, reroute, traffic refresh) and every cancel; a
+    // result whose generation is no longer current is dropped.
+    @Volatile private var routeRequestGeneration = 0L
+    private var routeRequestJob: Job? = null
     @Volatile private var lastTrafficRefreshAt = 0L
     // Routes API bill guard (automatic calls only — a destination the rider picks is never blocked).
     @Volatile private var rerouteStreak = 0          // reroutes since last stably back on route → backoff
@@ -260,16 +276,21 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var lastDiagMs = 0L
 
     companion object {
+        /** Route progress (m) for NavPlus, which reads it from Java. */
+        @JvmStatic
+        fun nav10Progress(vm: DashViewModel): Double = vm.progressM
+
         private const val MANUAL_IDLE_MS = 8_000L
         private const val FORCE_REDRAW_MS = 2_000L
         // How long to keep trying to (re)connect before giving up and freeing all background
         // resources. Covers the flaky initial handshake AND a mid-ride drop; if the dash is truly
         // gone (parked / powered off / out of range) we stop draining instead of retrying forever.
-        // 2 min (was 45 s): if the dash AP hangs mid-ride it only comes back after a bike power-cycle,
-        // and 45 s wasn't enough to safely pull over + restart before Wayfindr gave up. With the
-        // WiFi layer now retrying through an AP-missing window, this keeps trying long enough that a
-        // power-cycle auto-rejoins with no manual step. Still bounded so a truly-gone dash frees power.
-        private const val RECONNECT_GIVEUP_MS = 120_000L
+        // Once a connection has streamed, a mid-ride drop keeps retrying for up to 6 h (the dash AP
+        // may hang until a bike power-cycle, or the rider parks for a coffee): the itinerary and the
+        // service stay up, locks are released while waiting (DashKeepAliveService.pauseForReconnect).
+        private const val RECONNECT_GIVEUP_MS = 21_600_000L
+        // A first connect that never reached STREAMING still gives up after 2 min.
+        private const val INITIAL_CONNECT_GIVEUP_MS = 120_000L
         // Alert the rider after this long of sustained (non-transient) link loss — long enough to skip
         // a brief blip that auto-recovers, short enough that they're not riding blind for minutes.
         private const val CONN_LOST_ALERT_MS = 12_000L
@@ -284,23 +305,28 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val GPS_LOST_AGE_MS = 12_000L
         private const val WAYPOINT_ARRIVE_M = 35.0
         private const val WAYPOINT_PROGRESS_TOLERANCE_M = 25.0
-        private const val TRAFFIC_REFRESH_MS = 120_000L
+        private const val TRAFFIC_REFRESH_MS = 300_000L
+        // Route origin quality: a fix within PRECISE_M is used at once; otherwise wait up to WAIT_MS
+        // for one, and accept a fallback fix (see NavPlus.fallbackOrigin) when it arrives.
+        private const val ROUTE_ORIGIN_PRECISE_M = 60f
+        private const val ROUTE_ORIGIN_FALLBACK_M = 100f
+        private const val ROUTE_ORIGIN_WAIT_MS = 2_500L
         // Show the dash's "then ..." turn only when it follows the next turn this closely.
         private const val SECONDARY_TURN_MAX_GAP_M = 500.0
-        // Routes API bill guard. Reroute waits back off 6 → 12 → 24 → 48 → 96 → 120 s while the
-        // rider stays off-route (or GPS keeps claiming so), and reset after a minute back on route.
+        // Routes API bill guard. Reroute waits back off 3 → 6 → 12 → 20 s while the rider stays
+        // off-route (or GPS keeps claiming so), and reset after a minute back on route.
         // Hard cap on automatic calls per destination so a bad-GPS ride can't run up a bill.
-        private const val REROUTE_BASE_MS = 6_000L
-        private const val REROUTE_MAX_MS = 120_000L
+        private const val REROUTE_BASE_MS = 3_000L
+        private const val REROUTE_MAX_MS = 20_000L
         private const val REROUTE_STREAK_RESET_MS = 60_000L
-        private const val MAX_AUTO_ROUTE_CALLS = 40
+        private const val MAX_AUTO_ROUTE_CALLS = 150
         // Lead the displayed position by the pipeline latency (camera ease + H.264 encode + RTP +
         // dash decode/display ≈ 0.5 s) so the dash shows where the bike IS, not where it was.
-        private const val DISPLAY_LEAD_S = 0.4
+        private const val DISPLAY_LEAD_S = 0.8
         // Cap on how far ahead the constant-velocity predictor projects (s of travel). Bounds the
         // over-shoot if a fix is missed across a real stop / a long dropout; below this it tracks
         // the rider's actual motion so the camera never freezes between sparse (screen-off) fixes.
-        private const val MAX_PREDICT_S = 3.0
+        private const val MAX_PREDICT_S = 2.25
         // Motion-adaptive frame cadence — the heart of the RE-style power/stability model.
         // Measuringthe dash showed it projects the map at just 2–4 fps with two
         // profiles (q2g: 4 fps/200 kbps "frameToSend"=250 ms, and 2 fps/100 kbps =500 ms) and switches
@@ -357,15 +383,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val DOUBLE_DOWN_MS = 3_000L
         private const val PICKER_TIMEOUT_MS = 30_000L
         private const val DASH_MIN_ZOOM = 11
+        /** Number of NavPlus quick-action rows (music, zoom, dark map, fuel) on the menu ROOT. */
+        private const val JM_ROW_COUNT = 7
         private const val DASH_MAX_ZOOM = 20
         /** How long a dash notice ("Skipped …") stays up. */
         private const val NOTICE_MS = 4_000L
         /** On-dash Source page rows, in order. */
-        private val MENU_MAP_SOURCES = listOf(
-            com.example.wayfindr.dash.MapSource.GOOGLE to "Google Maps",
-            com.example.wayfindr.dash.MapSource.OSM to "OSM",
-            com.example.wayfindr.dash.MapSource.OFFLINE to "Offline",
-        ).filter { it.first in com.example.wayfindr.dash.MapSource.available }
         private val MENU_ROUTING_SOURCES = listOf(
             com.example.wayfindr.dash.RoutingSource.GOOGLE to "Google Maps",
             com.example.wayfindr.dash.RoutingSource.OSM to "OSM",
@@ -401,6 +424,43 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun predictedDistance(speedMps: Float, elapsedSec: Double): Double =
         speedMps * elapsedSec.coerceIn(0.0, MAX_PREDICT_S)
 
+    /** Speed-limit / console notices from NavPlus: feed it the last fix, show what it queued. */
+    private fun navplusNotice() {
+        try {
+            NavPlus.spdTick(fixSpeed, fixLat, fixLng)
+            NavPlus.takeNotice()?.let { showNotice(*it) }
+        } catch (_: Throwable) {
+        }
+    }
+
+    /**
+     * Where to draw the rider [dist] m ahead. On the route (fix within 12 m of the tracked progress
+     * point) the prediction runs along the route line; otherwise [arc] (NavPlus.arcProject) is
+     * snapped to the road.
+     */
+    @Suppress("UNCHECKED_CAST")
+    private fun navplusPredict(arc: Pair<*, *>?, dist: Double): Pair<Double, Double>? {
+        try {
+            val r = route
+            if (lastSnapDist <= WAYPOINT_ARRIVE_M && r != null) {
+                val geometry = r.geometry
+                val cumulative = r.cumulative
+                val progress = progressM
+                val here = NavPlus.pointAt(geometry, cumulative, progress)
+                if (here != null && GeoPoint.distMeters(here, GeoPoint(fixLat, fixLng)) <= 12.0) {
+                    val ahead = NavPlus.pointAt(geometry, cumulative, progress + dist)
+                    if (ahead != null) {
+                        NavPlus.onRoute = true
+                        return ahead.lat to ahead.lng
+                    }
+                }
+            }
+        } catch (_: Throwable) {
+        }
+        NavPlus.onRoute = false
+        return NavPlus.roadSnap(arc) as Pair<Double, Double>?
+    }
+
     init {
         // Reflect the rider's stored dash WiFi config (SSID may be blank until discovered).
         mapDark = DarkSchedule.effective(dashConfig.mapDarkAuto.value, dashConfig.mapDarkMode.value)
@@ -428,54 +488,6 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
-        // Dash map tiles: Google, free OpenStreetMap, or the offline file ("Map source" setting).
-        // Offline uses Google tiles outside the file's area, so the route cache still works there.
-        viewModelScope.launch {
-            dashConfig.mapSource.collect { src ->
-                val free = src == com.example.wayfindr.dash.MapSource.OSM
-                if (tiles.freeTiles != free) com.example.wayfindr.data.RideDiagnostics.log("tiles",
-                    "dash tiles: ${if (free) "OpenStreetMap (free, no route pre-cache)" else "Google"}")
-                tiles.freeTiles = free
-                lastSignature = ""
-            }
-        }
-
-        // Offline raster map (.mbtiles): open/close the file when the setting or file changes.
-        viewModelScope.launch {
-            combine(dashConfig.mapSource, dashConfig.offlineMapFile) { src, name ->
-                (src == com.example.wayfindr.dash.MapSource.OFFLINE) to name }
-                .distinctUntilChanged().collect { (on, name) ->
-                    val old = tiles.offline
-                    tiles.offline = null
-                    withContext(Dispatchers.IO) {
-                        old?.close()
-                        if (!on) return@withContext
-                        val file = com.example.wayfindr.dash.map.OfflineMapFiles.resolve(getApplication(), name)
-                        when (val r = file?.let { com.example.wayfindr.dash.map.MbTiles.open(it) }) {
-                            is com.example.wayfindr.dash.map.MbTiles.Companion.Result.Ok -> {
-                                tiles.offline = r.tiles
-                                com.example.wayfindr.data.RideDiagnostics.log("tiles",
-                                    "offline map: ${r.tiles.file.name} z${r.tiles.minZoom}–${r.tiles.maxZoom}")
-                            }
-                            is com.example.wayfindr.dash.map.MbTiles.Companion.Result.Error ->
-                                com.example.wayfindr.data.RideDiagnostics.log("tiles", "offline map not used: ${r.message}")
-                            null -> com.example.wayfindr.data.RideDiagnostics.log("tiles", "offline map on, but no .mbtiles file")
-                        }
-                    }
-                    // Keep the dash zoom inside the file's levels; put it back when Offline is turned off.
-                    val range = zoomRange()
-                    if (zoom !in range) {
-                        if (zoomBeforeOfflineClamp == null) zoomBeforeOfflineClamp = zoom
-                        com.example.wayfindr.data.RideDiagnostics.log("tiles", "zoom $zoom → ${zoom.coerceIn(range)} (offline map has z${range.first}–${range.last})")
-                        setZoom(zoom.coerceIn(range))
-                    } else if (tiles.offline == null) zoomBeforeOfflineClamp?.let {
-                        zoomBeforeOfflineClamp = null
-                        setZoom(it)
-                    }
-                    lastSignature = ""
-                }
-        }
-
         // When we connect to a previously-unknown dash by prefix, learn + persist its exact
         // SSID so subsequent connects target it directly (no system picker again).
         wifiManager.onSsidResolved = { learned ->
@@ -493,6 +505,17 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 if (asleep && session.state.value != DashState.STREAMING) sleepNow()
             }
         }
+        // A route request waiting for a usable origin fix: fire it as soon as one arrives.
+        viewModelScope.launch {
+            location.location.collect { fix ->
+                if (waitingForFreshRouteOrigin && fix != null && isFallbackRouteOrigin(fix)) {
+                    val lat = destLat ?: return@collect
+                    val lng = destLng ?: return@collect
+                    waitingForFreshRouteOrigin = false
+                    fetchRoute(lat, lng, routeWaypoints)
+                }
+            }
+        }
         viewModelScope.launch {
             wifiManager.state.collect { ws ->
                 com.example.wayfindr.data.RideDiagnostics.log(
@@ -501,6 +524,27 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                             (ws.ssid.takeIf { it.isNotBlank() }?.let { " ssid=$it" } ?: "") +
                             (ws.error?.let { " err=$it" } ?: ""),
                 )
+                // Dash Wi‑Fi dropped mid-ride: close the session bound to the dead network and free
+                // the GPS/encoder/locks, but keep the itinerary so the reconnect resumes the trip.
+                val wifiConnected = ws.status == WifiConnStatus.CONNECTED
+                if (dashWifiWasConnected && !wifiConnected && userWantsConnection) {
+                    com.example.wayfindr.data.RideDiagnostics.log("connect",
+                        "dash Wi-Fi lost — closing old network-bound session; keeping itinerary for reconnect")
+                    session.disconnect()
+                    teardown()
+                    location.stop()
+                    DashKeepAliveService.pauseForReconnect(getApplication())
+                    // Invalidate any in-flight route request: a late result from it drops itself.
+                    routeRequestGeneration++
+                    routeRequestJob?.cancel()
+                    routeRequestJob = null
+                    rerouting = false
+                    trafficRefreshInFlight = false
+                    offRouteSince = 0L
+                    offRouteConfirmation.reset()
+                    _ui.update { it.copy(errorMessage = "Gösterge bağlantısı kesildi; otomatik yeniden bağlanılıyor…") }
+                }
+                dashWifiWasConnected = wifiConnected
                 when (ws.status) {
                     WifiConnStatus.CONNECTED -> {
                         refreshStage()
@@ -511,7 +555,15 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                             // Re-check: the user may have hit Disconnect during the delay.
                             if (userWantsConnection &&
                                 wifiManager.state.value.status == WifiConnStatus.CONNECTED
-                            ) session.connect(_ui.value.ssid, wifiManager.network)
+                            ) {
+                                // Coming back from a drop: re-take the locks + GPS and fetch the
+                                // route again if it was lost, then reopen the dash session.
+                                DashKeepAliveService.start(getApplication())
+                                location.start()
+                                val lat = destLat; val lng = destLng
+                                if (route == null && lat != null && lng != null) fetchRoute(lat, lng, routeWaypoints)
+                                session.connect(_ui.value.ssid, wifiManager.network)
+                            }
                         }
                     }
                     WifiConnStatus.ERROR -> {
@@ -539,8 +591,15 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 refreshStage()
                 // Battery backstop: count down to a full give-up unless/until we're actually
                 // streaming. Reaching STREAMING cancels it; any non-streaming state (re)arms it.
-                if (state == DashState.STREAMING) { cancelReconnectGiveup(); cancelConnLostAlert() }
-                else if (userWantsConnection) { armReconnectGiveup(); armConnLostAlert() }
+                // A connection that has streamed once gets the long mid-ride window; a first connect
+                // that never got going keeps the short one.
+                if (state == DashState.STREAMING) {
+                    hasStreamedThisConnection = true
+                    cancelReconnectGiveup(); cancelConnLostAlert()
+                } else if (userWantsConnection) {
+                    armReconnectGiveup(if (hasStreamedThisConnection) RECONNECT_GIVEUP_MS else INITIAL_CONNECT_GIVEUP_MS)
+                    armConnLostAlert()
+                }
                 when (state) {
                     DashState.READY -> { authAttempts = 0; _ui.update { it.copy(retryAttempt = 0) }; startStream() }
                     DashState.STREAMING -> {
@@ -565,7 +624,18 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                             if (userWantsConnection && authAttempts >= MAX_AUTH_ATTEMPTS &&
                                 wifiManager.state.value.status == WifiConnStatus.CONNECTED
                             ) {
-                                giveUp("auth exhausted after $authAttempts attempts")
+                                if (hasStreamedThisConnection) {
+                                    // Mid-ride: never give up on the handshake — start a fresh
+                                    // round of attempts after a short pause.
+                                    authAttempts = 0
+                                    delay(3_000)
+                                    if (userWantsConnection &&
+                                        wifiManager.state.value.status == WifiConnStatus.CONNECTED &&
+                                        session.state.value == DashState.ERROR
+                                    ) session.connect(_ui.value.ssid, wifiManager.network)
+                                } else {
+                                    giveUp("auth exhausted after $authAttempts attempts")
+                                }
                             }
                         }
                     }
@@ -632,6 +702,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
     fun connect() {
         userWantsConnection = true
+        hasStreamedThisConnection = false
         authAttempts = 0
         _ui.update { it.copy(errorMessage = null, retryAttempt = 0, needsWifiOn = false) }
 
@@ -642,7 +713,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         if (!wifiManager.isWifiEnabled()) {
             userWantsConnection = false
             _ui.update { it.copy(stage = ConnStage.ERROR, needsWifiOn = true,
-                errorMessage = "Turn on Wi‑Fi to connect to the dash") }
+                errorMessage = "Göstergeye bağlanmak için Wi‑Fi'yi açın") }
             return
         }
         com.example.wayfindr.data.RideDiagnostics.init(getApplication())
@@ -745,10 +816,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Start the give-up countdown if it isn't already running (idempotent). */
-    private fun armReconnectGiveup() {
+    private fun armReconnectGiveup(timeoutMs: Long) {
         if (giveupJob?.isActive == true) return
         giveupJob = viewModelScope.launch {
-            delay(RECONNECT_GIVEUP_MS)
+            delay(timeoutMs)
             if (session.state.value != DashState.STREAMING) giveUp("reconnect window elapsed")
         }
     }
@@ -770,7 +841,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     val v = getApplication<Application>().getSystemService(android.os.Vibrator::class.java)
                     v?.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 300, 200, 300, 200, 300), -1))
                 }
-                voice.alert("Dash disconnected. Restart the dash to reconnect.")
+                voice.alert("Gösterge bağlantısı koptu. Yeniden bağlanmak için motoru kapatıp açın.")
             }
         }
     }
@@ -779,7 +850,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         connLostAlertJob?.cancel(); connLostAlertJob = null
         if (connLostAlerted) {
             connLostAlerted = false
-            voice.alert("Dash reconnected")
+            voice.alert("Gösterge bağlantısı yeniden kuruldu")
         }
     }
 
@@ -819,12 +890,37 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         tiles.prefetch(lat, lng, loc?.latitude, loc?.longitude)
     }
 
-    fun setDestinations(stops: List<com.example.wayfindr.data.SharedLocation>) {
+    /**
+     * Start a trip to [stops]. [selectedRoute] is the route the rider already picked on the Route
+     * screen: when it still fits this trip (same routing source, sane geometry, ending at the final
+     * stop) it is used as-is instead of asking the router again.
+     */
+    fun setDestinations(
+        stops: List<com.example.wayfindr.data.SharedLocation>,
+        selectedRoute: Route? = null,
+    ) {
+        // Invalidate any in-flight route request: a late result from it drops itself.
+        routeRequestGeneration++
+        routeRequestJob?.cancel()
+        routeRequestJob = null
+        rerouting = false
+        trafficRefreshInFlight = false
+        waitingForFreshRouteOrigin = false
+        offRouteSince = 0L
+        offRouteConfirmation.reset()
+        offRouteStreakStart = 0L
         val validStops = stops.filter { it.lat != null && it.lng != null }
         val finalDestination = validStops.lastOrNull()
-        val name = finalDestination?.name ?: "WayfindR"
+        val name = finalDestination?.name ?: "Hedef"
         val lat = finalDestination?.lat
         val lng = finalDestination?.lng
+        val selectedForTrip = selectedRoute?.takeIf { r ->
+            val end = r.geometry.lastOrNull()
+            r.source == dashConfig.routingSource.value && r.geometry.size >= 2 &&
+                r.totalMeters.isFinite() && r.totalMeters >= 0.0 &&
+                end != null && lat != null && lng != null &&
+                GeoPoint.distMeters(end, GeoPoint(lat, lng)) <= 750.0
+        }
         routeStops = validStops
         // New destination picked by the rider → fresh Routes API budget and reroute backoff.
         autoRouteCalls = 0; autoRouteCapLogged = false; rerouteStreak = 0; lastRerouteAt = 0L
@@ -832,14 +928,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         routeLegOffset = 0
         routeWaypoints = validStops.dropLast(1).map { GeoPoint(it.lat!!, it.lng!!) }
         _ui.update { it.copy(
-            destinationName = name, hasRoute = false,
+            destinationName = name, hasRoute = selectedForTrip != null,
             destLatLng = if (lat != null && lng != null) lat to lng else null,
-            routePoints = emptyList(),
-            routeTraffic = emptyList(),
+            routePoints = selectedForTrip?.geometry ?: emptyList(),
+            routeTraffic = selectedForTrip?.traffic ?: emptyList(),
         ) }
         destLat = lat
         destLng = lng
-        route = null
+        route = selectedForTrip
         // Prepare the same renderer-backed preview used by the physical dash before the Wi-Fi
         // handshake finishes, so DashScreen does not switch to a different map presentation.
         if (frameBitmap == null) {
@@ -853,6 +949,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         if (lat != null && lng != null) {
             val loc = location.lastKnown()
             tiles.prefetch(lat, lng, loc?.latitude, loc?.longitude)
+            if (selectedForTrip != null) {
+                lastTrafficRefreshAt = System.currentTimeMillis()
+                tiles.prefetchRoute(selectedForTrip.geometry)
+                return
+            }
             fetchRoute(finalDestination!!.lat!!, finalDestination.lng!!, routeWaypoints)
         }
     }
@@ -863,6 +964,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Drop the destination/route → free roam. The map keeps streaming and follows the rider. */
     fun exitNavigation() {
+        // Invalidate any in-flight route request: a late result from it drops itself.
+        routeRequestGeneration++
+        routeRequestJob?.cancel()
+        routeRequestJob = null
+        rerouting = false
+        trafficRefreshInFlight = false
+        waitingForFreshRouteOrigin = false
         destLat = null
         destLng = null
         routeWaypoints = emptyList()
@@ -872,6 +980,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         route = null
         progressM = 0.0
         offRouteSince = 0L
+        offRouteConfirmation.reset()
         panX = 0f; panY = 0f; followMode = true
         smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
         voice.resetTrip()
@@ -888,29 +997,58 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             offRoute = false,
             followMode = true,
         ) }
-        session.updateRouteCard("WayfindR")   // dash card → name + 0.0 km, nav off
+        session.updateRouteCard("")   // dash card → app name + 0.0 km, nav off
     }
 
-    /** Compute the road route now (while internet is reachable) and cache it. */
+    /**
+     * Compute the road route now (while internet is reachable) and cache it. The origin must be a
+     * fresh, accurate fix: a stale/coarse one starts the route on the wrong road. Wait briefly for
+     * one; if none comes, take a fallback-quality fix, or wait for the next usable fix
+     * ([waitingForFreshRouteOrigin], picked up by the location collector in init).
+     */
     private fun fetchRoute(destLatV: Double, destLngV: Double, waypoints: List<GeoPoint>) {
-        val loc = location.lastKnown()
-        if (loc == null) {
-            android.util.Log.w("DashViewModel", "fetchRoute: no origin location yet")
-            return
-        }
-        viewModelScope.launch {
-            val r = Router.route(GeoPoint(loc.latitude, loc.longitude), GeoPoint(destLatV, destLngV), waypoints)
-            if (r != null) {
-                route = r
-                lastTrafficRefreshAt = System.currentTimeMillis()
-                tiles.prefetchRoute(r.geometry)
-                _ui.update { it.copy(hasRoute = true, routePoints = r.geometry, routeTraffic = r.traffic) }
-                android.util.Log.i("DashViewModel", "Route ready: ${r.geometry.size} pts, ${r.totalMeters.toInt()} m")
-            } else {
-                android.util.Log.w("DashViewModel", "Router returned null")
+        routeRequestGeneration++
+        val requestId = routeRequestGeneration
+        routeRequestJob?.cancel()
+        waitingForFreshRouteOrigin = false
+        routeRequestJob = viewModelScope.launch {
+            try {
+                val origin = location.lastKnown()?.takeIf { isPreciseRouteOrigin(it) }
+                    ?: withTimeoutOrNull(ROUTE_ORIGIN_WAIT_MS) {
+                        location.location.filterNotNull().first { isPreciseRouteOrigin(it) }
+                    }
+                    ?: location.lastKnownAny()?.takeIf { isFallbackRouteOrigin(it) }
+                if (requestId != routeRequestGeneration || destLat != destLatV || destLng != destLngV) return@launch
+                if (origin == null) {
+                    waitingForFreshRouteOrigin = true
+                    _ui.update { it.copy(errorMessage = "Güncel GPS konumu bekleniyor; rota sinyal alınınca hesaplanacak.") }
+                    android.util.Log.w("DashViewModel", "fetchRoute: no recent usable GPS origin; waiting for a new fix")
+                    return@launch
+                }
+                val r = Router.route(getApplication(), GeoPoint(origin.latitude, origin.longitude), GeoPoint(destLatV, destLngV), waypoints)
+                if (requestId != routeRequestGeneration || destLat != destLatV || destLng != destLngV) return@launch
+                if (r != null) {
+                    route = r
+                    lastTrafficRefreshAt = System.currentTimeMillis()
+                    tiles.prefetchRoute(r.geometry)
+                    _ui.update { it.copy(errorMessage = null, hasRoute = true, routePoints = r.geometry, routeTraffic = r.traffic) }
+                    android.util.Log.i("DashViewModel", "Route ready: ${r.geometry.size} pts, ${r.totalMeters.toInt()} m")
+                } else {
+                    _ui.update { it.copy(errorMessage = "Rota bulunamadı. İnternet bağlantınızı ve varış noktasını kontrol edin.") }
+                    android.util.Log.w("DashViewModel", "Router returned null")
+                }
+            } finally {
+                if (requestId == routeRequestGeneration) routeRequestJob = null
             }
         }
     }
+
+    /** A fresh fix accurate enough to start a route from without waiting. */
+    private fun isPreciseRouteOrigin(loc: android.location.Location): Boolean =
+        LocationTracker.isFreshForNavigation(loc) && loc.hasAccuracy() && loc.accuracy <= ROUTE_ORIGIN_PRECISE_M
+
+    /** A fix still good enough to route from when no precise one arrived in time (NavPlus decides). */
+    private fun isFallbackRouteOrigin(loc: android.location.Location): Boolean = NavPlus.fallbackOrigin(loc)
 
     // ── Map controls ────────────────────────────────────────────────────────
 
@@ -1015,7 +1153,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         "end=${r?.geometry?.lastOrNull()?.let { "%.5f,%.5f".format(it.lat, it.lng) }} " +
                         "menu=${if (pickerItems == null) "closed" else "$menuPage@$pickerIndex"} " +
                         "notice=${notice?.takeIf { System.currentTimeMillis() < noticeUntilMs }}" +
-                        " zoom=$zoom range=${zoomRange()} map=${dashConfig.mapSource.value}"
+                        " zoom=$zoom range=${zoomRange()} map=OSM"
                     android.util.Log.i("DashViewModel", "DEBUG $msg")
                     com.example.wayfindr.data.RideDiagnostics.log("debug", msg)
                 }
@@ -1059,29 +1197,43 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     /** "Cancel next stop" only makes sense with another stop after the one being ridden to. */
     private fun canSkipStop() = hasDestination() && stopsAhead().size >= 2
 
-    /** Rows before the saved destinations on ROOT: "Source", and "Cancel" while navigating. */
-    private fun rootFixedRows() = if (hasDestination()) 2 else 1
+    /** Rows before the saved destinations on ROOT: the fixed rows plus the NavPlus quick actions. */
+    private fun rootFixedRows() = rootFixedRows0() + JM_ROW_COUNT
 
-    /** Rows of the menu page showing now. */
-    private fun menuRows(): List<MapRenderer.MenuRow> = when (menuPage) {
-        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Source", submenu = true)) +
-            (if (hasDestination()) listOf(MapRenderer.MenuRow("Cancel", submenu = true)) else emptyList()) +
+    /** Fixed rows on ROOT: "Rota kaynağı", and "Navigasyon" while navigating. */
+    private fun rootFixedRows0() = if (hasDestination()) 2 else 1
+
+    /** Rows of the menu page showing now; ROOT gets the NavPlus quick actions after its fixed rows. */
+    private fun menuRows(): List<MapRenderer.MenuRow> {
+        val rows = menuRows0()
+        try {
+            val fixed = rootFixedRows0()
+            if (menuPage == MenuPage.ROOT && rows.size >= fixed) {
+                return ArrayList(rows).apply {
+                    @Suppress("UNCHECKED_CAST")
+                    addAll(fixed, NavPlus.jmRows(this@DashViewModel) as List<MapRenderer.MenuRow>)
+                }
+            }
+        } catch (_: Throwable) {}
+        return rows
+    }
+
+    private fun menuRows0(): List<MapRenderer.MenuRow> = when (menuPage) {
+        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Rota kaynağı", submenu = true)) +
+            (if (hasDestination()) listOf(MapRenderer.MenuRow("Navigasyon", submenu = true)) else emptyList()) +
             (pickerItems ?: emptyList()).map { MapRenderer.MenuRow(it.name) }
         MenuPage.CANCEL -> cancelRows().map { MapRenderer.MenuRow(it.first) }
         MenuPage.SOURCE -> {
-            val map = dashConfig.mapSource.value
             val routing = dashConfig.routingSource.value
-            listOf(MapRenderer.MenuRow("Map source", header = true)) +
-                MENU_MAP_SOURCES.map { (s, label) -> MapRenderer.MenuRow(label, active = s == map) } +
-                MapRenderer.MenuRow("Routing source", header = true) +
+            listOf(MapRenderer.MenuRow("Rota kaynağı", header = true)) +
                 MENU_ROUTING_SOURCES.map { (s, label) -> MapRenderer.MenuRow(label, active = s == routing) }
         }
     }
 
     /** CANCEL page rows (label, action id). */
     private fun cancelRows(): List<Pair<String, String>> = buildList {
-        if (canSkipStop()) add("Cancel next stop: ${stopsAhead().first().name}" to "skip")
-        if (hasDestination()) add("Cancel navigation" to "end")
+        if (canSkipStop()) add("Sonraki durağı atla: ${stopsAhead().first().name}" to "skip")
+        if (hasDestination()) add("Navigasyonu durdur" to "end")
     }
 
     /** Next row the cursor can land on (wrapping, skipping headers). */
@@ -1094,29 +1246,25 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         return from
     }
 
+    /** A NavPlus quick-action row on ROOT runs its action (and closes the menu); else the normal select. */
     private fun selectPickerItem(): String {
+        val jm = pickerIndex - rootFixedRows0()
+        if (pickerItems == null || menuPage != MenuPage.ROOT || jm < 0 || jm >= JM_ROW_COUNT) return selectPickerItem0()
+        val result = NavPlus.jmAct(this, jm)
+        closePicker(result)
+        return result
+    }
+
+    private fun selectPickerItem0(): String {
         val items = pickerItems ?: return "Picker: nothing to select"
         if (menuPage == MenuPage.SOURCE) {
-            // Rows: 0 header, 1..3 map sources, 4 header, 5..7 routing sources. Stays on the page
-            // so the green tick moves to the new choice.
-            val mapAt = pickerIndex - 1
-            val routeAt = pickerIndex - 2 - MENU_MAP_SOURCES.size
-            return when {
-                mapAt in MENU_MAP_SOURCES.indices -> {
-                    val (s, label) = MENU_MAP_SOURCES[mapAt]
-                    dashConfig.setMapSource(s)
-                    com.example.wayfindr.data.RideDiagnostics.log("picker", "map source → $label (from the dash)")
-                    "Picker → map source $label"
-                }
-                routeAt in MENU_ROUTING_SOURCES.indices -> {
-                    val (s, label) = MENU_ROUTING_SOURCES[routeAt]
-                    dashConfig.setRoutingSource(s)
-                    com.example.wayfindr.data.RideDiagnostics.log("picker",
-                        "routing source → $label (from the dash; used from the next route/reroute)")
-                    "Picker → routing source $label"
-                }
-                else -> "Picker: nothing to select"
-            }
+            // Rows: 0 header, 1..n routing sources. Stays on the page so the green tick moves to
+            // the new choice.
+            val (s, label) = MENU_ROUTING_SOURCES.getOrNull(pickerIndex - 1) ?: return "Picker: nothing to select"
+            dashConfig.setRoutingSource(s)
+            com.example.wayfindr.data.RideDiagnostics.log("picker",
+                "routing source → $label (from the dash; used from the next route/reroute)")
+            return "Picker → routing source $label"
         }
         if (menuPage == MenuPage.CANCEL) {
             return when (cancelRows().getOrNull(pickerIndex)?.second) {
@@ -1127,14 +1275,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         "cancel next stop ${ahead.first().name} → routing to ${ahead.drop(1).first().name} (from the dash)")
                     // Re-plan from here through the stops after it (a new route request).
                     setDestinations(ahead.drop(1))
-                    showNotice("Skipped ${ahead.first().name}", "→ ${ahead.drop(1).first().name}")
+                    showNotice("Atlandı: ${ahead.first().name}", "→ ${ahead.drop(1).first().name}")
                     "Picker → skipped ${ahead.first().name}"
                 }
                 "end" -> {
                     closePicker("navigation cancelled")
                     com.example.wayfindr.data.RideDiagnostics.log("picker", "navigation cancelled (from the dash)")
                     exitNavigation()
-                    showNotice("Navigation cancelled")
+                    showNotice("Navigasyon durduruldu.")
                     "Picker → navigation cancelled"
                 }
                 else -> { menuPage = MenuPage.ROOT; pickerIndex = 0; "Picker: nothing to cancel" }
@@ -1164,18 +1312,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun zoomOutCode() = if (dashConfig.invertZoom.value) BTN_MAP_ZOOM_IN else BTN_MAP_ZOOM_OUT
     fun zoomIn()  = setZoom(zoom + 1)
     fun zoomOut() = setZoom(zoom - 1)
-    /**
-     * Dash zoom range: 11–20, narrowed to the offline file's own zoom levels while it's the map
-     * source, so the joystick can't zoom into enlarged (blurry) or missing tiles.
-     */
-    private fun zoomRange(): IntRange {
-        val off = tiles.offline ?: return DASH_MIN_ZOOM..DASH_MAX_ZOOM
-        val lo = off.minZoom.coerceIn(DASH_MIN_ZOOM, DASH_MAX_ZOOM)
-        return lo..off.maxZoom.coerceIn(lo, DASH_MAX_ZOOM)
-    }
-
-    /** Zoom before the offline range pulled it in, restored when the offline map is turned off. */
-    @Volatile private var zoomBeforeOfflineClamp: Int? = null
+    /** Dash zoom range: 11–20. */
+    private fun zoomRange(): IntRange = DASH_MIN_ZOOM..DASH_MAX_ZOOM
 
     private fun setZoom(z: Int) {
         val clamped = z.coerceIn(zoomRange())
@@ -1361,6 +1499,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      * @return true if the visible map content changed this tick (drives the motion-adaptive cadence).
      */
     private fun tick(): Boolean {
+        navplusNotice()
         // Revert to follow mode after the rider stops nudging the joystick.
         if (!followMode && System.currentTimeMillis() - lastManualPanAt > MANUAL_IDLE_MS) {
             panX = 0f; panY = 0f; followMode = true
@@ -1371,6 +1510,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val r = route
         val dLat = destLat; val dLng = destLng
 
+        val accuracy = loc?.takeIf { it.hasAccuracy() }?.accuracy?.toDouble()
+        // GPS bearing is trusted only while moving AND with a reasonably precise fix.
+        val headingKnown = loc != null && loc.hasBearing() && loc.speed >= BEARING_MIN_SPEED &&
+            (accuracy == null || accuracy <= 35.0)
+
         // Default to raw GPS; map-matching below snaps it onto the route when on it.
         matchedLat = loc?.latitude
         matchedLng = loc?.longitude
@@ -1380,22 +1524,30 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // 1. Calculate the TARGET heading (where we want the camera to point).
         // Priority: GPS bearing (if moving) > Route orientation > Last camera heading.
         var targetHeading = when {
-            loc != null && loc.hasBearing() && loc.speed >= BEARING_MIN_SPEED -> normalizeHeading(loc.bearing)
+            headingKnown -> normalizeHeading(loc!!.bearing)
             camInit -> normalizeHeading(camHdg)
             else -> 0f
         }
 
         var offRoute = false
         var recalculating = false
+        // Navigation state (progress, waypoints, off-route, ETA, dash nav card, voice) only advances
+        // while streaming to the dash; the phone preview before/without a dash just shows the map.
+        val streaming = userWantsConnection && session.state.value == DashState.STREAMING
 
-        if (r != null && loc != null) {
-            val ns = trackProgress(r, GeoPoint(loc.latitude, loc.longitude))
+        if (r != null && loc != null && LocationTracker.isFreshForNavigation(loc)) {
+            val ns = trackProgress(
+                r, GeoPoint(loc.latitude, loc.longitude),
+                gpsBearing = if (headingKnown) loc.bearing else null,
+                speedMps = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0,
+                advanceProgress = streaming,
+            )
             // If GPS bearing is weak or we are at low speed, use the route's current
             // segment bearing as the target so the map points the right way immediately.
-            if (!loc.hasBearing() || loc.speed < BEARING_MIN_SPEED) {
+            if (!headingKnown) {
                 targetHeading = normalizeHeading(ns.heading)
             }
-            if (advanceWaypointIfReached(loc, ns)) {
+            if (streaming && advanceWaypointIfReached(loc, ns)) {
                 // The route geometry already continues to the next leg; reset the displayed ETA
                 // immediately while the tracker carries on from the same cumulative progress.
                 smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
@@ -1418,27 +1570,25 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // disagree (a genuine divergence / wrong turn); a clearly different road (very far) is
             // off-route regardless. This is the main flyover-confusion mitigation.
             lastSnapDist = ns.snapDist
-            val headingKnown = loc.hasBearing() && loc.speed >= BEARING_MIN_SPEED
             val headingOff = headingKnown && angleDelta(loc.bearing, ns.heading) > 50f
-            offRoute = when {
-                ns.snapDist > 150.0 -> true       // unmistakably a different road → off regardless
-                ns.snapDist > 70.0  -> headingOff // parallel/flyover band: off ONLY if heading diverges
-                else -> false                     // (stopped here → not off-route; decide once moving)
-            }
+            // Clearly a different road → off; in the parallel/flyover band only if the heading
+            // also diverges; and never on a fix too coarse to tell (NavigationReliability).
+            offRoute = streaming && com.example.wayfindr.dash.map.NavigationReliability
+                .isConfidentlyOffRoute(ns.snapDist, accuracy, headingKnown, headingOff)
             val nowMs = System.currentTimeMillis()
 
-            // "Recalculating" = off the line for >0.8 s (ignores a 1-frame GPS blip), OR a reroute
+            // "Recalculating" = off the line for >2 s (ignores brief GPS blips), OR a reroute
             // request is in flight. While true the distance is measured against a route we've left,
             // so the ETA is meaningless — we FREEZE it (and the pill says "Recalculating") rather
             // than let the number lurch until the fresh route lands. recalcHoldUntil keeps the pill
             // up a beat after the new route lands so a fast reroute is still visible to the rider.
             if (offRoute) { if (offRouteStreakStart == 0L) offRouteStreakStart = nowMs }
             else offRouteStreakStart = 0L
-            val rawRecalc = rerouting || (offRouteStreakStart != 0L && nowMs - offRouteStreakStart > 800)
+            val rawRecalc = streaming && (rerouting || (offRouteStreakStart != 0L && nowMs - offRouteStreakStart > 2_000))
             if (rawRecalc) recalcHoldUntil = nowMs + 1_500
-            recalculating = rawRecalc || nowMs < recalcHoldUntil
+            recalculating = streaming && (rawRecalc || nowMs < recalcHoldUntil)
 
-            if (!recalculating) {
+            if (streaming && !recalculating) {
                 // ETA from GOOGLE's traffic-aware duration for the part of the route still ahead
                 // (route.totalSeconds × remaining / total; the 2-min traffic refresh keeps it fresh).
                 // It used to be remaining ÷ our own rolling speed, floored at 3 m/s before we'd
@@ -1481,16 +1631,16 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 val (sv, su) = toDashDistance(gap)
                 Triple(second.dashCode, sv, su)
             } else Triple(DashCommands.NAV_SECONDARY_NONE, 0, DashCommands.NAV_UNIT_METERS)
-            session.updateNavInfo(glyph, pv, pu, tv, tu, etaHHMM, secGlyph, secDist, secUnit)
+            if (streaming) session.updateNavInfo(glyph, pv, pu, tv, tu, etaHHMM, secGlyph, secDist, secUnit)
             // Spoken/chime turn guidance (no-op when voice mode is OFF).
             // Voice output must never be allowed to cancel the navigation ticker. TTS providers
             // can throw during initialization or audio-route changes while the map must continue.
-            runCatching {
+            if (streaming) runCatching {
                 voice.maybeAnnounce(ns.nextManeuver, ns.nextTurnM, ns.remainingM)
             }.onFailure {
                 android.util.Log.w("DashViewModel", "Voice guidance failed: ${it.message}")
             }
-        } else if (loc != null && dLat != null && dLng != null) {
+        } else if (loc != null && dLat != null && dLng != null && LocationTracker.isFreshForNavigation(loc)) {
             remainingM = GeoPoint.distMeters(
                 GeoPoint(loc.latitude, loc.longitude), GeoPoint(dLat, dLng)
             )
@@ -1569,10 +1719,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 // dead-reckon gliding through the 1 Hz gaps at speed while still guarding bad fixes.
                 val conf = ((50f - (loc.accuracy)) / 25f).toDouble().coerceIn(0.0, 1.0)
                 val dist = predictedDistance(fixSpeed, elapsed + DISPLAY_LEAD_S) * conf
-                // Remember where the bike actually is, so that when it stops the marker holds the
-                // real fix (not the lead-projected point ahead of it).
-                heldRider = fixLat to fixLng
-                project(fixLat, fixLng, fixBearing.toDouble(), dist)
+                // Remember where the bike actually is (snapped to the road), so that when it stops
+                // the marker holds the real fix (not the lead-projected point ahead of it).
+                heldRider = NavPlus.roadSnapHold(fixLat to fixLng) as Pair<Double, Double>?
+                // Project along the curving road / route rather than in a straight line.
+                navplusPredict(NavPlus.arcProject(fixLat, fixLng, fixBearing.toDouble(), dist), dist)
             }
             else -> {
                 // Stopped: hold position and IGNORE sub-accuracy GPS wander, so a parked bike's dot
@@ -1584,7 +1735,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 if (h == null || GeoPoint.distMeters(
                         GeoPoint(h.first, h.second), GeoPoint(cand.first, cand.second)
                     ) > band
-                ) { heldRider = cand; cand } else h
+                ) {
+                    (NavPlus.roadSnapHold(cand) as Pair<Double, Double>?).also { heldRider = it }
+                } else h
             }
         }
 
@@ -1608,7 +1761,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // lateral noise that makes a poor signal jitter.
         val acc = loc?.accuracy ?: 12f
         val tau = when {
-            acc > 25f -> SMOOTH_TAU * 2.0   // poor signal → heavy smoothing
+            acc > 25f -> SMOOTH_TAU * 4.0   // poor signal → heavy smoothing
             acc > 12f -> SMOOTH_TAU * 1.5   // fair
             else      -> SMOOTH_TAU         // good → responsive
         }
@@ -1704,47 +1857,74 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      * internet — available now because only the dash sockets are bound to the dash WiFi.
      */
     private fun maybeReroute(offRoute: Boolean, loc: android.location.Location?) {
+        // Only while actually riding with the dash: no reroute calls while disconnected/reconnecting.
+        if (!userWantsConnection || session.state.value != DashState.STREAMING) {
+            offRouteSince = 0L
+            offRouteConfirmation.reset()
+            return
+        }
         val finalStop = routeStops.lastOrNull()
         val dLat = finalStop?.lat ?: destLat
         val dLng = finalStop?.lng ?: destLng
         val now = System.currentTimeMillis()
-        if (!offRoute || loc == null || dLat == null || dLng == null) {
+        if (!offRoute || loc == null || !LocationTracker.isFreshForNavigation(loc) || dLat == null || dLng == null) {
             offRouteSince = 0L
+            offRouteConfirmation.reset()
             // Back on route for a while → next miss starts from the short wait again.
             if (rerouteStreak > 0 && now - lastRerouteAt > REROUTE_STREAK_RESET_MS) rerouteStreak = 0
             return
         }
         if (offRouteSince == 0L) offRouteSince = now
-        // 2 s off-line confirms a real miss (not a GPS wobble). The wait between attempts backs off
-        // while the rider stays off-route, so a stuck/noisy GPS can't fire a call every few seconds.
+        // A real miss needs several distinct off-route fixes over a short span (not one GPS wobble).
+        // The wait between attempts backs off while the rider stays off-route, so a stuck/noisy GPS
+        // can't fire a call every few seconds.
+        val fixToken = loc.elapsedRealtimeNanos.takeIf { it > 0 } ?: loc.time
+        if (!offRouteConfirmation.record(fixToken, now)) return
         val cooldown = (REROUTE_BASE_MS shl rerouteStreak.coerceAtMost(5)).coerceAtMost(REROUTE_MAX_MS)
-        if (now - offRouteSince < 2_000 || now - lastRerouteAt < cooldown || rerouting) return
-        if (!takeAutoRouteCall("reroute")) return
+        if (now - lastRerouteAt < cooldown || rerouting) return
+        if (trafficRefreshInFlight || !takeAutoRouteCall("reroute")) return
         rerouteStreak++
         lastRerouteAt = now
         rerouting = true
+        routeRequestGeneration++
+        val requestId = routeRequestGeneration
+        val waypointSnapshot = routeWaypoints.toList()
+        val stopIndexSnapshot = activeStopIndex
         val offSec = (now - offRouteSince) / 1000
         android.util.Log.i("DashViewModel", "Off-route ${offSec}s → rerouting")
         com.example.wayfindr.data.RideDiagnostics.log("reroute", "off-route ${offSec}s → requesting new route")
         val startMs = System.currentTimeMillis()
-        viewModelScope.launch {
-            val r = Router.route(GeoPoint(loc.latitude, loc.longitude), GeoPoint(dLat, dLng), routeWaypoints)
-            val took = System.currentTimeMillis() - startMs
-            if (r != null) {
-                route = r
-                lastTrafficRefreshAt = System.currentTimeMillis()
-                progressM = 0.0
-                routeLegOffset = activeStopIndex
-                offRouteSince = 0L
-                tiles.prefetchRoute(r.geometry)
-                _ui.update { it.copy(hasRoute = true, routePoints = r.geometry, routeTraffic = r.traffic) }
-                android.util.Log.i("DashViewModel", "Reroute ok: ${r.geometry.size} pts, ${r.totalMeters.toInt()} m")
-                com.example.wayfindr.data.RideDiagnostics.log("reroute", "new route in ${took}ms (${r.geometry.size} pts, ${r.totalMeters.toInt()} m)")
-            } else {
-                android.util.Log.w("DashViewModel", "Reroute failed (no internet?)")
-                com.example.wayfindr.data.RideDiagnostics.log("reroute", "FAILED after ${took}ms (no internet?)")
+        routeRequestJob?.cancel()
+        routeRequestJob = viewModelScope.launch {
+            try {
+                NavPlus.quietAlts()
+                val alternatives = Router.alternatives(getApplication(), GeoPoint(loc.latitude, loc.longitude), GeoPoint(dLat, dLng), waypointSnapshot)
+                // Prefer an alternative that leads back onto the planned roads (NavPlus decides).
+                val r = NavPlus.pickPlanned(alternatives, this@DashViewModel, 0)
+                // Stale: a newer request or a passed stop replaced this one.
+                if (requestId != routeRequestGeneration || activeStopIndex != stopIndexSnapshot) return@launch
+                val took = System.currentTimeMillis() - startMs
+                if (r != null) {
+                    route = r
+                    lastTrafficRefreshAt = System.currentTimeMillis()
+                    progressM = 0.0
+                    routeLegOffset = activeStopIndex
+                    offRouteSince = 0L
+                    offRouteConfirmation.reset()
+                    tiles.prefetchRoute(r.geometry)
+                    _ui.update { it.copy(hasRoute = true, routePoints = r.geometry, routeTraffic = r.traffic) }
+                    android.util.Log.i("DashViewModel", "Reroute ok: ${r.geometry.size} pts, ${r.totalMeters.toInt()} m")
+                    com.example.wayfindr.data.RideDiagnostics.log("reroute", "new route in ${took}ms (${r.geometry.size} pts, ${r.totalMeters} m)")
+                } else {
+                    android.util.Log.w("DashViewModel", "Reroute failed (no internet?)")
+                    com.example.wayfindr.data.RideDiagnostics.log("reroute", "FAILED after ${took}ms (no internet?)")
+                }
+            } finally {
+                if (requestId == routeRequestGeneration) {
+                    rerouting = false
+                    routeRequestJob = null
+                }
             }
-            rerouting = false
         }
     }
 
@@ -1758,11 +1938,25 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val lng = stop.lng ?: return false
         // Use both the actual stop distance and the leg progress. The second check avoids advancing
         // merely because two roads happen to pass close to the waypoint before reaching it.
-        val closeToStop = GeoPoint.distMeters(GeoPoint(loc.latitude, loc.longitude), GeoPoint(lat, lng)) <= WAYPOINT_ARRIVE_M
+        // Neither is trusted on a coarse fix (> 60 m), and the leg progress only when the route
+        // match itself is close (a parallel road must not complete the leg).
+        val accuracy = loc.takeIf { it.hasAccuracy() }?.accuracy?.takeIf { it.isFinite() }?.toDouble()
+        val accuracyTrusted = accuracy == null || accuracy <= 60.0
+        val closeToStop = accuracyTrusted &&
+            GeoPoint.distMeters(GeoPoint(loc.latitude, loc.longitude), GeoPoint(lat, lng)) <= WAYPOINT_ARRIVE_M
         val legIndex = index - routeLegOffset
-        val reachedLegEnd = route?.legEndCumulative?.getOrNull(legIndex)?.let { nav.progressM >= it - WAYPOINT_PROGRESS_TOLERANCE_M } ?: false
+        val routeMatchTrusted = accuracyTrusted &&
+            nav.snapDist <= maxOf(WAYPOINT_ARRIVE_M, (accuracy ?: 0.0) * 1.5)
+        val reachedLegEnd = routeMatchTrusted &&
+            (route?.legEndCumulative?.getOrNull(legIndex)?.let { nav.progressM >= it - WAYPOINT_PROGRESS_TOLERANCE_M } ?: false)
         if (!closeToStop && !reachedLegEnd) return false
 
+        // The next leg is already in the route: drop any request still running for the old one.
+        routeRequestGeneration++
+        routeRequestJob?.cancel()
+        routeRequestJob = null
+        rerouting = false
+        trafficRefreshInFlight = false
         activeStopIndex = index + 1
         val next = stops[activeStopIndex]
         destLat = next.lat
@@ -1783,11 +1977,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         return (end - nav.progressM).coerceAtLeast(0.0)
     }
 
-    /** Refresh the active route every two minutes so congestion colours and ETA stay current. */
+    /** Refresh the active route every five minutes so congestion colours and ETA stay current. */
     private fun maybeRefreshTraffic(loc: android.location.Location?) {
-        if (loc == null || route == null || rerouting || trafficRefreshInFlight) return
+        if (!userWantsConnection || session.state.value != DashState.STREAMING) return
+        if (loc == null || !LocationTracker.isFreshForNavigation(loc) || route == null || rerouting || trafficRefreshInFlight) return
         // Free/offline routing has no traffic data, so a refresh would only load the router.
         if (dashConfig.routingSource.value != com.example.wayfindr.dash.RoutingSource.GOOGLE) return
+        if (!com.example.wayfindr.dash.GoogleKey.present) return
         val now = System.currentTimeMillis()
         if (now - lastTrafficRefreshAt < TRAFFIC_REFRESH_MS) return
         val final = routeStops.lastOrNull() ?: return
@@ -1796,20 +1992,34 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         lastTrafficRefreshAt = now
         if (!takeAutoRouteCall("traffic refresh")) return
         trafficRefreshInFlight = true
-        viewModelScope.launch {
-            val refreshed = Router.route(
-                GeoPoint(loc.latitude, loc.longitude), GeoPoint(finalLat, finalLng), routeWaypoints,
-            )
-            if (refreshed != null) {
-                route = refreshed
-                progressM = 0.0
-                routeLegOffset = activeStopIndex
-                // No tile prefetch here: a traffic refresh is the same road. Prefetching on every
-                // 2-min refresh downloaded ~600 new tiles each time on a long route, even parked.
-                _ui.update { it.copy(routePoints = refreshed.geometry, routeTraffic = refreshed.traffic) }
-                android.util.Log.i("DashViewModel", "Traffic refreshed: ${refreshed.traffic.size} route intervals")
+        routeRequestGeneration++
+        val requestId = routeRequestGeneration
+        val waypointSnapshot = routeWaypoints.toList()
+        val stopIndexSnapshot = activeStopIndex
+        routeRequestJob?.cancel()
+        routeRequestJob = viewModelScope.launch {
+            try {
+                val alternatives = Router.alternatives(
+                    getApplication(), GeoPoint(loc.latitude, loc.longitude), GeoPoint(finalLat, finalLng), waypointSnapshot,
+                )
+                // Only accept a refresh that stays on the planned roads (NavPlus decides); else keep it.
+                val refreshed = NavPlus.pickPlanned(alternatives, this@DashViewModel, 1)
+                if (requestId != routeRequestGeneration || activeStopIndex != stopIndexSnapshot) return@launch
+                if (refreshed != null) {
+                    route = refreshed
+                    progressM = 0.0
+                    routeLegOffset = activeStopIndex
+                    // No tile prefetch here: a traffic refresh is the same road. Prefetching on every
+                    // refresh downloaded ~600 new tiles each time on a long route, even parked.
+                    _ui.update { it.copy(routePoints = refreshed.geometry, routeTraffic = refreshed.traffic) }
+                    android.util.Log.i("DashViewModel", "Traffic refreshed: ${refreshed.traffic.size} route intervals")
+                }
+            } finally {
+                if (requestId == routeRequestGeneration) {
+                    trafficRefreshInFlight = false
+                    routeRequestJob = null
+                }
             }
-            trafficRefreshInFlight = false
         }
     }
 
@@ -1874,6 +2084,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val etaSecondary = if (etaPrimary != null && !arriving && !recalculating)
             java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date(etaArrivalMs))
         else null
+        // Only the part of the route still ahead of the rider (NavPlus trims the ridden part).
+        val progress = progressM
+        val r = route
+        @Suppress("UNCHECKED_CAST")
+        val aheadRoute = r?.let { NavPlus.aheadGeometry(it, progress, frameRiderLat, frameRiderLng) as List<GeoPoint>? } ?: emptyList()
+        @Suppress("UNCHECKED_CAST")
+        val aheadTraffic = r?.let { NavPlus.aheadTraffic(it, progress, frameRiderLat, frameRiderLng) as List<TrafficInterval>? } ?: emptyList()
         val frame = MapRenderer.Frame(
             centerLat = centerLat,
             centerLng = centerLng,
@@ -1891,8 +2108,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 if (stop.lat != null && stop.lng != null) GeoPoint(stop.lat, stop.lng) else null
             },
             destName = _ui.value.destinationName,
-            route = route?.geometry ?: emptyList(),
-            traffic = route?.traffic ?: emptyList(),
+            route = aheadRoute,
+            traffic = aheadTraffic,
             maneuverText = null, // turn-by-turn maneuver banner removed
             remainingText = remainingM?.let { fmtDist(it) },
             // Top-down (heading-up) nav view. The 3D perspective tilt is DISABLED: warping
@@ -1902,21 +2119,21 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             etaPrimary = etaPrimary,
             etaSecondary = etaSecondary,
             pickerRows = pickerItems?.let { menuRows() },
-            pickerTitle = when (menuPage) { MenuPage.SOURCE -> "SOURCE"; MenuPage.CANCEL -> "CANCEL"; MenuPage.ROOT -> "SETTINGS" },
+            pickerTitle = when (menuPage) { MenuPage.SOURCE -> "ROTA KAYNAĞI"; MenuPage.CANCEL -> "ROTA / DURAK"; MenuPage.ROOT -> "KAYITLI YERLER" },
             pickerSelectHint = when (menuPage) {
-                MenuPage.SOURCE -> "Down: next · Right: use · Left: back"
-                MenuPage.CANCEL -> "Down: next · Right: cancel · Left: back"
-                MenuPage.ROOT -> "Down: next · Right: go · Left: close"
+                MenuPage.SOURCE -> "Sol/sağ: gez · sağ basılı: seç"
+                MenuPage.CANCEL -> "Sol/sağ: gez · sağ basılı: seç"
+                MenuPage.ROOT -> "Sol/sağ: gez · sağ basılı: aç"
             },
             pickerIndex = pickerIndex,
-            zoomLabel = if (System.currentTimeMillis() < zoomBadgeUntilMs) "Zoom $zoom" else null,
+            zoomLabel = if (System.currentTimeMillis() < zoomBadgeUntilMs) "Ölçek $zoom" else null,
             // The router that made the current route (BRouter may have fallen back to OSM);
             // with no route, the one the next route will use.
             routingBadge = route?.source ?: dashConfig.routingSource.value,
             notice = notice?.takeIf { pickerItems == null && System.currentTimeMillis() < noticeUntilMs },
-            downHint = if (pickerItems == null && System.currentTimeMillis() < downHintUntilMs) "▼ again: settings" else null,
+            downHint = if (pickerItems == null && System.currentTimeMillis() < downHintUntilMs) "▼ tekrar: menüyü aç" else null,
             joystickTrail = if (dashConfig.showJoystickTrail.value) joyTrail.text(System.currentTimeMillis()) else null,
-            attribution = if (tiles.freeTiles) TileProvider.OSM_ATTRIBUTION else null,
+            attribution = TileProvider.OSM_ATTRIBUTION,
             phoneBattery = if (dashConfig.showPhoneBattery.value) session.latestPhoneStatus?.let { it.batteryPct to it.charging } else null,
             gpsWeak = gpsStatus == GpsStatus.WEAK,
             gpsLost = gpsStatus == GpsStatus.LOST,
@@ -1926,6 +2143,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Draw in LOGICAL 526×300 coordinates at any render scale, so layout is identical.
         canvas.scale(scale.toFloat(), scale.toFloat())
         mapRenderer.draw(canvas, frame, DashEncoder.WIDTH, DashEncoder.HEIGHT)
+        NavPlus.hudDraw(canvas, DashEncoder.WIDTH, DashEncoder.HEIGHT)   // console HUD on top of the map
         // The dash shows ONLY our video frame while projecting — it won't overlay its native
         // now-playing/call cards (confirmed: 05 0d/05 22 are sent fine but never displayed mid-map).
         // So we draw them INTO the frame ourselves, as the CLAUDE.md design always intended.
@@ -1993,46 +2211,44 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val secondManeuver: com.example.wayfindr.dash.nav.Maneuver? = null,
     )
 
-    private data class Match(val cum: Double, val dist: Double, val bearing: Float, val proj: GeoPoint)
-
-    private fun trackProgress(r: Route, pos: GeoPoint): NavState {
-        val geom = r.geometry
-        val cum = r.cumulative
-
-        fun search(lo: Double, hi: Double): Match {
-            var bestDist = Double.MAX_VALUE; var bestCum = progressM; var bestBearing = 0f; var bestProj = pos
-            for (i in 0 until geom.size - 1) {
-                if (cum[i + 1] < lo || cum[i] > hi) continue
-                val (proj, t) = GeoPoint.projectOnSegment(pos, geom[i], geom[i + 1])
-                val d = GeoPoint.distMeters(pos, proj)
-                if (d < bestDist) {
-                    bestDist = d
-                    bestCum = cum[i] + GeoPoint.distMeters(geom[i], geom[i + 1]) * t
-                    bestBearing = GeoPoint.bearing(geom[i], geom[i + 1]).toFloat()
-                    bestProj = proj
-                }
-            }
-            return Match(bestCum, bestDist, bestBearing, bestProj)
+    /**
+     * Advance [progressM] along [r] for the fix at [pos] (RouteProgressMatcher: continuity-aware,
+     * GPS bearing breaks ties between overlapping passes). With [advanceProgress] false (preview
+     * without a dash) the progress is only read, never moved.
+     */
+    private fun trackProgress(
+        r: Route,
+        pos: GeoPoint,
+        gpsBearing: Float?,
+        speedMps: Double,
+        advanceProgress: Boolean = true,
+    ): NavState {
+        val match = com.example.wayfindr.dash.nav.RouteProgressMatcher.match(
+            r.geometry, r.cumulative, pos, progressM, gpsBearing, speedMps,
+        )
+        if (match == null) {
+            val remaining = (r.totalMeters - progressM).coerceAtLeast(0.0)
+            return NavState(remaining, remaining, gpsBearing ?: 0f, true, pos, Double.MAX_VALUE, null, progressM, null)
         }
+        var matchedProgress = progressM
+        // Mostly forward, tolerate small GPS slide.
+        if (advanceProgress) matchedProgress = maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, match.progressMeters)
+        if (advanceProgress) progressM = matchedProgress
 
-        var m = search(progressM - 60.0, progressM + 1000.0)
-        if (m.dist > 80.0) {
-            val g = search(0.0, r.totalMeters) // off-window → re-acquire globally
-            if (g.dist < m.dist) m = g
-        }
-        progressM = maxOf(progressM - 25.0, m.cum) // mostly forward, tolerate small GPS slide
-
-        val remaining = (r.totalMeters - progressM).coerceAtLeast(0.0)
+        val remaining = (r.totalMeters - matchedProgress).coerceAtLeast(0.0)
         val nextMan = r.maneuvers.firstOrNull {
-            it.cumulativeMeters > progressM + 1.0 && it.type != com.example.wayfindr.dash.nav.ManeuverType.DEPART
+            it.cumulativeMeters > matchedProgress + 1.0 && it.type != com.example.wayfindr.dash.nav.ManeuverType.DEPART
         }
-        val nextTurn = nextMan?.let { (it.cumulativeMeters - progressM).coerceAtLeast(0.0) } ?: remaining
+        val nextTurn = nextMan?.let { (it.cumulativeMeters - matchedProgress).coerceAtLeast(0.0) } ?: remaining
         val secondMan = nextMan?.let { n ->
             r.maneuvers.firstOrNull {
                 it.cumulativeMeters > n.cumulativeMeters + 1.0 && it.type != com.example.wayfindr.dash.nav.ManeuverType.DEPART
             }
         }
-        return NavState(remaining, nextTurn, m.bearing, m.dist > 70.0, m.proj, m.dist, nextMan, progressM, secondMan)
+        return NavState(
+            remaining, nextTurn, match.headingDegrees, match.lateralDistanceMeters > 70.0,
+            match.snappedPoint, match.lateralDistanceMeters, nextMan, matchedProgress, secondMan,
+        )
     }
 
     private fun updateThermal() {
