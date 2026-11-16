@@ -168,47 +168,65 @@ public final class LocPlus {
                                 stOn = true;
                                 stOut = 0;
                                 stFast = 0;
-                            }
-                        }
-                        stLat = latitude;
-                        stLng = longitude;
-                        stW = d;
-                        stSlow = 1;
-                        return;
-                    }
-                    if (speed < 4.0f) {
-                        if (speed >= 2.0f) {
-                            int i2 = stFast + 1;
-                            stFast = i2;
-                            if (i2 < 2) {
+                                // falls through to the lock below
+                            } else {
+                                stLat = latitude;
+                                stLng = longitude;
+                                stW = d;
+                                stSlow = 1;
+                                return;
                             }
                         } else {
+                            stLat = latitude;
+                            stLng = longitude;
+                            stW = d;
+                            stSlow = 1;
+                            return;
+                        }
+                    } else {
+                        boolean unlock = false;
+                        if (speed >= 4.0f) {
+                            unlock = true;
+                        } else {
+                            if (speed >= 2.0f) {
+                                int i2 = stFast + 1;
+                                stFast = i2;
+                                if (i2 >= 2) {
+                                    unlock = true;
+                                }
+                            } else {
+                                stFast = 0;
+                            }
+                            if (!unlock) {
+                                double stDist2 = stDist(stLat, stLng, latitude, longitude);
+                                double d4 = 2.5d * d2;
+                                if (d4 < 12.0d) {
+                                    d4 = 12.0d;
+                                }
+                                if (stDist2 <= d4) {
+                                    stOut = 0;
+                                    int i3 = stSlow;
+                                    if (i3 < 8) {
+                                        stSlow = i3 + 1;
+                                        stMerge(latitude, longitude, d);
+                                    }
+                                } else {
+                                    int i4 = stOut + 1;
+                                    stOut = i4;
+                                    if (i4 >= 6) {
+                                        unlock = true;
+                                    }
+                                }
+                            }
+                        }
+                        if (unlock) {
+                            stOn = false;
+                            stSlow = 0;
                             stFast = 0;
-                        }
-                        double stDist2 = stDist(stLat, stLng, latitude, longitude);
-                        double d4 = 2.5d * d2;
-                        if (d4 < 12.0d) {
-                            d4 = 12.0d;
-                        }
-                        if (stDist2 <= d4) {
                             stOut = 0;
-                            int i3 = stSlow;
-                            if (i3 < 8) {
-                                stSlow = i3 + 1;
-                                stMerge(latitude, longitude, d);
-                            }
-                        } else {
-                            int i4 = stOut + 1;
-                            stOut = i4;
-                            if (i4 < 6) {
-                            }
+                            return;
                         }
                     }
-                    stOn = false;
-                    stSlow = 0;
-                    stFast = 0;
-                    stOut = 0;
-                    return;
                     location.setLatitude(stLat);
                     location.setLongitude(stLng);
                     location.setSpeed(0.0f);
