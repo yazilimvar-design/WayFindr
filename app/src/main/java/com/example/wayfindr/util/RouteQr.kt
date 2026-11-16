@@ -86,8 +86,11 @@ object RouteQr {
         return bmp
     }
 
-    /** Hand the QR image to a messaging app via the share sheet. */
-    fun shareImage(context: Context, bmp: Bitmap, name: String) {
+    /**
+     * Hand the image to a messaging app via the share sheet, or straight to [pkg] (e.g. com.whatsapp)
+     * when that app is installed; otherwise the share sheet opens as usual.
+     */
+    fun shareImage(context: Context, bmp: Bitmap, name: String, pkg: String? = null) {
         val dir = File(context.cacheDir, "route_qr").apply { mkdirs() }
         dir.listFiles()?.forEach { it.delete() }           // only the latest share is kept
         val file = File(dir, fileName(name))
@@ -100,6 +103,10 @@ object RouteQr {
             clipData = ClipData.newRawUri(name, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
+        if (pkg != null) try {
+            context.startActivity(Intent(send).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return
+        } catch (_: android.content.ActivityNotFoundException) {}   // not installed / can't take an image
         val chooser = Intent.createChooser(send, "Share $name")
             // Sharing to our own app would just reload the same route.
             .putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS,

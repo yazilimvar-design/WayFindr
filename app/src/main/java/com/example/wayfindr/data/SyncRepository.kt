@@ -146,10 +146,10 @@ class SyncRepository private constructor(context: Context) {
      * write survives even when called from ViewModel teardown (onCleared cancels viewModelScope
      * before a launch there could run — that was silently dropping rides).
      */
-    fun addRide(r: Ride) { io.launch {
+    fun addRide(r: Ride, countOdometer: Boolean = true) { io.launch {
         db.upsertRide(r)
-        // A completed ride advances the bike's odometer by exactly what was ridden.
-        db.addToOdometer(r.distanceKm)
+        // A completed ride advances the bike's odometer by exactly what was ridden (not an imported old ride).
+        if (countOdometer) db.addToOdometer(r.distanceKm)
         bump()
     } }
     fun deleteRide(r: Ride) { db.deleteRideBySid(r.sid); bump() }

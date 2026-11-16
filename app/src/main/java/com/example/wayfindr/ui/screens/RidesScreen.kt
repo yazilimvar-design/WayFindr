@@ -1,7 +1,23 @@
 package com.example.wayfindr.ui.screens
 
-import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.Landscape
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.Terrain
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.example.wayfindr.data.RideStats
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,6 +67,9 @@ fun RidesScreen(ridesViewModel: RidesViewModel = viewModel()) {
     val names by ridesViewModel.names.collectAsState()
     var showAll by rememberSaveable { mutableStateOf(false) }
     var detailSid by rememberSaveable { mutableStateOf<String?>(null) }
+    val importGpx = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) {
+        ridesViewModel.importGpx(it)
+    }
     val nameOf: (Ride) -> String = { names[it.sid] ?: (SimpleDateFormat("d MMMM", TR).format(Date(it.startMs)) + " sürüşü") }
 
     BackHandler(enabled = showAll || detailSid != null) {
@@ -70,6 +89,7 @@ fun RidesScreen(ridesViewModel: RidesViewModel = viewModel()) {
             onOpen = { detailSid = it.sid },
             onShowAll = { showAll = true },
             onClear = { ridesViewModel.deleteAll() },
+            onImport = { importGpx.launch(arrayOf("*/*")) },   // .gpx has no registered MIME type
         )
     }
 }
@@ -83,6 +103,7 @@ private fun RidesHome(
     onOpen: (Ride) -> Unit,
     onShowAll: () -> Unit,
     onClear: () -> Unit,
+    onImport: () -> Unit,
 ) {
     var confirmClear by remember { mutableStateOf(false) }
     Column(
@@ -97,6 +118,7 @@ private fun RidesHome(
 
         if (rides.isEmpty()) {
             EmptyRides()
+            GpxImportBtn(onImport)
             return@Column
         }
 
@@ -109,6 +131,7 @@ private fun RidesHome(
 
         SectionTitle("GEZİ ÖZETİ")
         RideSummary(rides, onShowAll)
+        GpxImportBtn(onImport)
     }
 
     if (confirmClear) ConfirmDialog(
@@ -117,6 +140,12 @@ private fun RidesHome(
         onConfirm = { confirmClear = false; onClear() },
         onDismiss = { confirmClear = false },
     )
+}
+
+@Composable
+private fun GpxImportBtn(onImport: () -> Unit) {
+    WayfindrBtn("GPX içe aktar", onClick = onImport, icon = WayfindrIcons.Download, variant = BtnVariant.Ghost,
+        size = BtnSize.Sm, modifier = Modifier.padding(top = 14.dp).fillMaxWidth())
 }
 
 @Composable
@@ -336,8 +365,10 @@ private fun sectionOf(ms: Long): String {
 
 @Composable
 private fun RideDetail(ride: Ride, name: String, onBack: () -> Unit, onDelete: () -> Unit) {
-    val activity = LocalContext.current as? Activity
     var confirmDelete by remember { mutableStateOf(false) }
+    var sharing by remember { mutableStateOf(false) }
+    var fullMap by remember { mutableStateOf(false) }
+    val stats by produceState(RideStats(), ride.sid) { value = withContext(Dispatchers.IO) { RideStats.load(ride.sid) } }
     val hasSpeed = remember(ride.trackPolyline) {
         try {
             val pts = PolylineCodec.decode(ride.trackPolyline)
@@ -348,38 +379,60 @@ private fun RideDetail(ride: Ride, name: String, onBack: () -> Unit, onDelete: (
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(18.dp)
+            .padding(horizontal = 22.dp, vertical = 18.dp)
             .padding(bottom = 24.dp),
     ) {
-        ScreenHeader(title = name, onBack = onBack,
-            hint = "${fmtDate(ride.startMs)} · ${fmtTime(ride.startMs)}–${fmtTime(ride.endMs)}")
-        RideThumb(ride, Modifier.fillMaxWidth().height(260.dp).clip(CardShape).border(1.dp, Line, CardShape))
-        if (hasSpeed) {
-            FlowRowLegend()
-        }
-        Spacer(Modifier.height(14.dp))
-        WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 20.dp) {
-            Row(Modifier.fillMaxWidth()) {
-                SummaryStat(WayfindrIcons.LocationPin, "Mesafe", fmtKm(ride.distanceKm), Modifier.weight(1f))
-                SummaryStat(WayfindrIcons.Clock, "Süre", fmtDuration(ride.durationSec), Modifier.weight(1f))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Text(name, color = TextHi, fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = GeistFamily,
+                    letterSpacing = (-0.4).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(4.dp))
+                Text("${fmtDate(ride.startMs)}  ·  ${fmtTime(ride.startMs)} → ${fmtTime(ride.endMs)}",
+                    color = TextMid, fontSize = 15.sp, fontFamily = GeistFamily)
             }
-            Spacer(Modifier.height(18.dp))
-            Row(Modifier.fillMaxWidth()) {
-                SummaryStat(WayfindrIcons.Gauge, "Ort. hız", fmtKmh(ride.avgSpeedKmh), Modifier.weight(1f))
-                SummaryStat(WayfindrIcons.Trend, "En yüksek", fmtKmh(ride.maxSpeedKmh), Modifier.weight(1f))
+            Spacer(Modifier.width(12.dp))
+            RoundBtn(WayfindrIcons.Share, "Paylaş", Surf3) { sharing = true }
+            Spacer(Modifier.width(10.dp))
+            RoundBtn(Icons.Outlined.Delete, "Sil", Alert) { confirmDelete = true }
+        }
+        WayfindrDivider(Modifier.padding(vertical = 18.dp))
+        Box(
+            Modifier.fillMaxWidth().height(220.dp).clip(CardShape).border(1.dp, Line, CardShape)
+                .clickable(onClickLabel = "Haritayı tam ekran aç") { fullMap = true },
+        ) {
+            RideThumb(ride, Modifier.matchParentSize())
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
+                    .clip(CircleShape).background(Color.Black.copy(alpha = 0.62f))
+                    .padding(horizontal = 16.dp, vertical = 9.dp),
+            ) {
+                Icon(Icons.Outlined.Fullscreen, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Haritayı açmak için dokun", color = Color.White, fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            WayfindrBtn(
-                "Paylaş", icon = WayfindrIcons.Share, variant = BtnVariant.Secondary, modifier = Modifier.weight(1f),
-                onClick = {
-                    // Same share card as v34's summary screen: row = start, metres, seconds, max m/s, track.
-                    activity?.let { NavPlus.rideShare(it, arrayOf<Any>(ride.startMs, ride.distanceMeters, ride.durationSec, ride.maxSpeedMps, ride.trackPolyline)) }
-                },
-            )
-            WayfindrBtn("Sil", icon = WayfindrIcons.X, variant = BtnVariant.Danger, modifier = Modifier.weight(1f),
-                onClick = { confirmDelete = true })
+        if (hasSpeed) FlowRowLegend()
+        Spacer(Modifier.height(8.dp))
+        rideCells(ride, stats).chunked(2).forEachIndexed { i, row ->
+            if (i > 0) WayfindrDivider()
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                StatCell(row[0], Modifier.weight(1f))
+                if (row.size > 1) {
+                    Box(Modifier.padding(vertical = 18.dp).width(1.dp).fillMaxHeight().background(Line2))
+                    StatCell(row[1], Modifier.weight(1f).padding(start = 18.dp))
+                }
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxWidth().height(56.dp).clip(BtnShape).border(1.dp, Line3, BtnShape)
+                .clickable(onClick = onBack),
+        ) {
+            Text("KAPAT", color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                fontFamily = GeistMonoFamily, letterSpacing = 4.sp)
         }
     }
     if (confirmDelete) ConfirmDialog(
@@ -388,6 +441,77 @@ private fun RideDetail(ride: Ride, name: String, onBack: () -> Unit, onDelete: (
         onConfirm = { confirmDelete = false; onDelete() },
         onDismiss = { confirmDelete = false },
     )
+    if (sharing) RideShareSheet(ride, name, stats, onDismiss = { sharing = false })
+    if (fullMap) FullMap(ride, hasSpeed, onClose = { fullMap = false })
+}
+
+private class RideCell(val icon: ImageVector, val label: String, val value: String)
+
+/** Detail grid; stats an old ride never recorded (no side file) are left out, never shown as 0. */
+private fun rideCells(ride: Ride, s: RideStats) = listOfNotNull(
+    RideCell(WayfindrIcons.LocationPin, "Mesafe", fmtKm(ride.distanceKm)),
+    RideCell(WayfindrIcons.Clock, "Süre", fmtDuration(ride.durationSec)),
+    RideCell(WayfindrIcons.Gauge, "Ort. hız", fmtKmh(ride.avgSpeedKmh)),
+    RideCell(WayfindrIcons.Zap, "Maks. hız", fmtKmh(ride.maxSpeedKmh)),
+    s.stoppedSec?.let { RideCell(Icons.Outlined.Pause, "Durulan süre", fmtDuration(it)) },
+    s.climbM?.let { RideCell(Icons.Outlined.Terrain, "Yükseklik kazancı", fmtClimb(it)) },
+    fmtAltRange(s)?.let { RideCell(Icons.Outlined.Landscape, "Rakım", it) },
+)
+
+@Composable
+private fun StatCell(c: RideCell, modifier: Modifier) {
+    Row(verticalAlignment = Alignment.Top, modifier = modifier.padding(vertical = 18.dp)) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(44.dp).border(1.5.dp, Line3, CircleShape),
+        ) {
+            Icon(c.icon, contentDescription = null, tint = TextMid, modifier = Modifier.size(21.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column {
+            Text(c.label, color = TextMid, fontSize = 14.sp, fontFamily = GeistFamily, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(6.dp))
+            Text(c.value, color = TextHi, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+        }
+    }
+}
+
+@Composable
+private fun RoundBtn(icon: ImageVector, label: String, bg: Color, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(52.dp).clip(CircleShape).background(bg).clickable(onClickLabel = label, onClick = onClick),
+    ) {
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(22.dp))
+    }
+}
+
+/** Full-screen track map; pinch to zoom, drag to pan. */
+@Composable
+private fun FullMap(ride: Ride, hasSpeed: Boolean, onClose: () -> Unit) {
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        var scale by remember { mutableFloatStateOf(1f) }
+        var offset by remember { mutableStateOf(Offset.Zero) }
+        Box(
+            Modifier.fillMaxSize().background(MapBase)
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 6f)
+                        offset = if (scale == 1f) Offset.Zero else offset + pan
+                    }
+                },
+        ) {
+            RideThumb(ride, Modifier.fillMaxSize().graphicsLayer {
+                scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y
+            })
+            WayfindrIconBtn(WayfindrIcons.X, onClick = onClose,
+                modifier = Modifier.align(Alignment.TopEnd).systemBarsPadding().padding(16.dp))
+            if (hasSpeed) Box(
+                Modifier.align(Alignment.BottomCenter).systemBarsPadding().padding(16.dp)
+                    .clip(CardShape).background(Bg0.copy(alpha = 0.75f)).padding(horizontal = 14.dp, vertical = 4.dp),
+            ) { FlowRowLegend() }
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -442,12 +566,15 @@ private fun EmptyRides() {
     }
 }
 
-private fun fmtDate(ms: Long) = SimpleDateFormat("d MMMM yyyy, EEEE", TR).format(Date(ms))
-private fun fmtTime(ms: Long) = SimpleDateFormat("HH:mm", TR).format(Date(ms))
+internal fun fmtDate(ms: Long) = SimpleDateFormat("dd/MM/yyyy", TR).format(Date(ms))
+internal fun fmtTime(ms: Long) = SimpleDateFormat("HH:mm", TR).format(Date(ms))
 private fun fmtDayTime(ms: Long) = SimpleDateFormat("dd/MM · HH:mm", TR).format(Date(ms))
-private fun fmtKm(km: Double) = String.format(TR, "%.1f km", km)
-private fun fmtKmh(kmh: Double) = String.format(TR, "%.0f km/sa", kmh)
-private fun fmtDuration(sec: Long): String {
+internal fun fmtKm(km: Double) = String.format(TR, "%.1f km", km)
+internal fun fmtKmh(kmh: Double) = String.format(TR, "%.0f km/sa", kmh)
+internal fun fmtClimb(m: Int) = "+$m m"
+internal fun fmtAltRange(s: RideStats) =
+    if (s.altMinM != null && s.altMaxM != null) "${s.altMinM} m – ${s.altMaxM} m" else null
+internal fun fmtDuration(sec: Long): String {
     val h = sec / 3600; val m = (sec % 3600) / 60
     return if (h > 0) "$h sa $m dk" else "$m dk"
 }

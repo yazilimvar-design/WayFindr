@@ -23,6 +23,10 @@ jobs:
       - name: APK derle (standard, debug)
         run: ./gradlew --no-daemon assembleStandardDebug
 
+      # Ride recording + GPX import (incl. the real Super TripperDash exports in test/resources/gpx).
+      - name: Sürüş birim testleri
+        run: ./gradlew --no-daemon testStandardDebugUnitTest --tests 'com.example.wayfindr.data.*'
+
       - uses: actions/upload-artifact@v4
         with:
           name: apk-${{ github.run_number }}

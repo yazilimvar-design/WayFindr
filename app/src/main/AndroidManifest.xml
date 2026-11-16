@@ -9,6 +9,10 @@
         <package android:name="btools.routingapp" />
         <!-- Hand a route to the Google Maps app (GPlus). -->
         <package android:name="com.google.android.apps.maps" />
+        <!-- Ride share sheet: send the image straight to these apps (ui/screens/RideShare). -->
+        <package android:name="com.instagram.android" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.facebook.katana" />
     </queries>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />

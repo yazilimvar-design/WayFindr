@@ -861,7 +861,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         recordJob = viewModelScope.launch {
             location.location.collect { loc ->
                 if (loc != null) {
-                    recorder.add(loc.latitude, loc.longitude, loc.speed, loc.accuracy, loc.time)
+                    val alt = if (loc.hasAltitude() && (!loc.hasVerticalAccuracy() || loc.verticalAccuracyMeters <= 25f)) loc.altitude else Double.NaN
+                    recorder.add(loc.latitude, loc.longitude, loc.speed, loc.accuracy, loc.time, alt)
                     // Dash compass heading: GPS direction of travel, only trusted when moving.
                     session.updateGps(loc.bearing.takeIf { loc.hasBearing() && loc.speed >= BEARING_MIN_SPEED })
                 }
