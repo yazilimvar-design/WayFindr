@@ -95,6 +95,12 @@ android {
     }
 
     buildTypes {
+        // Himalayan450 builds are standardDebug, installed side by side with upstream WayFindr
+        // as com.wayfindr.app.preview / "-preview" (same as the v34-v40 APKs, so they update in place).
+        debug {
+            applicationIdSuffix = ".preview"
+            versionNameSuffix = "-preview"
+        }
         release {
             optimization {
                 enable = false

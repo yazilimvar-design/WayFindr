@@ -7,6 +7,8 @@
     <!-- Android 11+ package visibility: bind to the BRouter app's routing service (offline routing). -->
     <queries>
         <package android:name="btools.routingapp" />
+        <!-- Hand a route to the Google Maps app (GPlus). -->
+        <package android:name="com.google.android.apps.maps" />
     </queries>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -120,6 +122,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+        <!-- .mbtiles import (dash/nav/OfflineMapActivity.java) -->
+        <activity
+            android:name=".dash.nav.OfflineMapActivity"
+            android:exported="false"
+            android:label="Çevrimdışı Harita" />
+
         <!-- 10-minute idle alarm: puts the app to sleep (util/IdleSleep). -->
         <receiver
             android:name=".util.IdleSleep$AlarmReceiver"
