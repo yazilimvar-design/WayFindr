@@ -731,6 +731,8 @@ public final class NavPlus {
                         arrayList.set(i3, obj2);
                         arrayList.set(i2, obj);
                         i2 = i3;
+                    } else {
+                        break; // jadx dropped this; without it the sort never ends (ANR)
                     }
                 }
             }
