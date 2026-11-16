@@ -56,7 +56,23 @@ class LocationTracker(context: Context) {
     private val _location = MutableStateFlow<Location?>(null)
     val location = _location.asStateFlow()
 
+    /** True while Google Navigation feeds road-snapped fixes via [feedSnapped]; raw fixes are then ignored. */
+    @Volatile var snappedFeed = false
+
+    /** A road-snapped fix from the Navigation SDK (already filtered and on the road). */
+    fun feedSnapped(loc: Location) {
+        if (!snappedFeed) return
+        // The freshness checks need a fix clock; never let a missing one stall navigation.
+        val fix = Location(loc).apply {
+            if (time == 0L) time = System.currentTimeMillis()
+            if (elapsedRealtimeNanos == 0L) elapsedRealtimeNanos = SystemClock.elapsedRealtimeNanos()
+        }
+        _location.value = fix
+        NavPlus.onFix(fix)
+    }
+
     private val listener = LocationListener { loc ->
+        if (snappedFeed) return@LocationListener
         val cur = _location.value
         if (acceptFix(cur, loc)) {
             _location.value = loc

@@ -123,6 +123,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // Required by the Navigation SDK.
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
@@ -170,6 +172,11 @@ tasks.register<Copy>("releaseOss") {
     }
 }
 
+// Navigation SDK already bundles the Maps SDK; a second copy would be a duplicate-class error.
+configurations.configureEach {
+    exclude(group = "com.google.android.gms", module = "play-services-maps")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
@@ -184,7 +191,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
+    // Google Navigation SDK: road-snapped position + turn-by-turn for the dash (dash/nav/GoogleNav.kt).
+    // It bundles the Maps SDK, so play-services-maps is excluded below (maps-compose runs on it).
+    implementation(libs.navigation.sdk)
+    coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
     implementation(libs.maplibre)
     implementation(libs.maplibre.annotation)
     // QR codes for shared routes (util/RouteQr) - pure Java, works offline.

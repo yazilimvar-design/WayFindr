@@ -106,6 +106,46 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var recordJob: Job? = null
     private val tiles       = TileProvider(app, viewModelScope)
     private val location    = LocationTracker(app)
+    // Google Navigation SDK (when usable): road-snapped position + turn-by-turn for the dash. The
+    // normal route pipeline below always runs; tick() only reads the SDK's data while it is active.
+    private val googleNav = com.example.wayfindr.dash.nav.GoogleNav(app, object : com.example.wayfindr.dash.nav.GoogleNav.Listener {
+        override fun onSnappedLocation(loc: android.location.Location) {
+            location.snappedFeed = true
+            location.feedSnapped(loc)
+        }
+        override fun onRoute(points: List<GeoPoint>, meters: Double, seconds: Double) {
+            if (!hasDestination()) return
+            // The SDK's route (and each of its reroutes) replaces ours; drop any request of ours still running.
+            routeRequestGeneration++
+            routeRequestJob?.cancel()
+            routeRequestJob = null
+            rerouting = false
+            trafficRefreshInFlight = false
+            waitingForFreshRouteOrigin = false
+            val cumulative = DoubleArray(points.size)
+            for (i in 1 until points.size) cumulative[i] = cumulative[i - 1] + GeoPoint.distMeters(points[i - 1], points[i])
+            val r = Route(points, emptyList(), meters.takeIf { it > 0.0 } ?: cumulative.last(), seconds, cumulative, source = com.example.wayfindr.dash.RoutingSource.GOOGLE)
+            route = r
+            progressM = 0.0
+            routeLegOffset = activeStopIndex
+            navSdkRouteVersion++
+            voice.resetTrip()
+            tiles.prefetchRoute(points)
+            _ui.update { it.copy(errorMessage = null, hasRoute = true, routePoints = points, routeTraffic = emptyList()) }
+            com.example.wayfindr.data.RideDiagnostics.log("navsdk", "route ${points.size} pts, ${meters.toInt()} m")
+        }
+        override fun onArrival(finalDestination: Boolean) {
+            if (!finalDestination && activeStopIndex < routeStops.lastIndex) advanceToNextStop(activeStopIndex)
+            if (finalDestination) location.snappedFeed = false
+        }
+        override fun onFailed(reason: String) {
+            location.snappedFeed = false
+            com.example.wayfindr.data.RideDiagnostics.log("navsdk", "fallback: $reason")
+            android.widget.Toast.makeText(getApplication(), "Google navigasyonu kullanılamadı; standart rota kullanılıyor.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    })
+    // Bumped per Navigation SDK route, so a rerouted step number counts as a new turn for voice.
+    @Volatile private var navSdkRouteVersion = 0
     private val mapRenderer = MapRenderer(tiles)
     private val mediaInfo   = com.example.wayfindr.media.MediaInfoProvider(app)
     private val callController = com.example.wayfindr.media.CallController(app)
@@ -947,6 +987,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null   // fresh ETA for the new route
         voice.resetTrip()   // fresh announcements for the new route
         session.updateRouteCard(name)
+        location.snappedFeed = false
+        if (lat != null && lng != null) googleNav.start(validStops) else googleNav.stop()
         if (lat != null && lng != null) {
             val loc = location.lastKnown()
             tiles.prefetch(lat, lng, loc?.latitude, loc?.longitude)
@@ -985,6 +1027,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         panX = 0f; panY = 0f; followMode = true
         smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
         voice.resetTrip()
+        googleNav.stop()
+        location.snappedFeed = false
         lastSignature = ""   // force a redraw with no route line
         _ui.update { it.copy(
             destinationName = null,
@@ -1536,19 +1580,22 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // while streaming to the dash; the phone preview before/without a dash just shows the map.
         val streaming = userWantsConnection && session.state.value == DashState.STREAMING
 
+        // Navigation SDK turn-by-turn while its guidance runs (null = our own route data).
+        val navInfo = com.example.wayfindr.dash.nav.GoogleNav.navInfo?.takeIf { googleNav.active }
         if (r != null && loc != null && LocationTracker.isFreshForNavigation(loc)) {
             val ns = trackProgress(
                 r, GeoPoint(loc.latitude, loc.longitude),
                 gpsBearing = if (headingKnown) loc.bearing else null,
                 speedMps = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0,
                 advanceProgress = streaming,
-            )
+            ).let { base -> navInfo?.let { withNavInfo(base, it) } ?: base }
             // If GPS bearing is weak or we are at low speed, use the route's current
             // segment bearing as the target so the map points the right way immediately.
             if (!headingKnown) {
                 targetHeading = normalizeHeading(ns.heading)
             }
-            if (streaming && advanceWaypointIfReached(loc, ns)) {
+            // With the SDK, its ArrivalListener moves to the next stop instead.
+            if (streaming && navInfo == null && advanceWaypointIfReached(loc, ns)) {
                 // The route geometry already continues to the next leg; reset the displayed ETA
                 // immediately while the tracker carries on from the same cumulative progress.
                 smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
@@ -1574,7 +1621,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             val headingOff = headingKnown && angleDelta(loc.bearing, ns.heading) > 50f
             // Clearly a different road → off; in the parallel/flyover band only if the heading
             // also diverges; and never on a fix too coarse to tell (NavigationReliability).
-            offRoute = streaming && com.example.wayfindr.dash.map.NavigationReliability
+            // The Navigation SDK reroutes by itself: our off-route/reroute stays off while it guides.
+            offRoute = streaming && navInfo == null && com.example.wayfindr.dash.map.NavigationReliability
                 .isConfidentlyOffRoute(ns.snapDist, accuracy, headingKnown, headingOff)
             val nowMs = System.currentTimeMillis()
 
@@ -1585,7 +1633,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // up a beat after the new route lands so a fast reroute is still visible to the rider.
             if (offRoute) { if (offRouteStreakStart == 0L) offRouteStreakStart = nowMs }
             else offRouteStreakStart = 0L
-            val rawRecalc = streaming && (rerouting || (offRouteStreakStart != 0L && nowMs - offRouteStreakStart > 2_000))
+            val rawRecalc = streaming && (rerouting || (offRouteStreakStart != 0L && nowMs - offRouteStreakStart > 2_000) ||
+                navInfo?.navState == com.google.android.libraries.mapsplatform.turnbyturn.model.NavState.REROUTING)
             if (rawRecalc) recalcHoldUntil = nowMs + 1_500
             recalculating = streaming && (rawRecalc || nowMs < recalcHoldUntil)
 
@@ -1598,7 +1647,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     smoothSpeedMps = if (smoothSpeedMps <= 0.0) loc.speed.toDouble()
                     else smoothSpeedMps + (loc.speed - smoothSpeedMps) * 0.05
                 }
-                val rawEta = if (r.totalMeters > 0.0 && r.totalSeconds > 0.0)
+                val rawEta = navInfo?.timeToFinalDestinationSeconds?.toDouble()
+                    ?: if (r.totalMeters > 0.0 && r.totalSeconds > 0.0)
                     r.totalSeconds * (ns.remainingM / r.totalMeters).coerceIn(0.0, 1.0)
                 else ns.remainingM / smoothSpeedMps.coerceAtLeast(8.0)   // no duration from Google
                 smoothEtaSec = if (smoothEtaSec <= 0.0 || r !== etaRoute) rawEta
@@ -1649,7 +1699,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
         // Recompute the route if the rider has clearly left it for a few seconds.
         maybeReroute(offRoute, loc)
-        maybeRefreshTraffic(loc)
+        if (!googleNav.active) maybeRefreshTraffic(loc)
 
         // Periodic ride snapshot (~15 s) — GPS quality, motion, frame throughput and thermal,
         // so a post-ride read shows where the map stuttered (weak GPS) or the dash struggled.
@@ -1951,7 +2001,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val reachedLegEnd = routeMatchTrusted &&
             (route?.legEndCumulative?.getOrNull(legIndex)?.let { nav.progressM >= it - WAYPOINT_PROGRESS_TOLERANCE_M } ?: false)
         if (!closeToStop && !reachedLegEnd) return false
+        advanceToNextStop(index)
+        return true
+    }
 
+    /** Stop [index] of the itinerary is done: continue to the next one (route already covers it). */
+    private fun advanceToNextStop(index: Int) {
+        val stops = routeStops
         // The next leg is already in the route: drop any request still running for the old one.
         routeRequestGeneration++
         routeRequestJob?.cancel()
@@ -1969,7 +2025,6 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         session.updateRouteCard(next.name)
         _ui.update { it.copy(destinationName = next.name, destLatLng = next.lat!! to next.lng!!) }
         android.util.Log.i("DashViewModel", "Waypoint ${index + 1}/${stops.size} reached; continuing to ${next.name}")
-        return true
     }
 
     private fun remainingToActiveStop(r: Route, nav: NavState): Double {
@@ -2252,6 +2307,22 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    /** [ns] with the next turns, distances from the Navigation SDK's [info] (position match stays ours). */
+    private fun withNavInfo(ns: NavState, info: com.google.android.libraries.mapsplatform.turnbyturn.model.NavInfo): NavState {
+        val remaining = info.distanceToFinalDestinationMeters?.toDouble() ?: ns.remainingM
+        val toStep = info.distanceToCurrentStepMeters?.toDouble() ?: return ns.copy(remainingM = remaining)
+        val nextAt = ns.progressM + toStep
+        val next = com.example.wayfindr.dash.nav.GoogleNav.maneuverOf(info.currentStep, nextAt, navSdkRouteVersion)
+        val after = info.remainingSteps?.firstOrNull()
+        val second = next?.let {
+            com.example.wayfindr.dash.nav.GoogleNav.maneuverOf(after, nextAt + (after?.distanceFromPrevStepMeters ?: 0), navSdkRouteVersion)
+        }
+        return ns.copy(
+            remainingM = remaining, nextTurnM = if (next != null) toStep else remaining,
+            nextManeuver = next, secondManeuver = second,
+        )
+    }
+
     private fun updateThermal() {
         val status = runCatching { powerManager.currentThermalStatus }.getOrDefault(PowerManager.THERMAL_STATUS_NONE)
         val label = when (status) {
@@ -2350,6 +2421,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // service + wake/wifi locks + GPS don't outlive it (otherwise they'd hold the CPU/WiFi
         // awake with nothing producing frames).
         releaseBackgroundResources()
+        googleNav.cleanup()
         voice.shutdown()
         com.example.wayfindr.data.RideDiagnostics.stop("app closed")
     }

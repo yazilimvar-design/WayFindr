@@ -9,6 +9,8 @@
         <package android:name="btools.routingapp" />
         <!-- Hand a route to the Google Maps app (GPlus). -->
         <package android:name="com.google.android.apps.maps" />
+        <!-- Google Play services present? (Navigation SDK needs it; dash/nav/GoogleNav). -->
+        <package android:name="com.google.android.gms" />
         <!-- Ride share sheet: send the image straight to these apps (ui/screens/RideShare). -->
         <package android:name="com.instagram.android" />
         <package android:name="com.whatsapp" />
@@ -115,6 +117,11 @@
             android:name=".dash.DashKeepAliveService"
             android:exported="false"
             android:foregroundServiceType="connectedDevice|location" />
+
+        <!-- Turn-by-turn updates from the Google Navigation SDK (dash/nav/GoogleNav). -->
+        <service
+            android:name=".dash.nav.GoogleNav$NavInfoService"
+            android:exported="false" />
 
         <!-- Shares stored service invoices (image/PDF) with an external viewer. -->
         <provider
