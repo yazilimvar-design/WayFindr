@@ -143,8 +143,7 @@ private fun WhatsAppGlyph() = Box(contentAlignment = Alignment.Center) {
 // ── The shared image ──────────────────────────────────────────────────────
 
 private const val CARD_W = 1080
-private const val BANNER_H = 520        // res/drawable-nodpi/share_banner.jpg is 1080×520
-private const val MAP_TOP = 480         // map's top fade overlaps the banner's
+private const val MAP_TOP = 480         // banner (1080×520) fades out here; the map covers its last 40 px
 private const val MAP_H = 900
 private const val Y0 = MAP_TOP + MAP_H  // text block below the map
 private const val ROW1_Y = Y0 + 160
@@ -193,8 +192,8 @@ private fun drawCard(
         drawRect(CARD_BG)
         // The user's "Himalayan 450" banner, fading into the card.
         drawImage(banner)
-        val bannerFade = BANNER_H - 160f
-        drawRect(Brush.verticalGradient(listOf(Color.Transparent, CARD_BG), bannerFade, BANNER_H.toFloat()),
+        val bannerFade = MAP_TOP - 160f
+        drawRect(Brush.verticalGradient(listOf(Color.Transparent, CARD_BG), bannerFade, MAP_TOP.toFloat()),
             topLeft = Offset(0f, bannerFade), size = Size(CARD_W.toFloat(), 160f))
 
         if (map != null) drawImage(map, topLeft = Offset(0f, MAP_TOP.toFloat()))
