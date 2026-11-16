@@ -39,7 +39,7 @@ class DashSession(private val scope: CoroutineScope) {
         // STOP for this long the dash is gone (out of range / powered off) — but over UDP there's no
         // socket error, so without this watchdog the app streams into the void showing "connected".
         private const val RX_WATCHDOG_MS = 6_000L
-        private const val HOSTNAME       = "WayfindR"
+        private const val HOSTNAME       = "Himalayan450"
     }
 
     private val _state = MutableStateFlow(DashState.IDLE)
@@ -58,7 +58,7 @@ class DashSession(private val scope: CoroutineScope) {
     var onButton: ((Byte) -> Unit)? = null
     var onError:  ((String) -> Unit)? = null
 
-    @Volatile var destinationName: String = "WayfindR"
+    @Volatile var destinationName: String = "Himalayan450"
 
     private var sessionJob: Job? = null
     private var rxJob: Job? = null
@@ -202,7 +202,7 @@ class DashSession(private val scope: CoroutineScope) {
     fun sendRtp(packet: ByteArray) { socket?.sendRtp(packet) }
 
     fun updateRouteCard(name: String) {
-        destinationName = name.ifBlank { "WayfindR" }
+        destinationName = name.ifBlank { "Himalayan450" }
         navActive = false   // new destination — old figures are stale until the next updateNavInfo
         if (_state.value == DashState.READY || _state.value == DashState.STREAMING) {
             scope.launch(Dispatchers.IO) {
@@ -561,8 +561,9 @@ class DashSession(private val scope: CoroutineScope) {
                 val title = npTitle
                 val playing = npPlaying
                 if (title != null && (title != prevTitle || playing != prevPlaying)) {
-                    runCatching { socket?.send(DashCommands.musicActive(true)) }
-                    runCatching { socket?.send(DashCommands.musicPlaying(playing)) }
+                    // Himican: the dash's own round music bubble stays off; the phone draws its own card.
+                    runCatching { socket?.send(DashCommands.musicActive(false)) }
+                    runCatching { socket?.send(DashCommands.musicPlaying(false)) }
                     com.example.wayfindr.data.RideDiagnostics.log("media", "TX music on 05 17 + playing=$playing 05 19")
                 } else if (title == null && prevTitle != null) {
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
