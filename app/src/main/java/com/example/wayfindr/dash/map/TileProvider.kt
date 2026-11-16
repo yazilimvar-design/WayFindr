@@ -9,7 +9,9 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.util.Log
 import android.util.LruCache
+import com.example.wayfindr.dash.nav.GPlus
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.nav.NavPlus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
@@ -22,33 +24,17 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * OSM raster tile provider with memory + disk cache.
  *
- * Tiles are cached as the original light Google rasters. Night mode is a draw-time
- * ColorMatrix in [MapRenderer] so one disk cache serves both looks and the mode can
- * flip offline.
+ * Live OpenStreetMap tiles only (OSM's tile policy forbids pre-seeding / route caching, so every
+ * prefetch below is skipped). [GPlus] may swap in Google Map Tiles when the user has a key, and
+ * [NavPlus.mbTile] serves tiles from an imported offline .mbtiles file. Night mode is a draw-time
+ * ColorMatrix in [MapRenderer] so one disk cache serves both looks and the mode can flip offline.
  *
- * While riding, the process is bound to the Console's WiFi (no internet), so tiles
- * should come from cache — [prefetchRoute] caches the route up front and [prefetch] fills gaps while internet is
- * still reachable. Cache misses fetch through whichever network has connectivity
- * (cellular when bound to the dash WiFi), rate-limited to avoid hot loops.
+ * Cache misses fetch through whichever network has connectivity (cellular when bound to the dash
+ * WiFi), rate-limited to avoid hot loops.
  */
 class TileProvider(context: Context, private val scope: CoroutineScope) {
     companion object {
         private const val TAG = "TileProvider"
-        // Actual Google Maps roadmap tiles (the colours/contrast the rider wants —
-        // distinct building fills, clear white roads). This is Google's tile endpoint;
-        // it's used here for a PERSONAL, single-user, non-distributed build. The
-        // compliant alternative for any public release is Google's Map Tiles API
-        // (session token + the existing MAPS_API_KEY). Format args: (z, x, y).
-        //
-        // Standard 256 px tiles by default. [hiDpi] (the "Sharper map" setting) switches to
-        // scale=2 / 512 px "retina" tiles for the 2× render. Those were once tried as the default
-        // and felt choppier from the 4× bigger bitmaps, hence opt-in.
-        private const val URL_TEMPLATE =
-            "https://mt1.google.com/vt/lyrs=m&hl=en&z=%d&x=%d&y=%d"
-        private const val HIDPI_SUFFIX = "&scale=2"
-        // Browser-like UA so the tile endpoint serves us normally.
-        private const val USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
         // Free source: OpenStreetMap's own tile server. Its usage policy
         // (https://operations.osmfoundation.org/policies/tiles/) allows live viewing only — no
         // pre-seeding, route caching or offline bulk download — and requires an identifying
@@ -72,49 +58,25 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
         }
     }
 
+    init { GPlus.init(context) }
+
     private val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    // Cache dir per tile source so a source switch doesn't serve stale tiles. Bumped namespace so
-    // the lighter 256 px tiles don't collide with any 512 px tiles a prior build cached.
-    private val diskDir = File(context.cacheDir, "tiles_gmaps_v1").apply { mkdirs() }
-    private val diskDirHiDpi = File(context.cacheDir, "tiles_gmaps_2x_v1").apply { mkdirs() }
 
     private val diskDirOsm = File(context.cacheDir, "tiles_osm_v1").apply { mkdirs() }
 
-    /** Serve 512 px retina tiles (own memory keys + disk dir) instead of 256 px ones. */
+    /** "Sharper map" setting; only the Google tile session ([GPlus.tileUrl]) uses it. */
     @Volatile var hiDpi = false
 
-    /**
-     * Free OpenStreetMap tiles instead of Google's (the "Free map tiles" setting). OSM has no
-     * retina tiles, and its rules forbid prefetching, so every prefetch below is skipped.
-     */
-    @Volatile var freeTiles = false
+    /** OSM's rules forbid prefetching, so every prefetch below is skipped. */
+    private val liveOsmOnly = true
 
-    /**
-     * Offline raster map (.mbtiles on the phone). When set, tiles it covers come from the file —
-     * no network, no prefetch. Outside its area or zooms the online source is used as before.
-     */
-    @Volatile var offline: MbTiles? = null
-        set(value) { field = value; offlineMisses.clear() }
-
-    private fun offlineKey(z: Int, x: Int, y: Int) = "off/$z/$x/$y"
-
-    /** Cache key; each source and size gets its own namespace so tiles never mix. */
-    private fun keyOf(z: Int, x: Int, y: Int) = when {
-        freeTiles -> "osm/$z/$x/$y"
-        hiDpi -> "2x/$z/$x/$y"
-        else -> "$z/$x/$y"
-    }
+    private fun keyOf(z: Int, x: Int, y: Int) = "osm/$z/$x/$y"
     // Byte-budgeted (not count-based): adapts to tile size and OEM heap, keeping the current zoom
     // PLUS a neighbouring level resident for the renderer's scaled-tile fallback.
     private val memory = object : LruCache<String, Bitmap>(memoryCacheBytes(context)) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.allocationByteCount
     }
     private val inflight = ConcurrentHashMap.newKeySet<String>()
-    // Offline-file spots with no tile in the file, so they're served online instead.
-    private val offlineMisses = ConcurrentHashMap.newKeySet<String>()
-
-    /** Covered by the offline file: never needs downloading. */
-    private fun offlineCovers(z: Int, x: Int, y: Int) = offline?.covers(z, x, y) == true
     @Volatile private var lastFetchAt = 0L
 
     /** Non-blocking: returns the cached tile, else kicks off async load. */
@@ -123,20 +85,6 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
         if (y < 0 || y >= max) return null
         val xw = ((x % max) + max) % max
         val key = keyOf(z, xw, y)
-
-        offline?.takeIf { it.covers(z, xw, y) }?.let { mb ->
-            val okey = offlineKey(z, xw, y)
-            memory.get(okey)?.let { return it }
-            if (inflight.add(okey)) scope.launch(Dispatchers.IO) {
-                try {
-                    val bmp = runCatching { mb.tile(z, xw, y) }.getOrNull()
-                    if (bmp != null) memory.put(okey, bmp) else offlineMisses.add(okey)
-                } finally { inflight.remove(okey) }
-            }
-            // A spot the file covers but has no picture for (e.g. sea, or a trimmed file) falls
-            // through to the online source below; otherwise wait for the local read.
-            if (okey !in offlineMisses) return null
-        }
 
         memory.get(key)?.let { return it }
 
@@ -167,19 +115,18 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
         val max = 1 shl z
         if (y < 0 || y >= max) return null
         val xw = ((x % max) + max) % max
-        if (offline != null) memory.get(offlineKey(z, xw, y))?.let { return it }
         return memory.get(keyOf(z, xw, y))
     }
 
     /** Warm a single zoom level around a point right now (e.g. right after the rider zooms). */
     fun prefetchZoom(lat: Double, lng: Double, z: Int, radius: Int = 2) {
-        if (z < 0 || freeTiles) return
+        if (z < 0 || liveOsmOnly) return
         scope.launch(Dispatchers.IO) { prefetchAround(lat, lng, z, radius) }
     }
 
     /** Prefetch tiles around a point (and optionally a straight corridor) into disk. */
     fun prefetch(lat: Double, lng: Double, fromLat: Double? = null, fromLng: Double? = null) {
-        if (freeTiles) return
+        if (liveOsmOnly) return
         scope.launch(Dispatchers.IO) {
             var count = 0
             // 11..20 so the rider's vicinity has tiles at every zoom level offline
@@ -211,14 +158,14 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
     fun prefetchRoute(route: List<GeoPoint>) {
         if (route.size < 2) return
         routeJob?.cancel()
-        if (freeTiles) {
+        if (liveOsmOnly) {
             com.example.wayfindr.data.RideDiagnostics.log("tiles",
                 "route cache skipped: OpenStreetMap tiles can't be pre-downloaded (OSM tile policy)")
             return
         }
         routeJob = scope.launch(Dispatchers.IO) {
             val plan = RouteTilePlan.plan(route)
-            val missing = plan.filter { !offlineCovers(it.z, it.x, it.y) && !diskFile(keyOf(it.z, it.x, it.y)).exists() }
+            val missing = plan.filter { !diskFile(keyOf(it.z, it.x, it.y)).exists() }
             com.example.wayfindr.data.RideDiagnostics.log("tiles",
                 "route cache: ${plan.size} tiles planned, ${missing.size} to download")
             var ok = 0
@@ -240,7 +187,6 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
         for (dx in -radius..radius) for (dy in -radius..radius) {
             val x = cx + dx; val y = cy + dy
             if (y < 0 || y >= (1 shl z)) continue
-            if (offlineCovers(z, x, y)) continue
             val key = keyOf(z, x, y)
             if (!diskFile(key).exists()) { fetchKey(z, x, y, key); n++ }
         }
@@ -249,18 +195,19 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
 
     // ── Internals ─────────────────────────────────────────────────────────
 
+    // GPlus.tileDir swaps in the Google tile cache while Google tiles are in use.
     private fun diskFile(key: String) =
-        if (key.startsWith("osm/")) File(diskDirOsm, key.removePrefix("osm/").replace('/', '_') + ".png")
-        else if (key.startsWith("2x/")) File(diskDirHiDpi, key.removePrefix("2x/").replace('/', '_') + ".png")
-        else File(diskDir, key.replace('/', '_') + ".png")
+        File(GPlus.tileDir(diskDirOsm), key.removePrefix("osm/").replace('/', '_') + ".png")
 
     private fun loadDisk(key: String): Bitmap? {
+        NavPlus.mbTile(key)?.let { return it }   // imported offline .mbtiles first
         val f = diskFile(key)
         if (!f.exists()) return null
         return BitmapFactory.decodeFile(f.absolutePath)
     }
 
-    private fun fetch(z: Int, x: Int, y: Int, key: String): Bitmap? = fetchKey(z, x, y, key)
+    private fun fetch(z: Int, x: Int, y: Int, key: String): Bitmap? =
+        NavPlus.mbTile(key) ?: fetchKey(z, x, y, key)
 
     // key → (retry-not-before ms, current backoff ms) for tiles whose download failed.
     private val failedUntil = ConcurrentHashMap<String, Pair<Long, Long>>()
@@ -287,18 +234,18 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
 
         val net = internetNetwork()
         return try {
-            val osm = key.startsWith("osm/")
             val yw = ((y % max) + max) % max
-            val url = if (osm) URL(OSM_URL_TEMPLATE.format(z, ((x % max) + max) % max, yw))
-                else URL(URL_TEMPLATE.format(z, x, yw) + if (key.startsWith("2x/")) HIDPI_SUFFIX else "")
-            com.example.wayfindr.data.ApiUsage.record(
-                if (osm) com.example.wayfindr.data.ApiUsage.OSM_TILES else com.example.wayfindr.data.ApiUsage.TILES)
+            // GPlus.tileUrl returns a Google Map Tiles URL when a key + session exist, else the OSM one.
+            val url = URL(GPlus.tileUrl(OSM_URL_TEMPLATE.format(z, ((x % max) + max) % max, yw), z, x, y, max, hiDpi))
+            com.example.wayfindr.data.ApiUsage.record(GPlus.usageName(com.example.wayfindr.data.ApiUsage.OSM_TILES))
             val conn = (net?.openConnection(url) ?: url.openConnection()) as HttpURLConnection
-            conn.setRequestProperty("User-Agent", if (osm) OSM_USER_AGENT else USER_AGENT)
+            conn.setRequestProperty("User-Agent", OSM_USER_AGENT)
             conn.connectTimeout = 8_000
             conn.readTimeout = 8_000
             if (conn.responseCode !in 200..299) {
-                Log.w(TAG, "Tile $key HTTP ${conn.responseCode}")
+                val code = conn.responseCode
+                GPlus.tileHttp(code)
+                Log.w(TAG, "Tile $key HTTP $code")
                 conn.disconnect(); return null
             }
             val bytes = conn.inputStream.use { it.readBytes() }

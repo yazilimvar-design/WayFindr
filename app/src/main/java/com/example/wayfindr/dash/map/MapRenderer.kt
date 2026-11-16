@@ -9,7 +9,9 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
+import com.example.wayfindr.dash.nav.GPlus
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.TrafficInterval
 import com.example.wayfindr.dash.nav.TrafficSpeed
 
@@ -46,9 +48,9 @@ class MapRenderer(private val tiles: TileProvider) {
         val etaPrimary: String? = null,    // big glance value, e.g. "24 min" (nav only)
         val etaSecondary: String? = null,  // smaller line, e.g. "18 km · 13:32"
         val pickerRows: List<MenuRow>? = null,  // on-dash menu page (null = closed)
-        val pickerTitle: String = "SETTINGS",
+        val pickerTitle: String = "MENÜ",
         val pickerIndex: Int = 0,
-        val pickerSelectHint: String = "Hold right: go",
+        val pickerSelectHint: String = "Sol/sağ: gezin · sağa basılı: seç",
         val zoomLabel: String? = null,     // e.g. "Zoom 16", shown briefly after a zoom
         val joystickTrail: String? = null, // e.g. "DDRR": recent presses, bottom-centre (setting)
         val attribution: String? = null,   // map-data credit the tile source requires (OSM)
@@ -142,6 +144,8 @@ class MapRenderer(private val tiles: TileProvider) {
 
     /** [w]×[h] is the LOGICAL frame size; the canvas may be pre-scaled (2× "sharper map"). */
     fun draw(canvas: Canvas, f: Frame, w: Int = canvas.width, h: Int = canvas.height) {
+        // Wallpaper / music-card frame (NavPlus) replaces the map entirely when it draws.
+        if (NavPlus.phDraw(canvas, f, w, h)) return
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         tilePaint.colorFilter = if (f.dark) darkTileFilter else lightTileFilter
         routeCasing.color = if (f.dark) Color.rgb(18, 22, 28) else Color.WHITE
@@ -323,7 +327,7 @@ class MapRenderer(private val tiles: TileProvider) {
         // ── Map credit (required by OpenStreetMap), tiny, bottom centre ──
         var bottomEdge = h - ETA_MARGIN_BOTTOM
         overlay("attribution") {
-            f.attribution?.let { text ->
+            GPlus.attribution(f.attribution)?.let { text ->
                 val fm = attributionPaint.fontMetrics
                 val tw = attributionPaint.measureText(text)
                 val bh = fm.descent - fm.ascent + 4f
@@ -457,7 +461,7 @@ class MapRenderer(private val tiles: TileProvider) {
         // ── GPS-health pill (top-centre safe zone) — only when degraded, so the rider knows the
         // marker is imprecise/held rather than wondering why the map stopped tracking ──
         if (f.gpsLost || f.gpsWeak) {
-            val label = if (f.gpsLost) "GPS lost" else "GPS weak"
+            val label = if (f.gpsLost) "GPS SİNYALİ YOK" else "GPS SİNYALİ ZAYIF"
             gpsPillText.color = if (f.gpsLost) googleRed else Color.rgb(251, 188, 5)
             val padH = 14f; val padV = 6f
             val fm = gpsPillText.fontMetrics
@@ -481,7 +485,7 @@ class MapRenderer(private val tiles: TileProvider) {
 
         // ── Standby when nothing to show ──
         if (f.riderLat == null && f.destLat == null) {
-            val msg = "WAYFINDR · waiting for GPS"
+            val msg = "HIMALAYAN 450 · GPS BEKLENİYOR"
             standbyPaint.getTextBounds(msg, 0, msg.length, textBounds)
             canvas.drawText(msg, (w - textBounds.width()) / 2f, h / 2f, standbyPaint)
         }

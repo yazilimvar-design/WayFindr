@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import btools.routingapp.IBRouterService
 import kotlinx.coroutines.CompletableDeferred
@@ -48,6 +49,7 @@ object OfflineRouter {
     suspend fun route(from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? {
         val ctx = appContext ?: return fail("not initialised")
         if (!isInstalled(ctx)) return fail("BRouter app is not installed")
+        NavPlus.brWantFor(intermediates)   // alternatives wanted? (route picker asks with NavPlus.ALT_MARK)
         val points = listOf(from) + intermediates + to
         var text = withContext(Dispatchers.IO) { callService(ctx, points) } ?: return null
         com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.OFFLINE_ROUTES)
@@ -64,7 +66,7 @@ object OfflineRouter {
         }
         if (!text.trimStart().startsWith("{")) return fail("BRouter: ${text.take(200)}")
         return runCatching { parse(text, points.drop(1)) }.getOrElse { fail("unreadable BRouter result (${it.message})") }
-            ?.also { lastError = null }
+            ?.also { NavPlus.brAttach(it); lastError = null }
     }
 
     /**
@@ -120,6 +122,8 @@ object OfflineRouter {
             }
             val t0 = System.currentTimeMillis()
             val result = runCatching { service.getTrackFromParams(params) }.getOrElse { return fail("BRouter call failed: ${it.message}") }
+            mapWarnShim(result)   // "map segment missing" notice for the dash
+            navAlts(service, params, points, result)
             val msg = "offline route (BRouter ${params.getString("profile")}, ${points.size} points) in ${System.currentTimeMillis() - t0} ms: " +
                 (result?.takeIf { it.trimStart().startsWith("{") }?.let { "${it.length} chars" } ?: (result?.take(120) ?: "null"))
             Log.i(TAG, msg)
@@ -128,6 +132,58 @@ object OfflineRouter {
         } finally {
             runCatching { ctx.unbindService(conn) }
         }
+    }
+
+    @JvmStatic
+    fun mapWarnShim(result: String?) {
+        NavPlus.mapWarn(result)
+    }
+
+    /**
+     * When alternatives were asked for ([NavPlus.brWant]), asks BRouter for its alternatives 1 and 2
+     * in parallel (5 s limit) and leaves the distinct ones in [NavPlus.brPending] for
+     * [NavPlus.brAttach].
+     */
+    @JvmStatic
+    fun navAlts(service: IBRouterService?, params: Bundle?, points: List<GeoPoint>?, result: String?) {
+        try {
+            NavPlus.brPending = null
+            if (!NavPlus.brWant || service == null || params == null || points == null || result == null ||
+                !result.trim().startsWith("{")
+            ) return
+            NavPlus.brWant = false
+            val stops = points.drop(1)
+            val main = parse(result, stops) ?: return
+            val deadline = SystemClock.elapsedRealtime() + 5_000
+            val job1 = NavPlus.BrJob(service, Bundle(params), 1, stops)
+            val thread1 = Thread(job1, "BRouterAlt1").apply { isDaemon = true; start() }
+            val job2 = NavPlus.BrJob(service, Bundle(params), 2, stops)
+            val thread2 = Thread(job2, "BRouterAlt2").apply { isDaemon = true; start() }
+            NavPlus.joinUntil(thread1, deadline)
+            NavPlus.joinUntil(thread2, deadline)
+            val alternatives = ArrayList<Route>()
+            val seen = arrayListOf(main)
+            for (alt in listOf(job1.res, job2.res)) {
+                if (alt != null && NavPlus.brDistinct(alt, seen)) { alternatives.add(alt); seen.add(alt) }
+            }
+            if (alternatives.isNotEmpty()) NavPlus.brPending = alternatives
+            NavPlus.rlog("BRouter alternatives: ${alternatives.size} in " +
+                "${SystemClock.elapsedRealtime() - deadline + 5_000} ms (parallel, 5 s limit)")
+        } catch (_: Throwable) {
+        }
+    }
+
+    /** BRouter's alternative [idx] (1, 2) for the same request, tagged as a BRouter route; null on failure. */
+    @JvmStatic
+    fun navAlt1(service: IBRouterService, params: Bundle, idx: Int, stops: List<GeoPoint>): Route? = try {
+        params.putInt("alternativeidx", idx)
+        params.putString("maxRunningTime", "5")
+        service.getTrackFromParams(params)
+            ?.takeIf { it.trim().startsWith("{") }
+            ?.let { parse(it, stops) }
+            ?.let { NavPlus.asBRouter(it) }
+    } catch (_: Throwable) {
+        null
     }
 
     private fun fail(why: String): Nothing? {

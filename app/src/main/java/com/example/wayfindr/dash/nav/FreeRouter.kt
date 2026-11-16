@@ -1,18 +1,18 @@
 package com.example.wayfindr.dash.nav
 
+import android.content.Context
 import android.util.Log
 import com.example.wayfindr.BuildConfig
+import com.example.wayfindr.util.InternetNetwork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
  * Free, keyless routing from OpenStreetMap data: the public Valhalla server run by FOSSGIS
  * (https://valhalla1.openstreetmap.de), with Valhalla's **motorcycle** costing. Used instead of
- * the Google Routes API when "Free routing" is on in Settings.
+ * the Google Routes API when "Free routing" is on in Settings, and as the Google fallback.
  *
  * Differences from Google: no live traffic (ETA uses typical road speeds, no congestion colours)
  * and OSM road data. The server is a fair-use community service — only planning and reroute
@@ -24,50 +24,95 @@ import java.net.URL
 object FreeRouter {
     private const val TAG = "FreeRouter"
     private const val ENDPOINT = "https://valhalla1.openstreetmap.de/route"
+    private const val MAX_ALTERNATES = 2
     private val USER_AGENT = "Wayfindr/${BuildConfig.VERSION_NAME} (personal motorcycle navigation app; Android)"
 
-    suspend fun route(from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? =
-        withContext(Dispatchers.IO) {
-            try {
-                val body = JSONObject().apply {
-                    put("locations", JSONArray().apply {
-                        (listOf(from) + intermediates + to).forEach { p ->
-                            put(JSONObject().put("lat", p.lat).put("lon", p.lng).put("type", "break"))
-                        }
-                    })
-                    put("costing", "motorcycle")
-                    put("units", "kilometers")
-                    put("language", "en-US")
-                }
-                com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.FREE_ROUTES)
-                val conn = (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("User-Agent", USER_AGENT)
-                    connectTimeout = 15_000
-                    readTimeout = 25_000
-                }
-                conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-                val code = conn.responseCode
-                val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
-                    ?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
-                conn.disconnect()
-                if (code !in 200..299) {
-                    Log.e(TAG, "Valhalla HTTP $code: ${text.take(300)}")
-                    com.example.wayfindr.data.RideDiagnostics.log("route", "free routing failed: HTTP $code")
-                    return@withContext null
-                }
-                parse(text)
-            } catch (e: Exception) {
-                Log.e(TAG, "route() failed", e)
-                com.example.wayfindr.data.RideDiagnostics.log("route", "free routing failed: ${e.message}")
-                null
+    suspend fun route(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? =
+        requestRoutes(context, from, to, intermediates, includeAlternates = false).firstOrNull()
+
+    /** The best route plus up to [MAX_ALTERNATES] distinct alternatives (only without via stops). */
+    suspend fun alternatives(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): List<Route> =
+        requestRoutes(context, from, to, intermediates, includeAlternates = intermediates.isEmpty())
+
+    private suspend fun requestRoutes(
+        context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint>, includeAlternates: Boolean,
+    ): List<Route> = withContext(Dispatchers.IO) {
+        requestRoutesNow(context, from, to, intermediates, includeAlternates)
+    }
+
+    /**
+     * Blocking Valhalla request (call off the main thread). Also used by [GPlus.googleFallback] to
+     * fall back to OSM routing when a Google route fails. Empty when the request fails.
+     */
+    @JvmStatic
+    fun requestRoutesNow(
+        context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint>, includeAlternates: Boolean,
+    ): List<Route> = try {
+        val body = buildRequest(from, to, intermediates, includeAlternates)
+        com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.FREE_ROUTES)
+        val conn = InternetNetwork.openConnection(context, ENDPOINT).apply {
+            requestMethod = "POST"
+            doOutput = true
+            setRequestProperty("Content-Type", "application/json")
+            setRequestProperty("User-Agent", USER_AGENT)
+            connectTimeout = 8_000
+            readTimeout = 25_000
+        }
+        conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+        val code = conn.responseCode
+        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)
+            ?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+        conn.disconnect()
+        if (code in 200..299) parseRoutes(text)
+        else {
+            Log.e(TAG, "Valhalla HTTP $code: ${text.take(300)}")
+            com.example.wayfindr.data.RideDiagnostics.log("route", "free routing failed: HTTP $code")
+            emptyList()
+        }
+    } catch (e: Exception) {
+        Log.e(TAG, "route request failed", e)
+        com.example.wayfindr.data.RideDiagnostics.log("route", "free routing failed: ${e.message}")
+        emptyList()
+    }
+
+    internal fun buildRequest(
+        from: GeoPoint,
+        to: GeoPoint,
+        intermediates: List<GeoPoint> = emptyList(),
+        includeAlternates: Boolean = false,
+    ): JSONObject = JSONObject().apply {
+        val locations = JSONArray().apply {
+            (listOf(from) + intermediates + to).forEach { p ->
+                put(JSONObject().put("lat", p.lat).put("lon", p.lng).put("type", "break"))
             }
         }
+        NavPlus.addHeading(locations, from)   // rider's heading on the start point, when known
+        put("locations", locations)
+        put("costing", "motorcycle")
+        put("units", "kilometers")
+        put("language", "en-US")
+        if (includeAlternates && intermediates.isEmpty()) put("alternates", MAX_ALTERNATES)
+    }
 
-    private fun parse(json: String): Route? {
-        val trip = JSONObject(json).optJSONObject("trip") ?: return null
+    /** The main trip plus any alternates, each parsed on its own; duplicates (same shape) dropped. */
+    internal fun parseRoutes(json: String): List<Route> = try {
+        val root = JSONObject(json)
+        val trips = buildList {
+            root.optJSONObject("trip")?.let { add(it) }
+            root.optJSONArray("alternates")?.let { alternates ->
+                for (i in 0 until alternates.length()) {
+                    val alt = alternates.optJSONObject(i) ?: continue
+                    add(alt.optJSONObject("trip") ?: alt)
+                }
+            }
+        }
+        trips.mapNotNull { runCatching { parseTrip(it) }.getOrNull() }.distinctBy { it.geometry }
+    } catch (e: Exception) {
+        Log.w(TAG, "Could not parse Valhalla route alternatives", e)
+        emptyList()
+    }
+
+    private fun parseTrip(trip: JSONObject): Route? {
         val legs = trip.optJSONArray("legs") ?: return null
 
         // Legs are joined into one polyline. Each leg's shape starts on the previous leg's last

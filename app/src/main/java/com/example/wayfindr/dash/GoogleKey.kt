@@ -1,10 +1,10 @@
 package com.example.wayfindr.dash
 
-import com.example.wayfindr.BuildConfig
+import com.example.wayfindr.dash.nav.GPlus
 
 /**
- * Whether this build has a Google Maps API key (MAPS_API_KEY in secrets.properties, see
- * app/build.gradle.kts). Without one, Google maps and routing are hidden and the app uses the
+ * Whether a Google Maps API key is available (GPlus.key(): the user's own key, or
+ * MAPS_API_KEY from the build). Without one, Google maps and routing are hidden and the app uses the
  * free stack: OSM / offline maps, OSM / BRouter routing.
  */
 object GoogleKey {
@@ -13,5 +13,5 @@ object GoogleKey {
 
     fun isReal(key: String): Boolean = key.isNotBlank() && key != PLACEHOLDER
 
-    val present: Boolean get() = isReal(BuildConfig.MAPS_API_KEY)
+    val present: Boolean get() = isReal(GPlus.key())
 }

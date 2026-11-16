@@ -20,9 +20,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.wayfindr.dash.DashConfig
-import com.example.wayfindr.dash.MapSource
 import androidx.compose.runtime.key
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.nav.Route
 import com.example.wayfindr.dash.nav.TrafficInterval
 import com.example.wayfindr.dash.nav.TrafficSpeed
 import org.maplibre.android.MapLibre
@@ -40,8 +40,9 @@ import org.maplibre.android.plugins.annotation.SymbolManager
 import org.maplibre.android.plugins.annotation.SymbolOptions
 
 /**
- * In-app phone map. Google Maps by default; with "Free map tiles" on, MapLibre + OpenFreeMap
- * (free, keyless, open data) as on the `original` branch. Same parameters either way.
+ * In-app phone map: MapLibre with the app's own OpenStreetMap vector style in the chosen map theme
+ * ([onlineThemeStyleJson]). [hasLocationPermission] and [showTraffic] are kept for callers; route
+ * alternatives (up to three) are drawn with the chosen one on top.
  */
 @Composable
 fun WayfindrMap(
@@ -51,6 +52,8 @@ fun WayfindrMap(
     destinations: List<Pair<Double, Double>> = emptyList(),
     routePoints: List<GeoPoint>,
     trafficIntervals: List<TrafficInterval> = emptyList(),
+    routeAlternatives: List<Route> = emptyList(),
+    selectedRouteIndex: Int = 0,
     hasLocationPermission: Boolean,
     modifier: Modifier = Modifier,
     fitRoute: Boolean = false,
@@ -68,35 +71,18 @@ fun WayfindrMap(
 ) {
     val ctx = LocalContext.current
     val config = remember { DashConfig.get(ctx) }
-    val source by config.mapSource.collectAsState()
-    val offlineName by config.offlineMapFile.collectAsState()
-    // Offline file's zoom levels (Google scale), read once per file, so the map stops at them.
-    val offlineZoom: IntRange? = if (source != MapSource.OFFLINE) null else remember(offlineName) {
-        val file = com.example.wayfindr.dash.map.OfflineMapFiles.resolve(ctx, offlineName)
-        (file?.let { com.example.wayfindr.dash.map.MbTiles.open(it) } as? com.example.wayfindr.dash.map.MbTiles.Companion.Result.Ok)
-            ?.tiles?.let { mb -> (mb.minZoom..mb.maxZoom).also { mb.close() } }
-    }
-    val styleJson: String? = when (source) {
-        MapSource.GOOGLE -> null
-        MapSource.OSM -> ""   // OpenFreeMap vector style by URL
-        MapSource.OFFLINE -> remember(offlineName) {
-            offlineStyleJson(com.example.wayfindr.dash.map.OfflineMapFiles.resolve(ctx, offlineName)?.absolutePath)
-        }
-    }
+    val mapTheme by config.mapTheme.collectAsState()
+    val styleJson = remember(mapTheme.ordinal) { onlineThemeStyleJson(ctx, mapTheme) }
     // New style = new map view (MapLibre loads its style once per view).
-    if (styleJson != null) key(styleJson) { FreeWayfindrMap(
-        styleJson, riderLat, riderLng, dest, destinations, routePoints, trafficIntervals, modifier, fitRoute,
-        navMode, riderBearing, recenterKey, followRider, centerOnRiderInitially,
-        camLat, camLng, camZoom, camBearing, onMapClick, offlineZoom,
-    ) } else GoogleWayfindrMap(
-        riderLat, riderLng, dest, destinations, routePoints, trafficIntervals, hasLocationPermission,
-        modifier, fitRoute, navMode, riderBearing, recenterKey, followRider, centerOnRiderInitially,
-        camLat, camLng, camZoom, camBearing, showTraffic, onMapClick,
-    )
+    key(styleJson) {
+        FreeWayfindrMap(
+            styleJson, riderLat, riderLng, dest, destinations, routePoints, trafficIntervals,
+            routeAlternatives, selectedRouteIndex, modifier, fitRoute, navMode, riderBearing, recenterKey,
+            followRider, centerOnRiderInitially, camLat, camLng, camZoom, camBearing, onMapClick,
+        )
+    }
 }
 
-// Free, keyless, redistributable vector basemap.
-private const val STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 // MapLibre zoom is one level lower than Google's for the same scale (512 px vs 256 px tiles).
 private const val ZOOM_OFFSET = 1.0
 private const val FOLLOW_ZOOM = 15.5 - ZOOM_OFFSET
@@ -105,7 +91,7 @@ private const val DEST_ICON = "dest-pin"
 
 @Composable
 private fun FreeWayfindrMap(
-    /** "" = OpenFreeMap vector style; otherwise a full style JSON (offline raster). */
+    /** Full MapLibre style JSON. */
     styleJson: String,
     riderLat: Double?,
     riderLng: Double?,
@@ -113,6 +99,8 @@ private fun FreeWayfindrMap(
     destinations: List<Pair<Double, Double>>,
     routePoints: List<GeoPoint>,
     trafficIntervals: List<TrafficInterval>,
+    routeAlternatives: List<Route>,
+    selectedRouteIndex: Int,
     modifier: Modifier,
     fitRoute: Boolean,
     navMode: Boolean,
@@ -125,8 +113,6 @@ private fun FreeWayfindrMap(
     camZoom: Float?,
     camBearing: Float?,
     onMapClick: ((com.google.android.gms.maps.model.LatLng) -> Unit)?,
-    /** Google-scale zoom levels to stay within (offline file), or null for no limit. */
-    zoomLimit: IntRange? = null,
 ) {
     val context = LocalContext.current
     remember { MapLibre.getInstance(context) }
@@ -171,10 +157,6 @@ private fun FreeWayfindrMap(
         mapView.getMapAsync { m ->
             if (destroyed.get()) return@getMapAsync
             map = m
-            zoomLimit?.let {
-                m.setMinZoomPreference(it.first - ZOOM_OFFSET)
-                m.setMaxZoomPreference(it.last - ZOOM_OFFSET)
-            }
             m.uiSettings.apply {
                 isRotateGesturesEnabled = false
                 isTiltGesturesEnabled = false
@@ -186,8 +168,7 @@ private fun FreeWayfindrMap(
                 clickHandler?.invoke(com.google.android.gms.maps.model.LatLng(p.latitude, p.longitude))
                 clickHandler != null
             }
-            val builder = if (styleJson.isEmpty()) Style.Builder().fromUri(STYLE_URL) else Style.Builder().fromJson(styleJson)
-            m.setStyle(builder) { style ->
+            m.setStyle(Style.Builder().fromJson(styleJson)) { style ->
                 if (destroyed.get()) return@setStyle
                 style.addImage(RIDER_ICON, freeChevronBitmap())
                 style.addImage(DEST_ICON, freeDestPinBitmap())
@@ -202,27 +183,35 @@ private fun FreeWayfindrMap(
 
     val markerDestinations = destinations.ifEmpty { listOfNotNull(dest) }
 
-    // Route (with traffic colours when Google routing supplied them) + markers.
-    LaunchedEffect(styleReady, routePoints, trafficIntervals, markerDestinations, riderLat, riderLng, riderBearing, navMode) {
+    // Route(s) (with traffic colours when Google routing supplied them) + markers. With
+    // alternatives, the others are drawn thinner first and the chosen one on top.
+    LaunchedEffect(
+        styleReady, routePoints, trafficIntervals, routeAlternatives, selectedRouteIndex,
+        markerDestinations, riderLat, riderLng, riderBearing, navMode,
+    ) {
         if (destroyed.get()) return@LaunchedEffect
         val lm = lineMgr ?: return@LaunchedEffect
         val sm = symbolMgr ?: return@LaunchedEffect
         lm.deleteAll(); sm.deleteAll()
-        if (routePoints.size >= 2) {
-            lm.create(LineOptions().withLatLngs(routePoints.map { LatLng(it.lat, it.lng) })
-                .withLineColor("#4285F4").withLineWidth(6f))
-            trafficIntervals.forEach { iv ->
-                val start = iv.startPointIndex.coerceIn(0, routePoints.lastIndex)
-                val end = iv.endPointIndex.coerceIn(start, routePoints.lastIndex)
-                val color = when (iv.speed) {
-                    TrafficSpeed.SLOW -> "#F9AB00"
-                    TrafficSpeed.TRAFFIC_JAM -> "#EA4335"
-                    else -> null
-                }
-                if (end > start && color != null) lm.create(LineOptions()
-                    .withLatLngs(routePoints.subList(start, end + 1).map { LatLng(it.lat, it.lng) })
-                    .withLineColor(color).withLineWidth(6f))
+        val routes = routeAlternatives.take(3)
+        if (routes.size > 1) {
+            val chosenIndex = selectedRouteIndex.coerceIn(0, routes.lastIndex)
+            val drawOrder = routes.indices.filter { it != chosenIndex } + chosenIndex
+            drawOrder.forEach { index ->
+                val geometry = routes[index].geometry
+                if (geometry.size < 2) return@forEach
+                val width = if (index == chosenIndex) 6.5f else 3.8f
+                val latLngs = geometry.map { LatLng(it.lat, it.lng) }
+                lm.create(LineOptions().withLatLngs(latLngs).withLineColor("#15191F").withLineWidth(width + 2.8f))
+                lm.create(LineOptions().withLatLngs(latLngs)
+                    .withLineColor(RouteAlternativeStyle.mapLibreHex(index)).withLineWidth(width))
             }
+            drawTraffic(lm, routes[chosenIndex].geometry, routes[chosenIndex].traffic)
+        } else if (routePoints.size >= 2) {
+            val latLngs = routePoints.map { LatLng(it.lat, it.lng) }
+            lm.create(LineOptions().withLatLngs(latLngs).withLineColor("#15191F").withLineWidth(8.8f))
+            lm.create(LineOptions().withLatLngs(latLngs).withLineColor("#4285F4").withLineWidth(6f))
+            drawTraffic(lm, routePoints, trafficIntervals)
         }
         markerDestinations.forEach {
             sm.create(SymbolOptions().withLatLng(LatLng(it.first, it.second)).withIconImage(DEST_ICON).withIconSize(1.1f))
@@ -246,10 +235,12 @@ private fun FreeWayfindrMap(
         if (centerOnRiderInitially && riderLat != null && riderLng != null && recenterKey == 0L)
             animate(CameraUpdateFactory.newLatLngZoom(LatLng(riderLat, riderLng), FOLLOW_ZOOM), 500)
     }
-    LaunchedEffect(styleReady, fitRoute, routePoints.size) {
-        if (fitRoute && routePoints.size >= 2) {
+    LaunchedEffect(styleReady, fitRoute, routePoints, routeAlternatives) {
+        // Frame every alternative shown, else the single route.
+        val framingPoints = routeAlternatives.take(3).flatMap { it.geometry }.ifEmpty { routePoints }
+        if (fitRoute && framingPoints.size >= 2) {
             val b = LatLngBounds.Builder()
-            routePoints.forEach { b.include(LatLng(it.lat, it.lng)) }
+            framingPoints.forEach { b.include(LatLng(it.lat, it.lng)) }
             animate(CameraUpdateFactory.newLatLngBounds(b.build(), 110), 800)
         }
     }
@@ -275,6 +266,23 @@ private fun FreeWayfindrMap(
     }
 
     AndroidView(factory = { mapView }, modifier = modifier)
+}
+
+/** Slow / jammed stretches of [points] in amber / red over the route line. */
+private fun drawTraffic(lineManager: LineManager, points: List<GeoPoint>, intervals: List<TrafficInterval>) {
+    if (points.size < 2) return
+    intervals.forEach { iv ->
+        val start = iv.startPointIndex.coerceIn(0, points.lastIndex)
+        val end = iv.endPointIndex.coerceIn(start, points.lastIndex)
+        val color = when (iv.speed) {
+            TrafficSpeed.SLOW -> "#F9AB00"
+            TrafficSpeed.TRAFFIC_JAM -> "#EA4335"
+            else -> null
+        }
+        if (end > start && color != null) lineManager.create(LineOptions()
+            .withLatLngs(points.subList(start, end + 1).map { LatLng(it.lat, it.lng) })
+            .withLineColor(color).withLineWidth(6f))
+    }
 }
 
 /** Blue chevron-in-a-circle pointing "up" (rotated to heading by the symbol). */

@@ -1,21 +1,20 @@
 package com.example.wayfindr.dash.nav
 
+import android.content.Context
 import android.util.Log
-import com.example.wayfindr.BuildConfig
+import com.example.wayfindr.dash.RoutingSource
+import com.example.wayfindr.util.InternetNetwork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
 /**
- * Fetches a motorcycle/scooter route using Google Maps Routes API.
+ * Fetches a route using Google Maps Routes API (DRIVE mode, with the user's own key from
+ * [GPlus.key]), the free OSM server ([FreeRouter]) or BRouter on the phone ([OfflineRouter]).
  *
  * Called while planning, when the phone has internet access. The resulting
  * Route can then be cached and used for offline navigation.
- *
- * Uses Google Routes API TWO_WHEELER mode.
  */
 object Router {
 
@@ -41,39 +40,74 @@ object Router {
         "routes.distanceMeters," +
                 "routes.duration," +
                 "routes.polyline.encodedPolyline," +
-                "routes.travelAdvisory.speedReadingIntervals," +
                 "routes.legs.endLocation," +
                 "routes.legs.steps.startLocation," +
                 "routes.legs.steps.endLocation," +
                 "routes.legs.steps.navigationInstruction"
 
-    /** Which router to use ("Routing" setting). Set from DashConfig. */
-    @Volatile var source = com.example.wayfindr.dash.RoutingSource.GOOGLE
+    @Volatile private var currentSource = RoutingSource.GOOGLE
+
+    /**
+     * Which router to use ("Routing" setting). Set from DashConfig; a user choice also ends any
+     * offline override [NavPlus.rtPick] made.
+     */
+    var source: RoutingSource
+        get() = currentSource
+        set(value) {
+            NavPlus.rtUserSet()
+            setSource0(value)
+        }
+
+    /** Sets the router without counting as the user's choice (NavPlus' automatic offline switch). */
+    fun setSource0(value: RoutingSource) {
+        currentSource = value
+    }
 
     /**
      * Computes an ordered multi-stop route; [intermediates] are visited before [to].
      * BRouter runs on the phone; if it fails (app missing, area not downloaded) the free OSM
      * server is tried — never Google, so the BRouter choice can't add to the Google bill — and
-     * that simply fails too when there's no internet.
+     * that simply fails too when there's no internet. Without internet [NavPlus.rtPick] switches
+     * to BRouter for the time being.
      */
-    suspend fun route(from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? =
-        when (source) {
-            com.example.wayfindr.dash.RoutingSource.GOOGLE ->
+    suspend fun route(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? {
+        NavPlus.rtPick(context)
+        return when (source) {
+            RoutingSource.GOOGLE ->
                 if (!com.example.wayfindr.dash.GoogleKey.present)
-                    FreeRouter.route(from, to, intermediates)?.copy(source = com.example.wayfindr.dash.RoutingSource.OSM)
-                else googleRoute(from, to, intermediates)?.copy(source = com.example.wayfindr.dash.RoutingSource.GOOGLE)
-            com.example.wayfindr.dash.RoutingSource.OSM ->
-                FreeRouter.route(from, to, intermediates)?.copy(source = com.example.wayfindr.dash.RoutingSource.OSM)
-            com.example.wayfindr.dash.RoutingSource.BROUTER ->
-                OfflineRouter.route(from, to, intermediates)?.copy(source = com.example.wayfindr.dash.RoutingSource.BROUTER)
+                    FreeRouter.route(context, from, to, intermediates)?.copy(source = RoutingSource.OSM)
+                // A failed Google route falls back to OSM (GPlus.googleFallback); GPlus.sourceFor tells which.
+                else googleRoute(context, from, to, intermediates)?.let { it.copy(source = GPlus.sourceFor(it)) }
+            RoutingSource.OSM ->
+                FreeRouter.route(context, from, to, intermediates)?.copy(source = RoutingSource.OSM)
+            RoutingSource.BROUTER ->
+                OfflineRouter.route(from, to, intermediates)?.copy(source = RoutingSource.BROUTER)
                     ?: run {
                         com.example.wayfindr.data.RideDiagnostics.log("route",
                             "BRouter unavailable (${OfflineRouter.lastError}) — trying the free OSM server")
-                        FreeRouter.route(from, to, intermediates)?.copy(source = com.example.wayfindr.dash.RoutingSource.OSM)
+                        FreeRouter.route(context, from, to, intermediates)?.copy(source = RoutingSource.OSM)
                     }
         }
+    }
 
-    private suspend fun googleRoute(from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint>): Route? =
+    /**
+     * The route plus its alternatives, fastest first: Valhalla's alternates for OSM; for Google and
+     * BRouter the [NavPlus.altMarker] request asks for alternatives, which [NavPlus.googleChoices]
+     * collects.
+     */
+    @Suppress("UNCHECKED_CAST")
+    suspend fun alternatives(
+        context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList(),
+    ): List<Route> {
+        NavPlus.rtPick(context)
+        val routes: List<Route> =
+            if (source == RoutingSource.OSM)
+                FreeRouter.alternatives(context, from, to, intermediates).map { it.copy(source = RoutingSource.OSM) }
+            else NavPlus.googleChoices(route(context, from, to, NavPlus.altMarker(intermediates) as List<GeoPoint>)) as List<Route>
+        return NavPlus.fastestFirst(routes) as List<Route>
+    }
+
+    private suspend fun googleRoute(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint>): Route? =
         withContext(Dispatchers.IO) {
 
             try {
@@ -81,7 +115,7 @@ object Router {
 
                 com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.ROUTES)
                 val conn =
-                    (URL(ENDPOINT).openConnection() as HttpURLConnection).apply {
+                    InternetNetwork.openConnection(context, ENDPOINT).apply {
 
                         requestMethod = "POST"
                         doOutput = true
@@ -93,7 +127,7 @@ object Router {
 
                         setRequestProperty(
                             "X-Goog-Api-Key",
-                            com.example.wayfindr.BuildConfig.MAPS_API_KEY
+                            GPlus.key()
                         )
 
                         setRequestProperty(
@@ -129,14 +163,16 @@ object Router {
                         TAG,
                         "Google Routes API failed: HTTP $responseCode: $responseBody"
                     )
-                    return@withContext null
+                    return@withContext GPlus.googleFallback(context, from, to, intermediates, null, responseBody)
                 }
 
-                parse(responseBody)
+                val route = parse(responseBody)
+                NavPlus.stashAlts(intermediates, responseBody, route)
+                GPlus.googleFallback(context, from, to, intermediates, route, null)
 
             } catch (e: Exception) {
                 Log.e(TAG, "route() failed", e)
-                null
+                GPlus.googleFallback(context, from, to, intermediates, null, e)
             }
         }
 
@@ -151,10 +187,9 @@ object Router {
 
         return JSONObject().apply {
 
-            put(
-                "origin",
-                waypoint(from)
-            )
+            val origin = waypoint(from)
+            put("origin", origin)
+            NavPlus.addGoogleHeading(origin, from)   // rider's heading, when known
 
             put(
                 "destination",
@@ -167,14 +202,13 @@ object Router {
                 })
             }
 
-            // Motorcycle / scooter routing
-            put("travelMode", "TWO_WHEELER")
+            put("travelMode", "DRIVE")
 
-            // Request traffic-aware routing.
+            // Request traffic-aware routing (no traffic-on-polyline extra computation).
             put("routingPreference", "TRAFFIC_AWARE")
-            put("extraComputations", JSONArray().put("TRAFFIC_ON_POLYLINE"))
 
             put("computeAlternativeRoutes", false)
+            NavPlus.googleAlts(this, intermediates)   // alternatives for the route picker
 
             put(
                 "routeModifiers",
@@ -209,7 +243,8 @@ object Router {
             )
         }
 
-    private fun parse(json: String): Route? {
+    /** Parses a computeRoutes response (first route). Also used by NavPlus for alternatives. */
+    fun parse(json: String): Route? {
 
         val root = JSONObject(json)
 
