@@ -191,7 +191,7 @@ class DashKeepAliveService : Service() {
             @Suppress("DEPRECATION") Notification.Builder(this)
 
         return builder
-            .setContentTitle("Himalayan 450 Casa Brown")
+            .setContentTitle("Himalayan450")
             .setContentText("Konsol bağlantısı ve otomatik yeniden bağlanma etkin.")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
