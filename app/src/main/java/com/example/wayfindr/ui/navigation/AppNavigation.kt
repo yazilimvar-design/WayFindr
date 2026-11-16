@@ -37,8 +37,6 @@ sealed class Screen(val route: String) {
     object Home     : Screen("home")
     object Route    : Screen("route")
     object Dash     : Screen("dash")
-    object Garage   : Screen("garage")
-    object Live     : Screen("live")
     object Rides    : Screen("rides")
     object Settings : Screen("settings")
 }
@@ -46,11 +44,10 @@ sealed class Screen(val route: String) {
 private data class NavTab(val screen: Screen, val icon: ImageVector, val label: String)
 
 private val bottomTabs = listOf(
-    NavTab(Screen.Home,   WayfindrIcons.Home,    "Home"),
-    NavTab(Screen.Route,  WayfindrIcons.Navi,    "Route"),
-    NavTab(Screen.Dash,   WayfindrIcons.Dash,    "Dash"),
-    NavTab(Screen.Live,   WayfindrIcons.Wrench,  "Live data"),
-    NavTab(Screen.Rides,  WayfindrIcons.History, "Rides"),
+    NavTab(Screen.Home,   WayfindrIcons.Home,    "Ana Sayfa"),
+    NavTab(Screen.Route,  WayfindrIcons.Navi,    "Rota"),
+    NavTab(Screen.Dash,   WayfindrIcons.Dash,    "Konsol"),
+    NavTab(Screen.Rides,  WayfindrIcons.History, "Sürüşler"),
 )
 
 @Composable
@@ -78,11 +75,9 @@ fun AppNavigation(
     }
 
     val showBottomNav = currentRoute in listOf(
-        Screen.Home.route, Screen.Route.route, Screen.Dash.route,
-        Screen.Garage.route, Screen.Live.route, Screen.Rides.route,
+        Screen.Home.route, Screen.Route.route, Screen.Dash.route, Screen.Rides.route,
     )
 
-    val garageTab by appViewModel.garageTab.collectAsState()
     val routeState by routeViewModel.state.collectAsState()
 
     // Single source of truth for connection status: the real dash stage. Fixes Home
@@ -135,7 +130,6 @@ fun AppNavigation(
                                 // back stack stays consistent with the bottom bar (see navigateTab).
                                 "route" -> navigateTab(Screen.Route.route)
                                 "dash" -> navigateTab(Screen.Dash.route)
-                                "garage" -> navigateTab(Screen.Live.route)
                                 // Settings is a detail screen (its own back), not a tab.
                                 "settings" -> navController.navigate(Screen.Settings.route)
                             }
@@ -148,8 +142,8 @@ fun AppNavigation(
                     RouteScreen(
                         routeViewModel = routeViewModel,
                         onBack = { navController.popBackStack() },
-                        onSentToDash = { stops ->
-                            dashViewModel.setDestinations(stops)
+                        onSentToDash = { stops, selectedRoute ->
+                            dashViewModel.setDestinations(stops, selectedRoute)
                             // Start navigation: open the dash view and begin the
                             // WiFi → auth → stream flow (no-op if already streaming).
                             dashViewModel.connect()
@@ -162,17 +156,6 @@ fun AppNavigation(
 
                 composable(Screen.Dash.route) {
                     DashScreen(vm = dashViewModel)
-                }
-
-                composable(Screen.Garage.route) {
-                    GarageScreen(
-                        tab = garageTab,
-                        onTabChange = { appViewModel.setGarageTab(it) },
-                    )
-                }
-
-                composable(Screen.Live.route) {
-                    LiveDataScreen(vm = dashViewModel)
                 }
 
                 composable(Screen.Rides.route) {

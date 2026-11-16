@@ -16,17 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wayfindr.data.Ride
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.PolylineCodec
 import com.example.wayfindr.ui.WayfindrIcons
 import com.example.wayfindr.ui.components.*
@@ -47,8 +44,8 @@ fun RidesScreen(ridesViewModel: RidesViewModel = viewModel()) {
             .padding(18.dp)
             .padding(bottom = 24.dp),
     ) {
-        ScreenHeader(eyebrow = "Telemetry", title = "Ride history",
-            hint = "Every connected ride is saved here — distance, duration, and the route you took.")
+        ScreenHeader(eyebrow = "Telemetri", title = "Sürüş geçmişi",
+            hint = "Bağlantı kurulan her sürüş burada kaydedilir: mesafe, süre ve izlediğiniz rota.")
 
         if (rides.isEmpty()) {
             EmptyRides()
@@ -69,10 +66,18 @@ private fun RideTotals(rides: List<Ride>) {
     val totalSec = rides.sumOf { it.durationSec }
     WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 18.dp) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Stat("${rides.size}", "rides")
-            Stat("%.0f".format(totalKm), "km total")
-            Stat(fmtDuration(totalSec), "time")
+            Stat("${rides.size}", "sürüş")
+            Stat("%.0f".format(totalKm), "toplam km")
+            Stat(fmtDuration(totalSec), "süre")
         }
+        // v34: summary / records / share card, opened through NavPlus (mode 2).
+        SettingRow(
+            WayfindrIcons.Chart,
+            "Haftalık / aylık özet, rekorlar, paylaş",
+            "Renkli sürüş izleri ve WhatsApp / Instagram için paylaşım kartı",
+            control = {},
+            onClick = { NavPlus.offMode = 2; NavPlus.openOffline() },
+        )
     }
 }
 
@@ -113,15 +118,15 @@ private fun RideCard(ride: Ride, onDelete: () -> Unit) {
             }
             Spacer(Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                MiniStat(fmtDuration(ride.durationSec), "duration")
-                MiniStat("%.0f km/h".format(ride.avgSpeedKmh), "avg")
-                MiniStat("%.0f km/h".format(ride.maxSpeedKmh), "max")
+                MiniStat(fmtDuration(ride.durationSec), "süre")
+                MiniStat("%.0f km/sa".format(ride.avgSpeedKmh), "ortalama")
+                MiniStat("%.0f km/sa".format(ride.maxSpeedKmh), "en yüksek")
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(34.dp).clip(CircleShape).background(Surf2)
                         .clickable { onDelete() },
                 ) {
-                    Icon(WayfindrIcons.X, contentDescription = "Delete ride", tint = TextLo, modifier = Modifier.size(16.dp))
+                    Icon(WayfindrIcons.X, contentDescription = "Sürüşü sil", tint = TextLo, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -139,24 +144,13 @@ private fun MiniStat(value: String, label: String) {
 @Composable
 private fun TrackSketch(points: List<com.example.wayfindr.dash.nav.GeoPoint>, modifier: Modifier) {
     Canvas(modifier) {
-        val minLat = points.minOf { it.lat }; val maxLat = points.maxOf { it.lat }
-        val minLng = points.minOf { it.lng }; val maxLng = points.maxOf { it.lng }
-        val spanLat = (maxLat - minLat).coerceAtLeast(1e-6)
-        val spanLng = (maxLng - minLng).coerceAtLeast(1e-6)
-        val span = maxOf(spanLat, spanLng)   // keep aspect square-ish
-        val path = Path()
-        points.forEachIndexed { i, p ->
-            val x = ((p.lng - minLng) / span * size.width).toFloat()
-            val y = (size.height - (p.lat - minLat) / span * size.height).toFloat()
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        // v34: the track is drawn by NavPlus (same look as the dash's route trace).
+        val packedSize = (java.lang.Float.floatToRawIntBits(size.width).toLong() shl 32) or
+            (java.lang.Float.floatToRawIntBits(size.height).toLong() and 0xFFFFFFFFL)
+        try {
+            NavPlus.trackDrawSz(drawContext.canvas.nativeCanvas, points, packedSize)
+        } catch (_: Throwable) {
         }
-        drawPath(path, Gold, style = Stroke(width = 3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-        // start (green-ish) + end (gold) dots
-        val first = points.first(); val last = points.last()
-        drawCircle(TextHi, 2.5f, Offset(((first.lng - minLng) / span * size.width).toFloat(),
-            (size.height - (first.lat - minLat) / span * size.height).toFloat()))
-        drawCircle(Gold, 2.5f, Offset(((last.lng - minLng) / span * size.width).toFloat(),
-            (size.height - (last.lat - minLat) / span * size.height).toFloat()))
     }
 }
 
@@ -171,10 +165,10 @@ private fun EmptyRides() {
                 Icon(WayfindrIcons.Route, contentDescription = null, tint = TextLo, modifier = Modifier.size(26.dp))
             }
             Spacer(Modifier.height(14.dp))
-            Text("No rides recorded yet", color = TextHi, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+            Text("Henüz sürüş kaydedilmedi", color = TextHi, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
             Spacer(Modifier.height(6.dp))
             Text(
-                "Connect to your dash to start a ride — it's saved automatically when you disconnect.",
+                "Sürüşe başlamak için konsol ekranınıza bağlanın — bağlantıyı kestiğinizde sürüş otomatik olarak kaydedilir.",
                 color = TextLo, fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
@@ -182,9 +176,9 @@ private fun EmptyRides() {
     }
 }
 
-private fun fmtDate(ms: Long) = SimpleDateFormat("EEE, d MMM yyyy", Locale.getDefault()).format(Date(ms))
+private fun fmtDate(ms: Long) = SimpleDateFormat("d MMM yyyy, EEEE", Locale.forLanguageTag("tr-TR")).format(Date(ms))
 private fun fmtTime(ms: Long) = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(ms))
 private fun fmtDuration(sec: Long): String {
     val h = sec / 3600; val m = (sec % 3600) / 60
-    return if (h > 0) "${h}h ${m}m" else "${m}m"
+    return if (h > 0) "$h sa $m dk" else "$m dk"
 }
