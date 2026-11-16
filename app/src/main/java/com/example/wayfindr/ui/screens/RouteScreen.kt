@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wayfindr.dash.DashConfig
 import com.example.wayfindr.dash.MapTheme
 import com.example.wayfindr.dash.RoutingSource
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.OfflineRouter
 import com.example.wayfindr.dash.nav.PlaceSearch
 import com.example.wayfindr.dash.nav.Route
@@ -377,7 +378,15 @@ fun RouteScreen(
                     color = TextLo, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp, bottom = 12.dp),
                 )
             }
-            // v34: the "QR görselinden rota yükle" (load route from QR image) button is not shown.
+            // v34: the QR-image button opens the offline map / dash photo screen instead.
+            WayfindrBtn(
+                "Çevrimdışı harita / konsol fotoğrafı",
+                onClick = { NavPlus.openOffline() },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                icon = WayfindrIcons.QrScan,
+                variant = BtnVariant.Ghost,
+                size = BtnSize.Sm,
+            )
 
             // A route another Wayfindr rider shared, not saved here yet → offer to keep it.
             routeState.sharedRouteName?.let { sharedName ->

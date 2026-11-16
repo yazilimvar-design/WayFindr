@@ -2,7 +2,7 @@
 # Emulator smoke test: install, launch, open the 4 bottom tabs, collect logcat + CrashGuard logs.
 # Fails if logcat has a FATAL EXCEPTION for our process.
 set -u
-APK="$1"; PKG=com.wayfindr.app.preview; OUT=smoke-out
+APK="$1"; PKG="${2:-com.wayfindr.app.preview}"; OUT="${3:-smoke-out}"
 mkdir -p "$OUT"
 adb logcat -c
 adb install -r -g "$APK" | tee "$OUT/install.txt" || exit 1
@@ -10,10 +10,10 @@ adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
 sleep 20
 adb exec-out screencap -p > "$OUT/0-start.png"
 
-tap() {  # tap the node whose text or content-desc is $1
+find_xy() {  # print the centre of the node whose text or content-desc is $1
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
   adb exec-out cat /sdcard/ui.xml > "$OUT/ui.xml"
-  python3 - "$1" "$OUT/ui.xml" <<'PY' | xargs -r adb shell input tap
+  python3 - "$1" "$OUT/ui.xml" <<'PY'
 import re, sys
 label, xml = sys.argv[1], open(sys.argv[2], encoding='utf-8').read()
 for node in re.findall(r'<node [^>]*>', xml):
@@ -23,6 +23,10 @@ for node in re.findall(r'<node [^>]*>', xml):
 else:
     print(f'not found: {label}', file=sys.stderr)
 PY
+}
+tap() {  # a system dialog (e.g. the dash Wi-Fi "Connect to device") hides the tabs: dismiss it once
+  xy=$(find_xy "$1"); [ -n "$xy" ] || { adb shell input keyevent KEYCODE_BACK; sleep 2; xy=$(find_xy "$1"); }
+  [ -n "$xy" ] && adb shell input tap $xy
 }
 i=1
 for t in "Rota" "Konsol" "Sürüşler" "Ana Sayfa"; do
