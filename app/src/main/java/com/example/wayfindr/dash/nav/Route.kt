@@ -152,4 +152,7 @@ data class Route(
     val source: com.example.wayfindr.dash.RoutingSource? = null,
 ) {
     val destination: GeoPoint? get() = geometry.lastOrNull()
+
+    /** Same route tagged with another [source] (used from Java: NavPlus.asBRouter/asGoogle). */
+    fun withSource(source: com.example.wayfindr.dash.RoutingSource?): Route = copy(source = source)
 }

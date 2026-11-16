@@ -17,7 +17,6 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.compose.runtime.ComposerKt;
 import java.util.ArrayList;
 
 /* loaded from: classes2.dex */
@@ -35,7 +34,7 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
     private TextView tv;
     private TextView tv2;
 
-    final class Ui implements Runnable {
+    static final class Ui implements Runnable {
         private final OfflineMapActivity act;
         private final String msg;
 
@@ -100,7 +99,7 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
             imageView.setAdjustViewBounds(true);
             imageView.setImageBitmap(NavPlus.trackBmp((String) ((Object[]) obj)[4], 900, 440, 8.0f));
             card3.addView(imageView);
-            card3.addView(Ui2.btn(this, "Paylaş", i + ComposerKt.invocationKey, this, -3562166, -16777216));
+            card3.addView(Ui2.btn(this, "Paylaş", i + 200, this, -3562166, -16777216));
             linearLayout.addView(card3);
         }
         linearLayout.addView(Ui2.text(this, "Renkler: yeşil 0–30, açık yeşil 30–60, sarı 60–90, turuncu 90–120, kırmızı 120+ km/sa. Hız rengi bu sürümden sonra kaydedilen sürüşlerde görünür; eski sürüşler altın renkte çizilir.", 13, -6644319, false));
@@ -213,7 +212,7 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
         try {
             int id = view.getId();
             if (id >= 200) {
-                NavPlus.rideShare(this, this.rows.get(id - ComposerKt.invocationKey));
+                NavPlus.rideShare(this, this.rows.get(id - 200));
                 return;
             }
             Context applicationContext = getApplicationContext();

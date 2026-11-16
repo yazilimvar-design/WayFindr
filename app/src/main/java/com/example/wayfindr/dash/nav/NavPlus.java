@@ -25,10 +25,7 @@ import android.os.SystemClock;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.KeyEvent;
-import androidx.autofill.HintConstants;
-import androidx.compose.material3.ProgressIndicatorKt;
 import androidx.core.content.FileProvider;
-import androidx.savedstate.serialization.ClassDiscriminatorModeKt;
 import btools.routingapp.IBRouterService;
 import com.example.wayfindr.dash.RoutingSource;
 import com.example.wayfindr.dash.map.LocPlus;
@@ -69,10 +66,7 @@ import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 import kotlin.Pair;
 import kotlin.TuplesKt;
-import kotlin.UByte;
 import kotlin.io.ByteStreamsKt;
-import kotlin.jvm.internal.ByteCompanionObject;
-import kotlinx.coroutines.DebugKt;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -183,7 +177,7 @@ public final class NavPlus {
     public static volatile float wxTemp;
     public static volatile long wxWarnAt;
 
-    final class BrJob implements Runnable {
+    public static final class BrJob implements Runnable {
         public final Bundle b;
         public final int idx;
         public volatile Route res;
@@ -206,7 +200,7 @@ public final class NavPlus {
         }
     }
 
-    final class Export implements Runnable {
+    static final class Export implements Runnable {
         private final File dir;
 
         public Export(File file) {
@@ -219,7 +213,7 @@ public final class NavPlus {
         }
     }
 
-    final class Idx implements Runnable {
+    static final class Idx implements Runnable {
         @Override // java.lang.Runnable
         public void run() {
             try {
@@ -229,7 +223,7 @@ public final class NavPlus {
         }
     }
 
-    final class RdFetch implements Runnable {
+    static final class RdFetch implements Runnable {
         private final double lat;
         private final double lng;
         private final int mode;
@@ -267,7 +261,7 @@ public final class NavPlus {
         }
     }
 
-    final class RoadFetch implements Runnable {
+    static final class RoadFetch implements Runnable {
         private final double lat;
         private final double lng;
         private final double r;
@@ -284,7 +278,7 @@ public final class NavPlus {
         }
     }
 
-    final class SpdFetch implements Runnable {
+    static final class SpdFetch implements Runnable {
         private final double lat;
         private final double lng;
 
@@ -303,7 +297,7 @@ public final class NavPlus {
         }
     }
 
-    final class Vx {
+    static final class Vx {
         public Canvas c;
         public int ck;
         public byte[] d;
@@ -475,11 +469,11 @@ public final class NavPlus {
     }
 
     public static Route asBRouter(Route route) {
-        return Route.copy$default(route, null, null, 0.0d, 0.0d, null, null, null, RoutingSource.BROUTER, 127, null);
+        return route.withSource(RoutingSource.BROUTER);
     }
 
     public static Route asGoogle(Route route) {
-        return Route.copy$default(route, null, null, 0.0d, 0.0d, null, null, null, RoutingSource.GOOGLE, 127, null);
+        return route.withSource(RoutingSource.GOOGLE);
     }
 
     public static String avgKmh(Object obj) {
@@ -700,7 +694,7 @@ public final class NavPlus {
             return false;
         }
         try {
-            Long fixAgeMs = LocationTracker.INSTANCE.fixAgeMs(location, SystemClock.elapsedRealtimeNanos(), System.currentTimeMillis());
+            Long fixAgeMs = LocationTracker.fixAgeMs(location, SystemClock.elapsedRealtimeNanos(), System.currentTimeMillis());
             if (fixAgeMs == null) {
                 return false;
             }
@@ -760,7 +754,7 @@ public final class NavPlus {
             Context context = GPlus.ctx;
             if (context != null) {
                 HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, "https://overpass-api.de/api/interpreter?data=".concat(URLEncoder.encode("[out:json][timeout:8];way(around:15," + d + "," + d2 + ")[\"highway\"][\"maxspeed\"];out tags 6;", "UTF-8")));
-                openConnection.setConnectTimeout(ProgressIndicatorKt.CircularAnimationProgressDuration);
+                openConnection.setConnectTimeout(6000);
                 openConnection.setReadTimeout(9000);
                 openConnection.setRequestProperty("User-Agent", "Wayfindr-SpeedLimit/1.0");
                 if (openConnection.getResponseCode() != 200) {
@@ -817,7 +811,7 @@ public final class NavPlus {
                         for (int i2 = 0; i2 < length2; i2++) {
                             JSONObject optJSONObject = optJSONArray.optJSONObject(i2);
                             if (optJSONObject != null) {
-                                if ("count".equals(optJSONObject.optString(ClassDiscriminatorModeKt.CLASS_DISCRIMINATOR_KEY))) {
+                                if ("count".equals(optJSONObject.optString("type"))) {
                                     i++;
                                 } else {
                                     Long valueOf = Long.valueOf(optJSONObject.optLong("id"));
@@ -991,7 +985,7 @@ public final class NavPlus {
                             if (optString.length() > 0) {
                                 str = optString;
                             } else {
-                                String optString2 = optJSONObject2.optString(HintConstants.AUTOFILL_HINT_NAME);
+                                String optString2 = optJSONObject2.optString("name");
                                 if (optString2.length() > 0) {
                                     str = optString2;
                                 }
@@ -1065,7 +1059,7 @@ public final class NavPlus {
                 return null;
             }
             HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, str);
-            openConnection.setConnectTimeout(ProgressIndicatorKt.CircularAnimationProgressDuration);
+            openConnection.setConnectTimeout(6000);
             openConnection.setReadTimeout(12000);
             openConnection.setRequestProperty("User-Agent", "Wayfindr-Weather/1.0");
             if (openConnection.getResponseCode() != 200) {
@@ -1364,13 +1358,14 @@ public final class NavPlus {
 
     public static boolean mbIsOn(Context context) {
         try {
-            return context.getSharedPreferences("offlinemap", 0).getBoolean(DebugKt.DEBUG_PROPERTY_VALUE_ON, true);
+            return context.getSharedPreferences("offlinemap", 0).getBoolean("on", true);
         } catch (Throwable unused) {
             return true;
         }
     }
 
     public static String mbMeta(SQLiteDatabase sQLiteDatabase, String str) {
+        String r0 = null;
         try {
             Cursor rawQuery = sQLiteDatabase.rawQuery("SELECT value FROM metadata WHERE name=?", new String[]{str});
             if (rawQuery != null) {
@@ -1622,7 +1617,7 @@ public final class NavPlus {
 
     public static void mbToggle(Context context) {
         try {
-            context.getSharedPreferences("offlinemap", 0).edit().putBoolean(DebugKt.DEBUG_PROPERTY_VALUE_ON, !mbIsOn(context)).commit();
+            context.getSharedPreferences("offlinemap", 0).edit().putBoolean("on", !mbIsOn(context)).commit();
             mbReload();
         } catch (Throwable unused) {
         }
@@ -1779,7 +1774,7 @@ public final class NavPlus {
                 return null;
             }
             HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, "https://overpass-api.de/api/interpreter?data=".concat(URLEncoder.encode(str, "UTF-8")));
-            openConnection.setConnectTimeout(ProgressIndicatorKt.CircularAnimationProgressDuration);
+            openConnection.setConnectTimeout(6000);
             openConnection.setReadTimeout(12000);
             openConnection.setRequestProperty("User-Agent", "Wayfindr-Radar/1.0");
             if (openConnection.getResponseCode() != 200) {
@@ -2629,11 +2624,11 @@ public final class NavPlus {
         if (str != null && vxIn(str, "|place|places|place_labels|place_label|") && i2 > 0) {
             vx.keys = arrayList;
             vx.vals = arrayList2;
-            int indexOf = arrayList.indexOf(HintConstants.AUTOFILL_HINT_NAME);
+            int indexOf = arrayList.indexOf("name");
             if (indexOf >= 0) {
                 int indexOf2 = arrayList.indexOf("class");
                 if (indexOf2 < 0 && (indexOf2 = arrayList.indexOf("kind")) < 0) {
-                    indexOf2 = arrayList.indexOf(ClassDiscriminatorModeKt.CLASS_DISCRIMINATOR_KEY);
+                    indexOf2 = arrayList.indexOf("type");
                 }
                 vxSet(vx, vxPos);
                 while (vxPos(vx) < i) {
@@ -3334,7 +3329,7 @@ public final class NavPlus {
     public static void rsAdd(float f) {
         ByteArrayOutputStream byteArrayOutputStream = rsBuf;
         if (byteArrayOutputStream != null) {
-            byteArrayOutputStream.write(Math.min(Math.max(Math.round(f * 3.6f), 0), ProgressIndicatorKt.FirstLineTailDelay));
+            byteArrayOutputStream.write(Math.min(Math.max(Math.round(f * 3.6f), 0), 250));
         }
     }
 
@@ -3365,6 +3360,7 @@ public final class NavPlus {
             if (hashMap.containsKey(rsKey)) {
                 return (byte[]) hashMap.get(rsKey);
             }
+            byte[] r0 = null;
             File rsDir = rsDir();
             if (rsDir != null) {
                 File file = new File(rsDir, rsKey);
@@ -3483,7 +3479,7 @@ public final class NavPlus {
         }
     }
 
-    public static void stashAlts(Router$googleRoute$2 router$googleRoute$2, String str, Route route) {
+    public static void stashAlts(List<GeoPoint> intermediates, String str, Route route) {
         JSONArray optJSONArray;
         Route parse;
         if (route == null || str == null) {
@@ -3491,7 +3487,7 @@ public final class NavPlus {
         }
         try {
             List<GeoPoint> list = ALT_MARK;
-            if (list == null || router$googleRoute$2.$intermediates != list || (optJSONArray = new JSONObject(str).optJSONArray("routes")) == null) {
+            if (list == null || intermediates != list || (optJSONArray = new JSONObject(str).optJSONArray("routes")) == null) {
                 return;
             }
             int length = optJSONArray.length();
@@ -3562,7 +3558,7 @@ public final class NavPlus {
                     paint.setColor(i);
                     for (int i2 = 1; i2 < size; i2++) {
                         if (rsLoad != null) {
-                            paint.setColor(spColor(Math.max(rsLoad[i2 - 1] & UByte.MAX_VALUE, rsLoad[i2] & UByte.MAX_VALUE)));
+                            paint.setColor(spColor(Math.max(rsLoad[i2 - 1] & 0xFF, rsLoad[i2] & 0xFF)));
                         }
                         int i3 = (i2 - 1) * 2;
                         float f4 = trackXY[i3];
@@ -3801,7 +3797,7 @@ public final class NavPlus {
             vx.vals = arrayList2;
             int indexOf = arrayList.indexOf("class");
             if (indexOf < 0 && (indexOf = arrayList.indexOf("kind")) < 0) {
-                indexOf = arrayList.indexOf(ClassDiscriminatorModeKt.CLASS_DISCRIMINATOR_KEY);
+                indexOf = arrayList.indexOf("type");
             }
             vx.ck = indexOf;
             vx.k = 256.0f / i2;
@@ -3885,7 +3881,7 @@ public final class NavPlus {
         vx.s = f;
         canvas.translate(-(((i2 >>> 4) & 255) * 256), -(((i2 >>> 12) & 255) * 256));
         canvas.scale(f, f);
-        float f2 = (((i + r7) - 10) * 0.22f) + 0.5f;
+        float f2 = (((i + (i2 & 15)) - 10) * 0.22f) + 0.5f;
         if (f2 < 0.5f) {
             f2 = 0.5f;
         }
@@ -4012,8 +4008,8 @@ public final class NavPlus {
         while (true) {
             byte b = bArr[i];
             i++;
-            i2 |= (b & ByteCompanionObject.MAX_VALUE) << i3;
-            if ((b & ByteCompanionObject.MIN_VALUE) == 0) {
+            i2 |= (b & 0x7F) << i3;
+            if ((b & 0x80) == 0) {
                 iArr[0] = i;
                 return i2;
             }

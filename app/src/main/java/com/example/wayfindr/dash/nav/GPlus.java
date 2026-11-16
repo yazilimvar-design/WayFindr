@@ -1,7 +1,6 @@
 package com.example.wayfindr.dash.nav;
 
 import android.content.Context;
-import androidx.compose.runtime.ComposerKt;
 import androidx.core.app.NotificationCompat;
 import com.example.wayfindr.dash.DashConfig;
 import com.example.wayfindr.dash.GoogleKey;
@@ -100,16 +99,16 @@ public final class GPlus {
         }
     }
 
-    public static Object googleFallback(Router$googleRoute$2 router$googleRoute$2, Object obj, Object obj2) {
-        if (obj != null) {
-            return obj;
+    public static Route googleFallback(Context ctx, GeoPoint from, GeoPoint to, List<GeoPoint> intermediates, Route route, Object err) {
+        if (route != null) {
+            return route;
         }
         String str = "Google route failed -> OSM: ";
-        if (obj2 != null) {
+        if (err != null) {
             try {
-                String obj3 = obj2.toString();
+                String obj3 = err.toString();
                 if (obj3.length() > 200) {
-                    obj3 = obj3.substring(0, ComposerKt.invocationKey);
+                    obj3 = obj3.substring(0, 200);
                 }
                 str = "Google route failed -> OSM: ".concat(obj3);
             } catch (Throwable unused) {
@@ -117,15 +116,11 @@ public final class GPlus {
             }
         }
         RideDiagnostics.INSTANCE.log("route", str);
-        Object invokeSuspend = new FreeRouter$requestRoutes$2(router$googleRoute$2.$from, router$googleRoute$2.$to, router$googleRoute$2.$intermediates, false, router$googleRoute$2.$context, null).invokeSuspend(Unit.INSTANCE);
-        if (!(invokeSuspend instanceof List)) {
+        List<Route> list = FreeRouter.requestRoutesNow(ctx, from, to, intermediates, false);
+        if (list == null || list.isEmpty()) {
             return null;
         }
-        List list = (List) invokeSuspend;
-        if (list.isEmpty()) {
-            return null;
-        }
-        Object obj4 = list.get(0);
+        Route obj4 = list.get(0);
         lastFallback = obj4;
         return obj4;
     }
@@ -546,7 +541,7 @@ public final class GPlus {
 
     public static void setSource(Context context, int i) {
         try {
-            DashConfig dashConfig = DashConfig.INSTANCE.get(context);
+            DashConfig dashConfig = DashConfig.Companion.get(context);
             if (dashConfig != null) {
                 if (i == 1) {
                     dashConfig.setRoutingSource(RoutingSource.GOOGLE);

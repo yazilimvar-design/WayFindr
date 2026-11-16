@@ -148,7 +148,7 @@ public final class SearchPlus {
                     if (subtitle != null) {
                         name = name.concat(" ").concat(subtitle);
                     }
-                    i3 = placeSearch.wordScore$app(str, name);
+                    i3 = placeSearch.wordScore(str, name);
                 }
                 iArr[i2] = i3;
                 if (i3 > i) {

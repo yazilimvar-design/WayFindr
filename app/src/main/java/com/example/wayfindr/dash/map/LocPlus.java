@@ -28,7 +28,7 @@ public final class LocPlus {
     public static volatile int stSlow;
     public static volatile double stW;
 
-    final class Exec implements Executor {
+    static final class Exec implements Executor {
         private final Handler h;
 
         public Exec(Handler handler) {

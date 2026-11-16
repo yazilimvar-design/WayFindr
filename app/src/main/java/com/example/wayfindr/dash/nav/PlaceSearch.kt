@@ -142,7 +142,7 @@ object PlaceSearch {
     }
 
     /** How many of the typed words appear in [text] (case-insensitive; "lal bagh" also matches "lalbagh"). */
-    internal fun wordScore(q: String, text: String): Int {
+    fun wordScore(q: String, text: String): Int {
         val t = text.lowercase(Locale.ROOT)
         val squashed = t.replace(" ", "")
         return q.lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.isNotBlank() }
