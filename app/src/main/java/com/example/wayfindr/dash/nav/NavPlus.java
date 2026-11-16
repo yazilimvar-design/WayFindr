@@ -36,7 +36,6 @@ import com.example.wayfindr.dash.video.DashEncoder;
 import com.example.wayfindr.data.RideDiagnostics;
 import com.example.wayfindr.media.MediaInfoProvider;
 import com.example.wayfindr.media.NowPlaying;
-import com.example.wayfindr.util.IdleSleep;
 import com.example.wayfindr.util.InternetNetwork;
 import com.example.wayfindr.viewmodel.DashViewModel;
 import java.io.BufferedReader;
@@ -629,7 +628,7 @@ public final class NavPlus {
             if (!wxBusy && (elapsedRealtime >= wxNextAt || (wxAt != 0 && LocPlus.stDist(d, d2, wxCLat, wxCLng) >= 20000.0d && elapsedRealtime - wxStartAt >= 60000))) {
                 wxStartAt = elapsedRealtime;
                 wxBusy = true;
-                wxNextAt = IdleSleep.IDLE_MS + elapsedRealtime;
+                wxNextAt = 600000L + elapsedRealtime;
                 Thread thread = new Thread(new RdFetch(d, d2, 2), "Weather");
                 thread.setDaemon(true);
                 thread.start();

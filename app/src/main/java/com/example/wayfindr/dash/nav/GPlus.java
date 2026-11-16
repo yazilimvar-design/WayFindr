@@ -7,7 +7,6 @@ import com.example.wayfindr.dash.GoogleKey;
 import com.example.wayfindr.dash.RoutingSource;
 import com.example.wayfindr.dash.nav.PlaceSearch;
 import com.example.wayfindr.data.RideDiagnostics;
-import com.example.wayfindr.util.IdleSleep;
 import com.example.wayfindr.util.InternetNetwork;
 import java.io.File;
 import java.io.InputStream;
@@ -23,6 +22,7 @@ import kotlin.Pair;
 import kotlin.Unit;
 import kotlin.io.ByteStreamsKt;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 /* loaded from: classes2.dex */
@@ -417,7 +417,7 @@ public final class GPlus {
             int http = http("https://places.googleapis.com/v1/places:searchText", placesBody(trim, pair2), "places.displayName,places.formattedAddress,places.location");
             if (http != 200) {
                 httpErr(http);
-                placesFailUntil = System.currentTimeMillis() + ((http < 0 || http >= 500) ? 30000L : IdleSleep.IDLE_MS);
+                placesFailUntil = System.currentTimeMillis() + ((http < 0 || http >= 500) ? 30000L : 600000L);
                 return null;
             }
             List parsePlaces = parsePlaces(lastBody);
@@ -446,7 +446,7 @@ public final class GPlus {
         }
     }
 
-    public static String placesBody(String str, Pair pair) {
+    public static String placesBody(String str, Pair pair) throws JSONException {
         JSONObject jSONObject = new JSONObject();
         jSONObject.put("textQuery", str);
         jSONObject.put("languageCode", "tr");
@@ -484,7 +484,7 @@ public final class GPlus {
                 str = sess1;
                 j = exp1;
             }
-            if (str != null && currentTimeMillis < j - IdleSleep.IDLE_MS) {
+            if (str != null && currentTimeMillis < j - 600000L) {
                 return str;
             }
             if (currentTimeMillis < failUntil) {
@@ -613,7 +613,7 @@ public final class GPlus {
             if (!tilesOn || i < 400 || i == 404 || i >= 500) {
                 return;
             }
-            failUntil = System.currentTimeMillis() + IdleSleep.IDLE_MS;
+            failUntil = System.currentTimeMillis() + 600000L;
             sess1 = null;
             sess2 = null;
             tilesOn = false;

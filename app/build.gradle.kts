@@ -191,3 +191,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+// TEMP (CI port): report javac flow errors for every class in one build.
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.addAll(listOf("-XDshould-stop.ifError=FLOW", "-Xmaxerrs", "1000"))
+}
