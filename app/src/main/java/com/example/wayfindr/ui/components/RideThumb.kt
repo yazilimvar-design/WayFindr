@@ -36,7 +36,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * Map thumbnail of a recorded ride: the track coloured by speed (start dot gold, end dot green)
+ * Map thumbnail of a recorded ride: the track coloured by speed (start dot green, finish dot gold)
  * over a dark map. The map comes only from tiles already on the phone (imported .mbtiles, then the
  * dash map's disk cache) — no network; tiles that aren't there leave the plain dark base.
  */
@@ -105,7 +105,7 @@ internal object RideThumbs {
         }
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
         val r = stroke * 1.7f
-        for ((i, col) in listOf(0 to START, track.lastIndex to END)) {
+        for ((i, col) in listOf(0 to END, track.lastIndex to START)) { // like TripperDash: green = start, gold = finish
             dot.color = 0xE6000000.toInt(); c.drawCircle(xs[i], ys[i], r + stroke * 0.6f, dot)
             dot.color = col; c.drawCircle(xs[i], ys[i], r, dot)
         }
