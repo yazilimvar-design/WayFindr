@@ -19,6 +19,19 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Google key (Maps + Navigation SDK) from the repo secret into the gitignored secrets.properties.
+      # Without it the build still works and the app runs on its free stack (no Google, no Nav SDK).
+      - name: Google API anahtarı
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          if [ -n "$MAPS_API_KEY" ]; then
+            printf 'MAPS_API_KEY=%s\n' "$MAPS_API_KEY" > secrets.properties
+            echo "MAPS_API_KEY: set (length ${#MAPS_API_KEY})"
+          else
+            echo "MAPS_API_KEY: not set"
+          fi
+
       # standardDebug = com.wayfindr.app.preview, same variant as the v34-v40 APKs.
       - name: APK derle (standard, debug)
         run: ./gradlew --no-daemon assembleStandardDebug
@@ -27,8 +40,8 @@ jobs:
       - name: Sürüş birim testleri
         # Older tests outside data/ no longer compile (e.g. MbTiles was removed), so only data/ is built here.
         run: |
-          find app/src/test/java -name '*.kt' ! -path '*/wayfindr/data/*' -delete
-          ./gradlew --no-daemon testStandardDebugUnitTest --tests 'com.example.wayfindr.data.*'
+          find app/src/test/java -name '*.kt' ! -path '*/wayfindr/data/*' ! -name 'GoogleNavManeuverTest.kt' -delete
+          ./gradlew --no-daemon testStandardDebugUnitTest --tests 'com.example.wayfindr.data.*' --tests 'com.example.wayfindr.dash.nav.GoogleNavManeuverTest'
 
       - uses: actions/upload-artifact@v4
         with:

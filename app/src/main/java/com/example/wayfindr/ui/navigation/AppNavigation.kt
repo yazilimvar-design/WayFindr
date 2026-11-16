@@ -143,12 +143,15 @@ fun AppNavigation(
                         routeViewModel = routeViewModel,
                         onBack = { navController.popBackStack() },
                         onSentToDash = { stops, selectedRoute ->
-                            dashViewModel.setDestinations(stops, selectedRoute)
-                            // Start navigation: open the dash view and begin the
-                            // WiFi → auth → stream flow (no-op if already streaming).
-                            dashViewModel.connect()
-                            navController.navigate(Screen.Dash.route) {
-                                popUpTo(Screen.Home.route)
+                            // Google's Navigation terms are asked once, before the first SDK trip.
+                            com.example.wayfindr.dash.nav.GoogleNav.ensureTerms(ctx as? android.app.Activity) {
+                                dashViewModel.setDestinations(stops, selectedRoute)
+                                // Start navigation: open the dash view and begin the
+                                // WiFi → auth → stream flow (no-op if already streaming).
+                                dashViewModel.connect()
+                                navController.navigate(Screen.Dash.route) {
+                                    popUpTo(Screen.Home.route)
+                                }
                             }
                         },
                     )
