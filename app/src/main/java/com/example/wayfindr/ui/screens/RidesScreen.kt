@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Fullscreen
@@ -387,8 +390,8 @@ private fun RideDetail(ride: Ride, name: String, onBack: () -> Unit, onDelete: (
                 Text(name, color = TextHi, fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = GeistFamily,
                     letterSpacing = (-0.4).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(4.dp))
-                Text("${fmtDate(ride.startMs)}  ·  ${fmtTime(ride.startMs)} → ${fmtTime(ride.endMs)}",
-                    color = TextMid, fontSize = 15.sp, fontFamily = GeistFamily)
+                FitText("${fmtDate(ride.startMs)} · ${fmtTime(ride.startMs)} → ${fmtTime(ride.endMs)}",
+                    TextStyle(color = TextMid, fontFamily = GeistFamily), max = 15)
             }
             Spacer(Modifier.width(12.dp))
             RoundBtn(WayfindrIcons.Share, "Paylaş", Surf3) { sharing = true }
@@ -463,24 +466,31 @@ private fun StatCell(c: RideCell, modifier: Modifier) {
     Row(verticalAlignment = Alignment.Top, modifier = modifier.padding(vertical = 18.dp)) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.size(44.dp).border(1.5.dp, Line3, CircleShape),
+            modifier = Modifier.size(42.dp).border(1.5.dp, Line3, CircleShape),
         ) {
             Icon(c.icon, contentDescription = null, tint = TextMid, modifier = Modifier.size(21.dp))
         }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         Column {
             Text(c.label, color = TextMid, fontSize = 14.sp, fontFamily = GeistFamily, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(6.dp))
-            Text(c.value, color = TextHi, fontSize = 22.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+            FitText(c.value, TextStyle(color = TextHi, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily), max = 22)
         }
     }
+}
+
+/** One line that shrinks to fit narrow phones instead of wrapping ("26 km/" + "sa"). */
+@Composable
+private fun FitText(text: String, style: TextStyle, max: Int) {
+    BasicText(text, style = style, maxLines = 1,
+        autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = max.sp))
 }
 
 @Composable
 private fun RoundBtn(icon: ImageVector, label: String, bg: Color, onClick: () -> Unit) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.size(52.dp).clip(CircleShape).background(bg).clickable(onClickLabel = label, onClick = onClick),
+        modifier = Modifier.size(48.dp).clip(CircleShape).background(bg).clickable(onClickLabel = label, onClick = onClick),
     ) {
         Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(22.dp))
     }

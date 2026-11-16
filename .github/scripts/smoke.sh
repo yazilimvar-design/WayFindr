@@ -49,12 +49,14 @@ done
 # Third pass: import a real GPX export (Super TripperDash) through "GPX içe aktar" and the system
 # file picker, then open the ride detail, the full-screen map and the share sheet.
 tap0() { xy=$(find_xy "$1"); [ -n "$xy" ] && adb shell input tap $xy; }  # no BACK retry: it would close the picker / detail
+read -r SW SH <<<"$(adb shell wm size | sed -n 's/.*: \([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -1)"
+up() { adb shell input swipe $((SW/2)) $((SH*4/5)) $((SW/2)) $((SH/4)) 300; }
 shot() { adb exec-out screencap -p > "$OUT/$i-$1.png"; i=$((i+1)); }
 GPX=app/src/test/resources/gpx/xfitness.gpx
 adb push "$GPX" /sdcard/Download/xfitness.gpx
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Download/xfitness.gpx >/dev/null || true
 tap "Sürüşler"; sleep 4
-for n in 1 2 3; do adb shell input swipe 540 1800 540 600 300; done; sleep 1
+for n in 1 2 3; do up; done; sleep 1
 tap0 "GPX içe aktar"; sleep 5; shot picker
 if ! tap0 "xfitness.gpx"; then  # picker opened on Recent: go to Downloads via the roots drawer
   tap0 "Show roots" || tap0 "Kökleri göster"; sleep 2
@@ -97,8 +99,8 @@ PY
   tap0 "Sürüşler"; sleep 5; shot seeded
 fi
 tap0 "AYRINTILARI GÖRÜNTÜLE"; sleep 5; shot detail
-adb shell input swipe 540 1800 540 700 300; sleep 2; shot detail-scrolled
-adb shell input swipe 540 700 540 1900 300; sleep 2
+up; sleep 2; shot detail-scrolled
+adb shell input swipe $((SW/2)) $((SH/4)) $((SW/2)) $((SH*4/5)) 300; sleep 2
 tap0 "Haritayı açmak için dokun"; sleep 5; shot fullmap
 adb shell input keyevent KEYCODE_BACK; sleep 2
 tap0 "Paylaş"; sleep 8; shot share-sheet

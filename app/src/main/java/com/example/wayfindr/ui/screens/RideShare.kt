@@ -191,8 +191,8 @@ private fun drawCard(
         // Wordmark: "Himalayan" in the app's display face, gold; "4 5 0" letter-spaced in the odometer red.
         centered(tm, "Himalayan", TextStyle(color = Gold, fontSize = 104.sp, fontFamily = GeistFamily,
             fontWeight = FontWeight.Bold, letterSpacing = (-3).sp), 48f)
-        centered(tm, "4 5 0", TextStyle(color = Alert, fontSize = 30.sp, fontFamily = GeistMonoFamily,
-            fontWeight = FontWeight.SemiBold, letterSpacing = 20.sp), 172f)
+        centered(tm, "4 5 0", TextStyle(color = Alert, fontSize = 38.sp, fontFamily = GeistMonoFamily,
+            fontWeight = FontWeight.Bold, letterSpacing = 22.sp), 168f)
 
         if (map != null) drawImage(map, topLeft = Offset(0f, MAP_TOP.toFloat()))
         // Fade the map edges into the card.
