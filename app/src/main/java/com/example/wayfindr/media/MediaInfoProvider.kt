@@ -9,6 +9,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.provider.Settings
 import android.util.Log
+import com.example.wayfindr.dash.nav.NavPlus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,28 +79,36 @@ class MediaInfoProvider(private val context: Context) {
 
     private fun publish() {
         val md = controller?.metadata
-        if (md == null) { _nowPlaying.value = null; return }
+        if (md == null) { setNowPlaying(null); return }
         val title = md.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty()
         val album = md.getString(MediaMetadata.METADATA_KEY_ALBUM).orEmpty()
         val artist = md.getString(MediaMetadata.METADATA_KEY_ARTIST).orEmpty()
-        if (title.isBlank() && artist.isBlank()) { _nowPlaying.value = null; return }
+        if (title.isBlank() && artist.isBlank()) { setNowPlaying(null); return }
         val art = md.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: md.getBitmap(MediaMetadata.METADATA_KEY_ART)
             ?: md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
         val playing = controller?.playbackState?.state == PlaybackState.STATE_PLAYING
-        _nowPlaying.value = NowPlaying(title, album, artist, art, playing)
+        setNowPlaying(NowPlaying(title, album, artist, art, playing))
     }
 
-    companion object {
+    /** Publish, and mirror into NavPlus so its console music card sees the same track + album art. */
+    private fun setNowPlaying(np: NowPlaying?) {
+        NavPlus.npNow = np
+        _nowPlaying.value = np
+    }
+
+    // Named INSTANCE so NavPlus (Java) can call MediaInfoProvider.INSTANCE.isAccessGranted(ctx).
+    companion object INSTANCE {
         private const val TAG = "MediaInfoProvider"
 
         /** True once the user enables Wayfindr under Settings → Notification access. */
         fun isAccessGranted(context: Context): Boolean {
-            // The standard edition has no notification listener at all (see app/build.gradle.kts).
-            if (!com.example.wayfindr.BuildConfig.MEDIA_LISTENER) return false
-            val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
-                ?: return false
-            return flat.split(":").any { it.contains(context.packageName) }
+            return try {
+                val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+                flat?.contains(context.packageName) ?: false
+            } catch (_: Throwable) {
+                false
+            }
         }
 
         /** Intent to the system screen where the user flips the grant on. */

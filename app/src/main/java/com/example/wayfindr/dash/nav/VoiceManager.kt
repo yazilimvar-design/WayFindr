@@ -49,7 +49,13 @@ class VoiceManager private constructor(context: Context) {
         tts = TextToSpeech(app) { status ->
             ttsReady = status == TextToSpeech.SUCCESS
             if (ttsReady) {
-                tts?.language = Locale.getDefault()
+                // Directions are Turkish; without an installed Turkish voice fall back to chimes
+                // rather than reading Turkish text with a foreign voice.
+                val turkish = Locale.forLanguageTag("tr-TR")
+                val languageStatus = tts?.isLanguageAvailable(turkish) ?: TextToSpeech.LANG_NOT_SUPPORTED
+                ttsReady = languageStatus >= TextToSpeech.LANG_AVAILABLE
+                if (ttsReady) tts?.language = turkish
+                else Log.w(TAG, "Turkish TTS voice is not installed; spoken directions will use chimes")
                 // Without explicit attributes the nav voice can land on the earpiece/phone speaker
                 // instead of the connected BT helmet. NAVIGATION_GUIDANCE routes to the active media
                 // output (BT A2DP / speaker) and ducks music while speaking — exactly what we want.
@@ -99,11 +105,11 @@ class VoiceManager private constructor(context: Context) {
         if (_mode.value == VoiceMode.OFF) return
 
         val full = _mode.value == VoiceMode.FULL
-        val why = "%.0f m to turn, %.0f m left".format(distanceM, remainingM)
+        val why = "Dönüşe %.0f metre, hedefe %.0f metre".format(distanceM, remainingM)
         when (announcer.onTick(maneuver, distanceM, remainingM)) {
-            TurnAnnouncer.Event.ARRIVE -> if (full) speak("You have arrived at your destination") else chime("arrive ($why)")
-            TurnAnnouncer.Event.NEAR -> if (full) speak("Now, ${turnPhrase(maneuver!!)}") else chime("near turn ($why)")
-            TurnAnnouncer.Event.FAR -> if (full) speak("In ${roundDist(distanceM)}, ${turnPhrase(maneuver!!)}") else chime("far turn ($why)")
+            TurnAnnouncer.Event.ARRIVE -> if (full) speak("Hedefinize ulaştınız.") else chime("varış ($why)")
+            TurnAnnouncer.Event.NEAR -> if (full) speak("Şimdi ${turnPhrase(maneuver!!)}.") else chime("yakın dönüş ($why)")
+            TurnAnnouncer.Event.FAR -> if (full) speak("${roundDist(distanceM)} sonra ${turnPhrase(maneuver!!)}.") else chime("dönüş ($why)")
             TurnAnnouncer.Event.NONE -> Unit
         }
     }
@@ -114,7 +120,7 @@ class VoiceManager private constructor(context: Context) {
     /** Announce a completed waypoint without ending guidance for the rest of the itinerary. */
     fun announceNextStop(name: String) {
         if (_mode.value == VoiceMode.OFF) return
-        if (_mode.value == VoiceMode.FULL) speak("Waypoint reached. Continuing to $name") else chime()
+        if (_mode.value == VoiceMode.FULL) speak("Durak geçildi. Şimdi $name yönüne devam edin.") else chime()
     }
 
     fun shutdown() {
@@ -124,23 +130,23 @@ class VoiceManager private constructor(context: Context) {
     }
 
     private fun turnPhrase(m: Maneuver): String = when (m.type) {
-        ManeuverType.TURN_LEFT    -> "turn left"
-        ManeuverType.TURN_RIGHT   -> "turn right"
-        ManeuverType.SLIGHT_LEFT  -> "keep left"
-        ManeuverType.SLIGHT_RIGHT -> "keep right"
-        ManeuverType.SHARP_LEFT   -> "sharp left"
-        ManeuverType.SHARP_RIGHT  -> "sharp right"
-        ManeuverType.UTURN        -> "make a U-turn"
-        ManeuverType.ROUNDABOUT   -> "enter the roundabout"
-        ManeuverType.ARRIVE       -> "you have arrived"
-        else                      -> "continue straight"
+        ManeuverType.TURN_LEFT    -> "sola dön"
+        ManeuverType.TURN_RIGHT   -> "sağa dön"
+        ManeuverType.SLIGHT_LEFT  -> "hafifçe sola dön"
+        ManeuverType.SLIGHT_RIGHT -> "hafifçe sağa dön"
+        ManeuverType.SHARP_LEFT   -> "keskin sola dön"
+        ManeuverType.SHARP_RIGHT  -> "keskin sağa dön"
+        ManeuverType.UTURN        -> "U dönüşü yap"
+        ManeuverType.ROUNDABOUT   -> "dönel kavşağa gir"
+        ManeuverType.ARRIVE       -> "hedefinize ulaştınız"
+        else                      -> "düz devam et"
     }
 
     private fun roundDist(m: Double): String = when {
-        m >= 1000 -> "%.1f kilometers".format(m / 1000.0)
-        m >= 500  -> "500 meters"
-        m >= 200  -> "200 meters"
-        else      -> "${(m / 50).toInt() * 50} meters"
+        m >= 1000 -> "%.1f kilometre".format(m / 1000.0)
+        m >= 500  -> "500 metre"
+        m >= 200  -> "200 metre"
+        else      -> "${(m / 50).toInt() * 50} metre"
     }
 
     companion object {

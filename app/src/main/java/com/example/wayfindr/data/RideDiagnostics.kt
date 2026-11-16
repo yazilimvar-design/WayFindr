@@ -2,6 +2,7 @@ package com.example.wayfindr.data
 
 import android.content.Context
 import android.os.Build
+import com.example.wayfindr.dash.nav.NavPlus
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -38,6 +39,7 @@ object RideDiagnostics {
     /** Open a fresh session file and rotate old ones. */
     fun start(reason: String) {
         val d = dir ?: return
+        NavPlus.exportLogs(d)
         synchronized(lock) {
             sessionStartMs = System.currentTimeMillis()
             val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
@@ -62,6 +64,7 @@ object RideDiagnostics {
             raw("==== session end: $reason ====")
             file = null
         }
+        NavPlus.exportLogs(dir)
     }
 
     private fun raw(line: String) {

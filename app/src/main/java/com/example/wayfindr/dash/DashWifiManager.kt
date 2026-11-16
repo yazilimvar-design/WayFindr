@@ -43,7 +43,8 @@ class DashWifiManager(
     companion object {
         private const val TAG              = "DashWifiManager"
         private const val CONNECT_TIMEOUT  = 30_000  // ms — Android shows system dialog within this
-        private const val RECONNECT_DELAY  = 4_000L
+        private const val RECONNECT_DELAY  = 2_000L
+        private const val RECONNECT_TIMEOUT = 10_000 // ms — a mid-ride re-request fails fast and retries
         // Android returns this sentinel from WifiInfo.getSsid() when it can't read the SSID.
         private const val WifiManagerUnknownSsid = "<unknown ssid>"
     }
@@ -77,8 +78,8 @@ class DashWifiManager(
     // True once we've successfully connected this session. Lets us tell a MID-RIDE drop (keep
     // retrying — the dash AP may have hung and will return after a power-cycle) apart from a failed
     // INITIAL connect / user-declined dialog (give up, don't spam).
-    private var everConnected = false
-    private var wantConnected = false
+    @Volatile private var everConnected = false
+    @Volatile private var wantConnected = false
     private var pendingSsid = ""
     private var pendingPassword = ""
     private var pendingPrefix = false
@@ -155,6 +156,8 @@ class DashWifiManager(
 
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
+                // Ignore callbacks from a request we've already replaced or abandoned.
+                if (networkCallback !== this || !wantConnected) return
                 this@DashWifiManager.network = network
                 everConnected = true
                 reconnectJob?.cancel()
@@ -170,6 +173,7 @@ class DashWifiManager(
                 // Canonical place to read the connected SSID — REQUIRED for auth, since the
                 // dash validates the SSID inside the encrypted handshake (DashAuth). Without
                 // the real SSID (prefix-discovery), every auth is rejected.
+                if (networkCallback !== this || !wantConnected) return
                 val info = caps.transportInfo as? WifiInfo ?: return
                 val ssid = info.ssid.orEmpty().trim('"')
                 if (ssid.isBlank() || ssid == WifiManagerUnknownSsid) return
@@ -182,6 +186,7 @@ class DashWifiManager(
             }
 
             override fun onUnavailable() {
+                if (networkCallback !== this || !wantConnected) return
                 this@DashWifiManager.network = null
                 // Mid-ride drop where the dash AP went missing (we HAD connected): keep retrying so a
                 // dash that's hung — and revived by a bike power-cycle — auto-rejoins with no manual
@@ -191,7 +196,7 @@ class DashWifiManager(
                     _state.value = WifiState(
                         status = WifiConnStatus.REQUESTING,
                         ssid   = pendingSsid,
-                        error  = "Dash WiFi lost — reconnecting…",
+                        error  = "Gösterge Wi‑Fi bağlantısı kesildi; yeniden bağlanılıyor…",
                     )
                     scheduleReconnect()
                     return
@@ -201,18 +206,20 @@ class DashWifiManager(
                 _state.value = WifiState(
                     status = WifiConnStatus.ERROR,
                     ssid   = pendingSsid,
-                    error  = "Could not connect to '$pendingSsid' — network not found or wrong password",
+                    error  = "“$pendingSsid” ağına bağlanılamadı. Ağı ve parolayı kontrol edin.",
                 )
                 wantConnected = false
             }
 
             override fun onLost(network: Network) {
+                // Only react to losing the dash network we're actually using.
+                if (networkCallback !== this || !wantConnected || this@DashWifiManager.network != network) return
                 Log.w(TAG, "WiFi link lost — reconnecting in ${RECONNECT_DELAY}ms")
                 this@DashWifiManager.network = null
                 _state.value = WifiState(
                     status = WifiConnStatus.REQUESTING,
                     ssid   = pendingSsid,
-                    error  = "Link lost — reconnecting…",
+                    error  = "Bağlantı kesildi; gösterge ağı yeniden aranıyor…",
                 )
                 if (wantConnected) scheduleReconnect()
             }
@@ -220,14 +227,24 @@ class DashWifiManager(
 
         networkCallback = cb
         try {
-            cm.requestNetwork(request, cb, CONNECT_TIMEOUT)
+            cm.requestNetwork(request, cb, if (everConnected) RECONNECT_TIMEOUT else CONNECT_TIMEOUT)
         } catch (e: Exception) {
             Log.e(TAG, "requestNetwork threw: ${e.message}", e)
-            _state.value = WifiState(
-                status = WifiConnStatus.ERROR,
-                ssid   = pendingSsid,
-                error  = "${e.javaClass.simpleName}: ${e.message}",
-            )
+            if (everConnected && wantConnected) {
+                // Mid-ride: keep trying rather than surfacing a dead-end error.
+                _state.value = WifiState(
+                    status = WifiConnStatus.REQUESTING,
+                    ssid   = pendingSsid,
+                    error  = "Gösterge bağlantısı yeniden deneniyor…",
+                )
+                scheduleReconnect()
+            } else {
+                _state.value = WifiState(
+                    status = WifiConnStatus.ERROR,
+                    ssid   = pendingSsid,
+                    error  = "Wi‑Fi bağlantı isteği başlatılamadı. Lütfen yeniden deneyin.",
+                )
+            }
         }
     }
 

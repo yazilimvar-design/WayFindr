@@ -37,6 +37,7 @@ class DashKeepAliveService : Service() {
         private const val NOTIF_ID     = 4701
         const val ACTION_START = "com.example.wayfindr.DASH_START"
         const val ACTION_STOP  = "com.example.wayfindr.DASH_STOP"
+        const val ACTION_PAUSE_FOR_RECONNECT = "com.example.wayfindr.DASH_PAUSE_RECONNECT"
 
         fun start(context: Context) {
             val i = Intent(context, DashKeepAliveService::class.java).setAction(ACTION_START)
@@ -51,6 +52,16 @@ class DashKeepAliveService : Service() {
             runCatching { context.startService(i.setAction(ACTION_STOP)) }
                 .onFailure { context.stopService(Intent(context, DashKeepAliveService::class.java)) }
         }
+
+        /**
+         * Dash went away: keep the service (and its notification) alive so auto-reconnect
+         * can run, but drop the GPS/CPU/Wi‑Fi locks until the dash is back.
+         */
+        fun pauseForReconnect(context: Context) {
+            val i = Intent(context, DashKeepAliveService::class.java).setAction(ACTION_PAUSE_FOR_RECONNECT)
+            runCatching { context.startForegroundService(i) }
+                .onFailure { Log.w(TAG, "Could not pause foreground locks for reconnect", it) }
+        }
     }
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -61,6 +72,11 @@ class DashKeepAliveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_STOP -> { stopSelf(); return START_NOT_STICKY }
+            ACTION_PAUSE_FOR_RECONNECT -> {
+                releaseLocks()
+                Log.i(TAG, "Dash unavailable — keeping service alive without GPS/CPU/Wi‑Fi locks")
+                return START_STICKY
+            }
             else        -> startForegroundLocks()
         }
         // START_STICKY: if the OS kills us under memory pressure, restart so the
@@ -156,8 +172,8 @@ class DashKeepAliveService : Service() {
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID, "Dash streaming", NotificationManager.IMPORTANCE_LOW
-                ).apply { description = "Keeps the map streaming to the Console Dash" }
+                    CHANNEL_ID, "Konsol bağlantısı", NotificationManager.IMPORTANCE_LOW
+                ).apply { description = "Harita aktarımını ve otomatik yeniden bağlanmayı sürdürür." }
             )
         }
     }
@@ -175,8 +191,8 @@ class DashKeepAliveService : Service() {
             @Suppress("DEPRECATION") Notification.Builder(this)
 
         return builder
-            .setContentTitle("WayfindR — streaming to dash")
-            .setContentText("Map is live on the Console. Screen can stay off.")
+            .setContentTitle("Himalayan450")
+            .setContentText("Konsol bağlantısı ve otomatik yeniden bağlanma etkin.")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setContentIntent(open)
