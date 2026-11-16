@@ -32,17 +32,17 @@ fun RouteQrDialog(loc: SavedLocation, onDismiss: () -> Unit) {
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Surf1).padding(16.dp),
         ) {
             if (bmp == null) {
-                Text("This route has too many stops to fit in a QR code.", color = TextMid, fontSize = 14.sp,
+                Text("Bu rotada QR koda sığmayacak kadar çok durak var.", color = TextMid, fontSize = 14.sp,
                     fontFamily = GeistFamily, modifier = Modifier.padding(vertical = 24.dp))
             } else {
                 Image(
-                    bmp.asImageBitmap(), contentDescription = "QR code for ${loc.name}",
+                    bmp.asImageBitmap(), contentDescription = "${loc.name} için QR kodu",
                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)),
                 )
-                Text("Scan with the phone camera to open in Wayfindr", color = TextLo, fontSize = 12.sp,
+                Text("Wayfindr'da açmak için telefonunuzun kamerasıyla tarayın", color = TextLo, fontSize = 12.sp,
                     fontFamily = GeistFamily, modifier = Modifier.padding(top = 10.dp, bottom = 14.dp))
                 WayfindrBtn(
-                    label = "Share image",
+                    label = "Görseli paylaş",
                     onClick = { RouteQr.shareImage(ctx, bmp, loc.name) },
                     icon = WayfindrIcons.Share,
                     variant = BtnVariant.Primary,
@@ -51,10 +51,10 @@ fun RouteQrDialog(loc: SavedLocation, onDismiss: () -> Unit) {
                 )
                 Spacer(Modifier.height(8.dp))
                 WayfindrBtn(
-                    label = "Save to gallery",
+                    label = "Galeriye kaydet",
                     onClick = {
                         val ok = RouteQr.saveToGallery(ctx, bmp, loc.name)
-                        Toast.makeText(ctx, if (ok) "Saved to Pictures/Wayfindr" else "Couldn't save the image",
+                        Toast.makeText(ctx, if (ok) "Pictures/Wayfindr klasörüne kaydedildi" else "Görsel kaydedilemedi",
                             Toast.LENGTH_SHORT).show()
                     },
                     icon = WayfindrIcons.Download,
@@ -65,7 +65,7 @@ fun RouteQrDialog(loc: SavedLocation, onDismiss: () -> Unit) {
             }
             Spacer(Modifier.height(4.dp))
             WayfindrBtn(
-                label = "Close",
+                label = "Kapat",
                 onClick = onDismiss,
                 variant = BtnVariant.Ghost,
                 size = BtnSize.Md,

@@ -2,24 +2,28 @@ package com.example.wayfindr.viewmodel
 
 import android.annotation.SuppressLint
 import android.app.Application
-import android.content.Context
 import android.location.Geocoder
-import android.location.LocationManager
+import android.location.Location
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wayfindr.data.SharedLocation
 import com.example.wayfindr.dash.map.LocationTracker
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.Route
 import com.example.wayfindr.dash.nav.Router
 import com.example.wayfindr.util.Dbg
 import com.example.wayfindr.util.LocationParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -35,6 +39,9 @@ data class RouteState(
     val pendingNavigate: Boolean = false,
     // Real routing results
     val route: Route? = null,
+    /** Every route the router offered; [route] is the one at [selectedRouteIndex]. */
+    val routeAlternatives: List<Route> = emptyList(),
+    val selectedRouteIndex: Int = 0,
     val routing: Boolean = false,
     val distanceText: String? = null,   // "218 km"
     val durationText: String? = null,   // "4h 50m"
@@ -52,8 +59,10 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(RouteState())
     val state = _state.asStateFlow()
 
-    private val lm = app.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     private val locationTracker = LocationTracker(app)
+    /** Bumped for every route request; a finished request that is no longer the latest is dropped. */
+    private var routeRequestGeneration = 0L
+    private var routeRequestJob: Job? = null
     private val repo = com.example.wayfindr.data.SyncRepository.get(app)
 
     private val _saved = MutableStateFlow<List<com.example.wayfindr.data.SavedLocation>>(emptyList())
@@ -200,8 +209,8 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     // Keep the name on screen but no stop without coordinates.
                     _state.value = _state.value.copy(destination = resolved, waypoints = emptyList(), isResolving = false,
-                        searchNote = "Couldn't open the Google Maps link (no internet?). " +
-                            "Search a saved place or tap the map.")
+                        searchNote = "Google Haritalar bağlantısı açılamadı (internet yok olabilir). " +
+                            "Kayıtlı bir yer arayın veya haritaya dokunun.")
                     Log.w(TAG, "No coords for '$name' (url+geocode+saved all empty)")
                 }
             }
@@ -245,30 +254,63 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     private fun computeRoute(stops: List<SharedLocation>) {
         val validStops = stops.filter { it.lat != null && it.lng != null }
         val destination = validStops.lastOrNull() ?: return
-        val origin = runCatching {
-            lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-        }.getOrNull() ?: return
+        locationTracker.start()
+        val requestId = ++routeRequestGeneration
+        routeRequestJob?.cancel()
+        val waypoints = validStops.dropLast(1).map { GeoPoint(it.lat!!, it.lng!!) }
 
         _state.value = _state.value.copy(
-            currentLocation = origin.latitude to origin.longitude,
-            routing = true,
+            route = null, routeAlternatives = emptyList(), selectedRouteIndex = 0, routing = true,
+            distanceText = null, durationText = null, etaText = null, searchNote = null,
         )
-        viewModelScope.launch {
-            val r = Router.route(
+        routeRequestJob = viewModelScope.launch {
+            // A fresh, precise fix first; else wait briefly for one; else a recent rough fix.
+            val origin = locationTracker.lastKnown()?.takeIf { isPreciseRouteOrigin(it) }
+                ?: withTimeoutOrNull(2_500L) {
+                    locationTracker.location.filterNotNull().first { isPreciseRouteOrigin(it) }
+                }
+                ?: locationTracker.lastKnownAny()?.takeIf { isFallbackRouteOrigin(it) }
+            if (requestId != routeRequestGeneration) return@launch
+            if (origin == null) {
+                _state.value = _state.value.copy(routing = false,
+                    searchNote = "Güncel GPS konumu alınamadı; açık gökyüzünde tekrar deneyin.")
+                return@launch
+            }
+            _state.value = _state.value.copy(
+                currentLocation = origin.latitude to origin.longitude,
+                routing = true,
+            )
+            val routes = Router.alternatives(
+                getApplication(),
                 GeoPoint(origin.latitude, origin.longitude),
                 GeoPoint(destination.lat!!, destination.lng!!),
-                validStops.dropLast(1).map { GeoPoint(it.lat!!, it.lng!!) },
+                waypoints,
             )
+            if (requestId != routeRequestGeneration) return@launch
+            val r = routes.firstOrNull()
             _state.value = if (r != null) _state.value.copy(
                 route = r,
+                routeAlternatives = routes,
+                selectedRouteIndex = 0,
                 routing = false,
                 distanceText = fmtKm(r.totalMeters),
                 durationText = fmtDuration(r.totalSeconds),
                 etaText = fmtEta(r.totalSeconds),
-            ) else _state.value.copy(routing = false)
+                searchNote = null,
+            ) else _state.value.copy(
+                route = null, routeAlternatives = emptyList(), selectedRouteIndex = 0, routing = false,
+                searchNote = "Rota bulunamadı. İnternet bağlantınızı ve varış noktasını kontrol edin.",
+            )
+            if (requestId == routeRequestGeneration) routeRequestJob = null
         }
     }
+
+    private fun isPreciseRouteOrigin(location: Location): Boolean =
+        LocationTracker.isFreshForNavigation(location) &&
+            location.hasAccuracy() && location.accuracy <= 60f
+
+    /** v34: the looser fallback check lives in [NavPlus.fallbackOrigin] (≤ 90 s old, ≤ 150 m). */
+    private fun isFallbackRouteOrigin(location: Location): Boolean = NavPlus.fallbackOrigin(location)
 
     /** Route the current stops again, e.g. after the rider switches the routing source. */
     fun recomputeRoute() {
@@ -276,8 +318,26 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
         if (stops.isNotEmpty()) computeRoute(stops)
     }
 
+    /** Switch to another of the offered route alternatives. */
+    fun selectRoute(index: Int) {
+        val current = _state.value
+        val selected = current.routeAlternatives.getOrNull(index) ?: return
+        _state.value = current.copy(
+            route = selected,
+            selectedRouteIndex = index,
+            distanceText = fmtKm(selected.totalMeters),
+            durationText = fmtDuration(selected.totalSeconds),
+            etaText = fmtEta(selected.totalSeconds),
+        )
+    }
+
     fun onNavigated() { _state.value = _state.value.copy(pendingNavigate = false) }
-    fun clear() { _state.value = freshState(RouteState()) }
+    fun clear() {
+        routeRequestGeneration++
+        routeRequestJob?.cancel()
+        routeRequestJob = null
+        _state.value = freshState(RouteState())
+    }
 
     /**
      * A reset screen state that keeps the rider's position. Dropping it left the map with nothing
@@ -288,7 +348,7 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     private fun freshState(next: RouteState): RouteState {
         val old = _state.value
         val here = old.currentLocation
-            ?: locationTracker.lastKnown()?.let { it.latitude to it.longitude }
+            ?: locationTracker.lastKnownForDisplay()?.let { it.latitude to it.longitude }
         return next.copy(currentLocation = here, currentBearing = old.currentBearing,
             locationRefreshKey = old.locationRefreshKey)
     }
@@ -306,6 +366,8 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
             waypoints = emptyList(),
             pendingNavigate = false,
             route = null,
+            routeAlternatives = emptyList(),
+            selectedRouteIndex = 0,
             routing = false,
             distanceText = null,
             durationText = null,
@@ -330,6 +392,11 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
                         (com.example.wayfindr.dash.nav.PlaceSearch.lastError ?: "no match"))
             }
         }
+    }
+
+    /** The rider picked one of the place suggestions shown under the search box. */
+    fun selectPlaceSuggestion(hit: com.example.wayfindr.dash.nav.PlaceSearch.Hit) {
+        addWaypoint(SharedLocation(name = hit.name, lat = hit.lat, lng = hit.lng))
     }
 
     /** Handle a manual map pin / click. */
@@ -377,7 +444,7 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
         }
         _state.value = _state.value.copy(
             destination = location, waypoints = stops, isResolving = resolving,
-            pendingNavigate = false, route = null,
+            pendingNavigate = false, route = null, searchNote = null,
         )
         if (!resolving) computeRoute(stops)
     }
