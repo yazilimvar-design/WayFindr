@@ -25,21 +25,16 @@ import android.os.SystemClock;
 import android.text.TextPaint;
 import android.text.TextUtils;
 import android.view.KeyEvent;
-import androidx.autofill.HintConstants;
-import androidx.compose.material3.ProgressIndicatorKt;
 import androidx.core.content.FileProvider;
-import androidx.savedstate.serialization.ClassDiscriminatorModeKt;
 import btools.routingapp.IBRouterService;
 import com.example.wayfindr.dash.RoutingSource;
 import com.example.wayfindr.dash.map.LocPlus;
 import com.example.wayfindr.dash.map.LocationTracker;
 import com.example.wayfindr.dash.map.MapRenderer;
 import com.example.wayfindr.dash.nav.PlaceSearch;
-import com.example.wayfindr.dash.video.DashEncoder;
 import com.example.wayfindr.data.RideDiagnostics;
 import com.example.wayfindr.media.MediaInfoProvider;
 import com.example.wayfindr.media.NowPlaying;
-import com.example.wayfindr.util.IdleSleep;
 import com.example.wayfindr.util.InternetNetwork;
 import com.example.wayfindr.viewmodel.DashViewModel;
 import java.io.BufferedReader;
@@ -69,14 +64,11 @@ import java.util.Locale;
 import java.util.zip.GZIPInputStream;
 import kotlin.Pair;
 import kotlin.TuplesKt;
-import kotlin.UByte;
 import kotlin.io.ByteStreamsKt;
-import kotlin.jvm.internal.ByteCompanionObject;
-import kotlinx.coroutines.DebugKt;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/* loaded from: classes2.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class NavPlus {
     public static volatile List ALT_MARK = null;
     public static volatile double[] altArr = null;
@@ -355,7 +347,7 @@ public final class NavPlus {
     }
 
     public static List aheadGeometry(Route route, double d, Double d2, Double d3) {
-        List<GeoPoint> geometry = route.getGeometry();
+        List geometry = route.getGeometry();
         if (geometry != null) {
             try {
                 double cutPos = cutPos(route, d, d2, d3);
@@ -369,9 +361,9 @@ public final class NavPlus {
                         arrayList.add(geometry.get(i2));
                         return arrayList;
                     }
-                    GeoPoint geoPoint = geometry.get(i);
+                    GeoPoint geoPoint = (GeoPoint) geometry.get(i);
                     int i3 = i + 1;
-                    GeoPoint geoPoint2 = geometry.get(i3);
+                    GeoPoint geoPoint2 = (GeoPoint) geometry.get(i3);
                     double lat = geoPoint.getLat();
                     double lat2 = lat + ((geoPoint2.getLat() - lat) * d4);
                     double lng = geoPoint.getLng();
@@ -475,11 +467,11 @@ public final class NavPlus {
     }
 
     public static Route asBRouter(Route route) {
-        return Route.copy$default(route, null, null, 0.0d, 0.0d, null, null, null, RoutingSource.BROUTER, 127, null);
+        return Route.copy$default(route, (List) null, (List) null, 0.0d, 0.0d, (double[]) null, (List) null, (List) null, RoutingSource.BROUTER, 127, (Object) null);
     }
 
     public static Route asGoogle(Route route) {
-        return Route.copy$default(route, null, null, 0.0d, 0.0d, null, null, null, RoutingSource.GOOGLE, 127, null);
+        return Route.copy$default(route, (List) null, (List) null, 0.0d, 0.0d, (double[]) null, (List) null, (List) null, RoutingSource.GOOGLE, 127, (Object) null);
     }
 
     public static String avgKmh(Object obj) {
@@ -544,7 +536,7 @@ public final class NavPlus {
             return -1.0d;
         }
         try {
-            List<GeoPoint> geometry = route.getGeometry();
+            List geometry = route.getGeometry();
             double[] cumulative = route.getCumulative();
             if (geometry == null || cumulative == null || (size = geometry.size()) < 2 || cumulative.length != size) {
                 return -1.0d;
@@ -571,8 +563,8 @@ public final class NavPlus {
                         if (cumulative[i2] > d8) {
                             break;
                         }
-                        GeoPoint geoPoint = geometry.get(i2);
-                        GeoPoint geoPoint2 = geometry.get(i3);
+                        GeoPoint geoPoint = (GeoPoint) geometry.get(i2);
+                        GeoPoint geoPoint2 = (GeoPoint) geometry.get(i3);
                         double lng = (geoPoint.getLng() - doubleValue2) * cos;
                         double lat = (geoPoint.getLat() - doubleValue) * 110540.0d;
                         double lng2 = ((geoPoint2.getLng() - doubleValue2) * cos) - lng;
@@ -635,7 +627,7 @@ public final class NavPlus {
             if (!wxBusy && (elapsedRealtime >= wxNextAt || (wxAt != 0 && LocPlus.stDist(d, d2, wxCLat, wxCLng) >= 20000.0d && elapsedRealtime - wxStartAt >= 60000))) {
                 wxStartAt = elapsedRealtime;
                 wxBusy = true;
-                wxNextAt = IdleSleep.IDLE_MS + elapsedRealtime;
+                wxNextAt = 600000 + elapsedRealtime;
                 Thread thread = new Thread(new RdFetch(d, d2, 2), "Weather");
                 thread.setDaemon(true);
                 thread.start();
@@ -700,11 +692,11 @@ public final class NavPlus {
             return false;
         }
         try {
-            Long fixAgeMs = LocationTracker.INSTANCE.fixAgeMs(location, SystemClock.elapsedRealtimeNanos(), System.currentTimeMillis());
-            if (fixAgeMs == null) {
+            Long access$fixAgeMs = LocationTracker.Companion.access$fixAgeMs(LocationTracker.Companion, location, SystemClock.elapsedRealtimeNanos(), System.currentTimeMillis());
+            if (access$fixAgeMs == null) {
                 return false;
             }
-            long longValue = fixAgeMs.longValue();
+            long longValue = access$fixAgeMs.longValue();
             if (longValue < 0 || longValue > 90000) {
                 return false;
             }
@@ -760,7 +752,7 @@ public final class NavPlus {
             Context context = GPlus.ctx;
             if (context != null) {
                 HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, "https://overpass-api.de/api/interpreter?data=".concat(URLEncoder.encode("[out:json][timeout:8];way(around:15," + d + "," + d2 + ")[\"highway\"][\"maxspeed\"];out tags 6;", "UTF-8")));
-                openConnection.setConnectTimeout(ProgressIndicatorKt.CircularAnimationProgressDuration);
+                openConnection.setConnectTimeout(6000);
                 openConnection.setReadTimeout(9000);
                 openConnection.setRequestProperty("User-Agent", "Wayfindr-SpeedLimit/1.0");
                 if (openConnection.getResponseCode() != 200) {
@@ -817,7 +809,7 @@ public final class NavPlus {
                         for (int i2 = 0; i2 < length2; i2++) {
                             JSONObject optJSONObject = optJSONArray.optJSONObject(i2);
                             if (optJSONObject != null) {
-                                if ("count".equals(optJSONObject.optString(ClassDiscriminatorModeKt.CLASS_DISCRIMINATOR_KEY))) {
+                                if ("count".equals(optJSONObject.optString("type"))) {
                                     i++;
                                 } else {
                                     Long valueOf = Long.valueOf(optJSONObject.optLong("id"));
@@ -991,7 +983,7 @@ public final class NavPlus {
                             if (optString.length() > 0) {
                                 str = optString;
                             } else {
-                                String optString2 = optJSONObject2.optString(HintConstants.AUTOFILL_HINT_NAME);
+                                String optString2 = optJSONObject2.optString("name");
                                 if (optString2.length() > 0) {
                                     str = optString2;
                                 }
@@ -1065,7 +1057,7 @@ public final class NavPlus {
                 return null;
             }
             HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, str);
-            openConnection.setConnectTimeout(ProgressIndicatorKt.CircularAnimationProgressDuration);
+            openConnection.setConnectTimeout(6000);
             openConnection.setReadTimeout(12000);
             openConnection.setRequestProperty("User-Agent", "Wayfindr-Weather/1.0");
             if (openConnection.getResponseCode() != 200) {
@@ -1143,6 +1135,7 @@ public final class NavPlus {
     }
 
     public static String jmAct(DashViewModel dashViewModel, int i) {
+        boolean z;
         try {
             if (i == 0) {
                 jmKey(85);
@@ -1165,7 +1158,8 @@ public final class NavPlus {
                 return "Uzaklaştırıldı";
             }
             if (i == 5) {
-                dashViewModel.setMapDark(!dashViewModel.mapDark);
+                z = dashViewModel.mapDark;
+                dashViewModel.setMapDark(!z);
                 return "Koyu harita değişti";
             }
             if (fuBest < 0.0f) {
@@ -1217,13 +1211,15 @@ public final class NavPlus {
     }
 
     public static List jmRows(DashViewModel dashViewModel) {
+        boolean z;
         ArrayList arrayList = new ArrayList();
         jmRow(arrayList, "♫  Oynat / Duraklat");
         jmRow(arrayList, "⏭  Sonraki parça");
         jmRow(arrayList, "⏮  Önceki parça");
         jmRow(arrayList, "＋  Yakınlaştır");
         jmRow(arrayList, "－  Uzaklaştır");
-        jmRow(arrayList, dashViewModel.mapDark ? "◐  Koyu harita: AÇIK" : "◐  Koyu harita: KAPALI");
+        z = dashViewModel.mapDark;
+        jmRow(arrayList, z ? "◐  Koyu harita: AÇIK" : "◐  Koyu harita: KAPALI");
         jmRow(arrayList, jmFuel());
         return arrayList;
     }
@@ -1364,7 +1360,7 @@ public final class NavPlus {
 
     public static boolean mbIsOn(Context context) {
         try {
-            return context.getSharedPreferences("offlinemap", 0).getBoolean(DebugKt.DEBUG_PROPERTY_VALUE_ON, true);
+            return context.getSharedPreferences("offlinemap", 0).getBoolean("on", true);
         } catch (Throwable unused) {
             return true;
         }
@@ -1622,7 +1618,7 @@ public final class NavPlus {
 
     public static void mbToggle(Context context) {
         try {
-            context.getSharedPreferences("offlinemap", 0).edit().putBoolean(DebugKt.DEBUG_PROPERTY_VALUE_ON, !mbIsOn(context)).commit();
+            context.getSharedPreferences("offlinemap", 0).edit().putBoolean("on", !mbIsOn(context)).commit();
             mbReload();
         } catch (Throwable unused) {
         }
@@ -1784,7 +1780,7 @@ public final class NavPlus {
                 return null;
             }
             HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, "https://overpass-api.de/api/interpreter?data=".concat(URLEncoder.encode(str, "UTF-8")));
-            openConnection.setConnectTimeout(ProgressIndicatorKt.CircularAnimationProgressDuration);
+            openConnection.setConnectTimeout(6000);
             openConnection.setReadTimeout(12000);
             openConnection.setRequestProperty("User-Agent", "Wayfindr-Radar/1.0");
             if (openConnection.getResponseCode() != 200) {
@@ -1805,18 +1801,18 @@ public final class NavPlus {
         int i = 0;
         int i2 = 0;
         try {
-            List<GeoPoint> geometry = route.getGeometry();
+            List geometry = route.getGeometry();
             int size = geometry.size();
             if (size < 2) {
                 return 0.0d;
             }
-            List<GeoPoint> geometry2 = route2.getGeometry();
+            List geometry2 = route2.getGeometry();
             double[] cumulative = route2.getCumulative();
             int size2 = geometry2.size();
             if (size2 < 2 || cumulative.length != size2) {
                 return 0.0d;
             }
-            GeoPoint geoPoint = geometry.get(0);
+            GeoPoint geoPoint = (GeoPoint) geometry.get(0);
             double lat = geoPoint.getLat();
             double lng = geoPoint.getLng();
             double cos = Math.cos(0.017453292519943295d * lat) * 111195.07973436d;
@@ -1851,7 +1847,7 @@ public final class NavPlus {
                 if (i10 >= i7) {
                     break;
                 }
-                GeoPoint geoPoint2 = geometry2.get(i3 + i10);
+                GeoPoint geoPoint2 = (GeoPoint) geometry2.get(i3 + i10);
                 dArr[i10] = (geoPoint2.getLng() - lng) * cos;
                 dArr2[i10] = (geoPoint2.getLat() - lat) * 111195.07973436d;
                 i9++;
@@ -1867,7 +1863,7 @@ public final class NavPlus {
                 if (i13 >= size) {
                     break;
                 }
-                GeoPoint geoPoint3 = geometry.get(i13);
+                GeoPoint geoPoint3 = (GeoPoint) geometry.get(i13);
                 double lng2 = (geoPoint3.getLng() - lng) * cos;
                 double lat2 = (geoPoint3.getLat() - lat) * 111195.07973436d;
                 double d8 = lng2 - d4;
@@ -1994,7 +1990,7 @@ public final class NavPlus {
 
     public static String phAccess(Context context) {
         try {
-            return MediaInfoProvider.INSTANCE.isAccessGranted(context) ? "Bildirim erişimi: açık. Şerit çıkmıyorsa müziği başlat ve konsola bir kez yeniden bağlan." : "Bildirim erişimi: kapalı. Müzik şeridi ve albüm kapağı için açman gerekir.";
+            return MediaInfoProvider.Companion.isAccessGranted(context) ? "Bildirim erişimi: açık. Şerit çıkmıyorsa müziği başlat ve konsola bir kez yeniden bağlan." : "Bildirim erişimi: kapalı. Müzik şeridi ve albüm kapağı için açman gerekir.";
         } catch (Throwable unused) {
             return "Bildirim erişimi: bilinmiyor";
         }
@@ -2035,7 +2031,7 @@ public final class NavPlus {
         }
         try {
             phLoad();
-            List<GeoPoint> route = frame.getRoute();
+            List route = frame.getRoute();
             if ((route != null && !route.isEmpty()) || frame.getPickerRows() != null) {
                 return false;
             }
@@ -2238,9 +2234,8 @@ public final class NavPlus {
     public static Bitmap phPreview(int i) {
         try {
             phLoad();
-            Bitmap.Config config = Bitmap.Config.ARGB_8888;
-            int i2 = (i * 300) / DashEncoder.WIDTH;
-            Bitmap createBitmap = Bitmap.createBitmap(i, i2, config);
+            int i2 = (i * 300) / 526;
+            Bitmap createBitmap = Bitmap.createBitmap(i, i2, Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(createBitmap);
             Path path = new Path();
             float f = i * 0.5f;
@@ -2356,6 +2351,13 @@ public final class NavPlus {
         phPan(0.0f, 0.0f);
     }
 
+    /* JADX WARN: Code restructure failed: missing block: B:14:0x0029, code lost:
+    
+        r7 = r30.route;
+     */
+    /*
+        Code decompiled incorrectly, please refer to instructions dump.
+    */
     public static Route pickPlanned(Object obj, DashViewModel dashViewModel, int i) {
         Object obj2;
         Route route;
@@ -2376,7 +2378,7 @@ public final class NavPlus {
                 return null;
             }
             Route route2 = (Route) list.get(0);
-            if (dashViewModel == null || (route = dashViewModel.route) == null) {
+            if (dashViewModel == null || route == null) {
                 return route2;
             }
             double nav10Progress = DashViewModel.nav10Progress(dashViewModel);
@@ -2638,11 +2640,11 @@ public final class NavPlus {
         if (str != null && vxIn(str, "|place|places|place_labels|place_label|") && i2 > 0) {
             vx.keys = arrayList;
             vx.vals = arrayList2;
-            int indexOf = arrayList.indexOf(HintConstants.AUTOFILL_HINT_NAME);
+            int indexOf = arrayList.indexOf("name");
             if (indexOf >= 0) {
                 int indexOf2 = arrayList.indexOf("class");
                 if (indexOf2 < 0 && (indexOf2 = arrayList.indexOf("kind")) < 0) {
-                    indexOf2 = arrayList.indexOf(ClassDiscriminatorModeKt.CLASS_DISCRIMINATOR_KEY);
+                    indexOf2 = arrayList.indexOf("type");
                 }
                 vxSet(vx, vxPos);
                 while (vxPos(vx) < i) {
@@ -2964,7 +2966,7 @@ public final class NavPlus {
         canvas.drawRoundRect(rectF, 40.0f, 40.0f, paint);
         String str = (String) ((Object[]) obj)[4];
         if (str != null) {
-            List<GeoPoint> decode = PolylineCodec.INSTANCE.decode(str, 5);
+            List decode = PolylineCodec.INSTANCE.decode(str, 5);
             canvas.save();
             canvas.translate(70.0f, 230.0f);
             trackDraw(canvas, decode, 960.0f, 700.0f, 12.0f, -3562166);
@@ -3343,7 +3345,7 @@ public final class NavPlus {
     public static void rsAdd(float f) {
         ByteArrayOutputStream byteArrayOutputStream = rsBuf;
         if (byteArrayOutputStream != null) {
-            byteArrayOutputStream.write(Math.min(Math.max(Math.round(f * 3.6f), 0), ProgressIndicatorKt.FirstLineTailDelay));
+            byteArrayOutputStream.write(Math.min(Math.max(Math.round(f * 3.6f), 0), 250));
         }
     }
 
@@ -3499,7 +3501,7 @@ public final class NavPlus {
             return;
         }
         try {
-            List<GeoPoint> list = ALT_MARK;
+            List list = ALT_MARK;
             if (list == null || router$googleRoute$2.$intermediates != list || (optJSONArray = new JSONObject(str).optJSONArray("routes")) == null) {
                 return;
             }
@@ -3571,7 +3573,7 @@ public final class NavPlus {
                     paint.setColor(i);
                     for (int i2 = 1; i2 < size; i2++) {
                         if (rsLoad != null) {
-                            paint.setColor(spColor(Math.max(rsLoad[i2 - 1] & UByte.MAX_VALUE, rsLoad[i2] & UByte.MAX_VALUE)));
+                            paint.setColor(spColor(Math.max(rsLoad[i2 - 1] & 255, rsLoad[i2] & 255)));
                         }
                         int i3 = (i2 - 1) * 2;
                         float f4 = trackXY[i3];
@@ -3810,7 +3812,7 @@ public final class NavPlus {
             vx.vals = arrayList2;
             int indexOf = arrayList.indexOf("class");
             if (indexOf < 0 && (indexOf = arrayList.indexOf("kind")) < 0) {
-                indexOf = arrayList.indexOf(ClassDiscriminatorModeKt.CLASS_DISCRIMINATOR_KEY);
+                indexOf = arrayList.indexOf("type");
             }
             vx.ck = indexOf;
             vx.k = 256.0f / i2;
@@ -4021,8 +4023,8 @@ public final class NavPlus {
         while (true) {
             byte b = bArr[i];
             i++;
-            i2 |= (b & ByteCompanionObject.MAX_VALUE) << i3;
-            if ((b & ByteCompanionObject.MIN_VALUE) == 0) {
+            i2 |= (b & Byte.MAX_VALUE) << i3;
+            if ((b & 128) == 0) {
                 iArr[0] = i;
                 return i2;
             }

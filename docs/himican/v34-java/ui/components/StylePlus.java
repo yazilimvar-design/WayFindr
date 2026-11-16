@@ -4,7 +4,7 @@ import com.example.wayfindr.dash.MapTheme;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/* loaded from: classes2.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class StylePlus {
     public static void enhance(JSONArray jSONArray, MapTheme mapTheme) {
         JSONObject optJSONObject;

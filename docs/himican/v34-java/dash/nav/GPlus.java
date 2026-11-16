@@ -1,14 +1,11 @@
 package com.example.wayfindr.dash.nav;
 
 import android.content.Context;
-import androidx.compose.runtime.ComposerKt;
-import androidx.core.app.NotificationCompat;
 import com.example.wayfindr.dash.DashConfig;
 import com.example.wayfindr.dash.GoogleKey;
 import com.example.wayfindr.dash.RoutingSource;
 import com.example.wayfindr.dash.nav.PlaceSearch;
 import com.example.wayfindr.data.RideDiagnostics;
-import com.example.wayfindr.util.IdleSleep;
 import com.example.wayfindr.util.InternetNetwork;
 import java.io.File;
 import java.io.InputStream;
@@ -26,7 +23,7 @@ import kotlin.io.ByteStreamsKt;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/* loaded from: classes2.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class GPlus {
     public static volatile Context ctx;
     public static volatile long exp1;
@@ -109,7 +106,7 @@ public final class GPlus {
             try {
                 String obj3 = obj2.toString();
                 if (obj3.length() > 200) {
-                    obj3 = obj3.substring(0, ComposerKt.invocationKey);
+                    obj3 = obj3.substring(0, 200);
                 }
                 str = "Google route failed -> OSM: ".concat(obj3);
             } catch (Throwable unused) {
@@ -185,7 +182,7 @@ public final class GPlus {
                     try {
                         JSONObject optJSONObject = new JSONObject(str).optJSONObject("error");
                         if (optJSONObject != null) {
-                            String optString = optJSONObject.optString(NotificationCompat.CATEGORY_STATUS);
+                            String optString = optJSONObject.optString("status");
                             if (optString.length() != 0) {
                                 sb2.append(" ");
                                 sb2.append(optString);
@@ -422,7 +419,7 @@ public final class GPlus {
             int http = http("https://places.googleapis.com/v1/places:searchText", placesBody(trim, pair2), "places.displayName,places.formattedAddress,places.location");
             if (http != 200) {
                 httpErr(http);
-                placesFailUntil = System.currentTimeMillis() + ((http < 0 || http >= 500) ? 30000L : IdleSleep.IDLE_MS);
+                placesFailUntil = System.currentTimeMillis() + ((http < 0 || http >= 500) ? 30000L : 600000L);
                 return null;
             }
             List parsePlaces = parsePlaces(lastBody);
@@ -489,7 +486,7 @@ public final class GPlus {
                 str = sess1;
                 j = exp1;
             }
-            if (str != null && currentTimeMillis < j - IdleSleep.IDLE_MS) {
+            if (str != null && currentTimeMillis < j - 600000) {
                 return str;
             }
             if (currentTimeMillis < failUntil) {
@@ -546,7 +543,7 @@ public final class GPlus {
 
     public static void setSource(Context context, int i) {
         try {
-            DashConfig dashConfig = DashConfig.INSTANCE.get(context);
+            DashConfig dashConfig = DashConfig.Companion.get(context);
             if (dashConfig != null) {
                 if (i == 1) {
                     dashConfig.setRoutingSource(RoutingSource.GOOGLE);
@@ -618,7 +615,7 @@ public final class GPlus {
             if (!tilesOn || i < 400 || i == 404 || i >= 500) {
                 return;
             }
-            failUntil = System.currentTimeMillis() + IdleSleep.IDLE_MS;
+            failUntil = System.currentTimeMillis() + 600000;
             sess1 = null;
             sess2 = null;
             tilesOn = false;

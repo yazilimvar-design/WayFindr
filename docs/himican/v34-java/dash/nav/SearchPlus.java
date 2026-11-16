@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import kotlin.Pair;
 
-/* loaded from: classes2.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class SearchPlus {
     public static int addAddresses(List list, String str, ArrayList arrayList) {
         int i = 0;
@@ -41,7 +41,7 @@ public final class SearchPlus {
             if (!Geocoder.isPresent()) {
                 return 0;
             }
-            ApiUsage.INSTANCE.record(ApiUsage.GEOCODE);
+            ApiUsage.INSTANCE.record("Android Geocoder (search)");
             Geocoder geocoder = new Geocoder(context, Locale.getDefault());
             if (pair != null) {
                 try {

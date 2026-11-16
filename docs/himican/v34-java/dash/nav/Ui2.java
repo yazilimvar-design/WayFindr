@@ -12,7 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
 
-/* loaded from: classes2.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class Ui2 {
     public static GradientDrawable bg(int i, int i2, int i3, int i4) {
         GradientDrawable gradientDrawable = new GradientDrawable();

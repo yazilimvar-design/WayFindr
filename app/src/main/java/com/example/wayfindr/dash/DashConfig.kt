@@ -16,12 +16,25 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * Everything is overridable in Settings for dashes that don't fit the defaults.
  */
-/** Map source for the dash and phone maps. OFFLINE = the .mbtiles file, Google tiles outside it. */
-enum class MapSource(val label: String) {
-    GOOGLE("Google"), OSM("OSM"), OFFLINE("Offline");
+/** Dash map color theme (v34 "Casa Brown" themes). */
+enum class MapTheme(
+    val label: String, val background: String, val land: String, val water: String,
+    val parks: String, val buildings: String, val roadCasing: String, val roads: String,
+) {
+    HIMALAYAN("Himalaya", "#dce4dc", "#c5d1c1", "#6ea6b8", "#91aa72", "#b7ad9f", "#5e554b", "#f4ead8"),
+    RALLY_DUST("Ralli", "#e3c9a2", "#c8aa7c", "#5f9ba5", "#9b9b55", "#a98262", "#49382c", "#f8d9a4"),
+    JUNGLE_TRAIL("Orman", "#18231d", "#243d2a", "#1e6270", "#386b37", "#4a4936", "#101410", "#a7c27a"),
+    DESERT_RAID("Çöl", "#efe0bd", "#d9bc83", "#5b9ba9", "#9b9a5f", "#c29262", "#4d3422", "#fff0c5"),
+    NIGHT_EXPEDITION("Gece", "#0b1118", "#17252b", "#124259", "#1d4632", "#29333a", "#050608", "#d28a28"),
+    VOLCANIC("Volkan", "#211719", "#382629", "#244f63", "#4a4030", "#4a3430", "#120d0e", "#e05b32"),
+    STEEL_STORM("Çelik", "#171b22", "#252c36", "#1d5270", "#284536", "#3b4149", "#080a0e", "#b8c4d0"),
+    CAMO_RAID("Kamuflaj", "#22251c", "#38402a", "#285568", "#4d6335", "#555342", "#11140d", "#d2b45f"),
+    ICE_STORM("Buz fırtınası", "#d9e4e8", "#c4d5dc", "#4b9dbb", "#a9c9b0", "#aebbc1", "#56636b", "#f7fbfa"),
+    COPPER_RUSH("Bakır hücum", "#2a1c18", "#4a3024", "#315d6b", "#4c5630", "#634437", "#160e0b", "#d58a45");
+
     companion object {
-        /** Choices shown in the app and on the dash: no Google without an API key. */
-        val available: List<MapSource> get() = values().filter { it != GOOGLE || GoogleKey.present }
+        fun fromStored(value: String?): MapTheme =
+            value?.let { runCatching { valueOf(it) }.getOrNull() } ?: HIMALAYAN
     }
 }
 
@@ -53,20 +66,15 @@ class DashConfig private constructor(context: Context) {
             }.let { if (it == RoutingSource.GOOGLE && !GoogleKey.present) RoutingSource.OSM else it })
     /** Who works out routes: Google Routes API, free OSM/Valhalla server, or BRouter on the phone. */
     val routingSource: StateFlow<RoutingSource> = _routingSource.asStateFlow()
-    private val _mapSource = MutableStateFlow(
-        prefs.getString(KEY_MAP_SOURCE, null)?.let { runCatching { MapSource.valueOf(it) }.getOrNull() }
-            // First run after the switch to one setting: carry over the old two toggles.
-            ?: when {
-                prefs.getBoolean(KEY_OFFLINE_MAP, false) -> MapSource.OFFLINE
-                prefs.getBoolean(KEY_FREE_MAPS, false) -> MapSource.OSM
-                else -> MapSource.GOOGLE
-            }.let { if (it == MapSource.GOOGLE && !GoogleKey.present) MapSource.OSM else it })
-    /** Where the dash AND phone maps come from: Google, OpenStreetMap, or the offline file. */
-    val mapSource: StateFlow<MapSource> = _mapSource.asStateFlow()
-    private val _offlineMapFile = MutableStateFlow(prefs.getString(KEY_OFFLINE_MAP_FILE, "") ?: "")
-    /** File name inside OfflineMapFiles.dir(); blank = newest file there. */
-    val offlineMapFile: StateFlow<String> = _offlineMapFile.asStateFlow()
+    private val _mapTheme = MutableStateFlow(MapTheme.fromStored(prefs.getString(KEY_MAP_THEME, null)))
+    val mapTheme: StateFlow<MapTheme> = _mapTheme.asStateFlow()
+    private val _autoConnectOnStart = MutableStateFlow(prefs.getBoolean(KEY_AUTO_CONNECT_ON_START, true))
+    val autoConnectOnStart: StateFlow<Boolean> = _autoConnectOnStart.asStateFlow()
 
+    init {
+        // v34 dropped the map-source choice (OSM vector map only); clear the old keys once.
+        prefs.edit().remove(KEY_MAP_SOURCE).remove(KEY_OFFLINE_MAP).remove(KEY_OFFLINE_MAP_FILE).remove(KEY_FREE_MAPS).apply()
+    }
     init { com.example.wayfindr.dash.nav.Router.source = _routingSource.value }
     private val _invertZoom = MutableStateFlow(prefs.getBoolean(KEY_INVERT_ZOOM, false))
     /** Swap the dash joystick's zoom directions (default: LEFT = in, RIGHT = out). */
@@ -119,17 +127,15 @@ class DashConfig private constructor(context: Context) {
         com.example.wayfindr.dash.nav.Router.source = source
     }
 
-    fun setMapSource(choice: MapSource) {
-        val source = if (choice == MapSource.GOOGLE && !GoogleKey.present) MapSource.OSM else choice
-        prefs.edit().putString(KEY_MAP_SOURCE, source.name).apply()
-        _mapSource.value = source
+    fun setMapTheme(theme: MapTheme) {
+        prefs.edit().putString(KEY_MAP_THEME, theme.name).apply()
+        _mapTheme.value = theme
     }
 
-    fun setOfflineMapFile(name: String) {
-        prefs.edit().putString(KEY_OFFLINE_MAP_FILE, name).apply()
-        _offlineMapFile.value = name
+    fun setAutoConnectOnStart(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_CONNECT_ON_START, enabled).apply()
+        _autoConnectOnStart.value = enabled
     }
-
 
     fun setMapDarkAuto(auto: Boolean) {
         prefs.edit().putBoolean(KEY_MAP_DARK_AUTO, auto).apply()
@@ -177,6 +183,8 @@ class DashConfig private constructor(context: Context) {
         private const val KEY_FREE_MAPS = "free_maps"   // old toggle, read once for migration
         private const val KEY_OFFLINE_MAP = "offline_map_mbtiles"   // old toggle, read once for migration
         private const val KEY_MAP_SOURCE = "map_source"
+        private const val KEY_MAP_THEME = "map_theme"
+        private const val KEY_AUTO_CONNECT_ON_START = "auto_connect_on_start"
         private const val KEY_OFFLINE_MAP_FILE = "offline_map_file"
         private const val KEY_OFFLINE_ROUTING = "offline_routing_brouter"   // old toggle, read once for migration
         private const val KEY_INVERT_ZOOM = "invert_zoom"

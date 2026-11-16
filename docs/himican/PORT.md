@@ -60,3 +60,5 @@ sürüş kaydı + Google Navigation SDK yayından önce · GitHub'dan APK dağı
   AppNavigation, Router, RidesScreen, LocationTracker, FreeRouter, TileProvider, PlaceSearch.
 - Karar: Garaj, Canlı veri ekranı, upstream MbTiles GERİ GELMİYOR (v34'teki gibi kaldırılmış).
 - Sürüş kaydı tasarımı onaylandı (konsol özeti tasarımı: Design artifact "Himican450 Sürüş Kaydı").
+- DİKKAT: v34'te 30 sınıfın iki kopyası var; çalışan kopya classes2.dex'teki. `v34-java/` artık
+  classes2 kopyalarıyla düzeltildi (önceki sürüm gölgede kalan eski kopyaları gösteriyordu).

@@ -2,25 +2,20 @@ package com.example.wayfindr.dash;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import com.example.wayfindr.dash.nav.GPlus;
 import com.example.wayfindr.dash.nav.Router;
-import kotlin.Metadata;
 import kotlin.Result;
 import kotlin.ResultKt;
 import kotlin.jvm.internal.DefaultConstructorMarker;
 import kotlin.jvm.internal.Intrinsics;
 import kotlin.text.StringsKt;
-import kotlinx.coroutines.DebugKt;
 import kotlinx.coroutines.flow.FlowKt;
 import kotlinx.coroutines.flow.MutableStateFlow;
 import kotlinx.coroutines.flow.StateFlow;
 import kotlinx.coroutines.flow.StateFlowKt;
 
-/* JADX WARN: Classes with same name are omitted:
-  classes2.dex
- */
 /* compiled from: DashConfig.kt */
-@Metadata(d1 = {"\u0000L\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0002\u0010\u000b\n\u0000\n\u0002\u0018\u0002\n\u0002\b\u0006\n\u0002\u0018\u0002\n\u0002\b\u0003\n\u0002\u0018\u0002\n\u0002\b\u0018\n\u0002\u0010\u000e\n\u0002\b\u000f\n\u0002\u0010\u0002\n\u0002\b\u0014\b\u0007\u0018\u0000 T2\u00020\u0001:\u0001TB\u0011\b\u0002\u0012\u0006\u0010\u0002\u001a\u00020\u0003¢\u0006\u0004\b\u0004\u0010\u0005J\u0006\u0010@\u001a\u00020AJ\u000e\u0010B\u001a\u00020A2\u0006\u0010C\u001a\u00020\u000bJ\u000e\u0010D\u001a\u00020A2\u0006\u0010E\u001a\u00020\u0014J\u000e\u0010F\u001a\u00020A2\u0006\u0010G\u001a\u00020\u0018J\u000e\u0010H\u001a\u00020A2\u0006\u0010I\u001a\u00020\u000bJ\u000e\u0010J\u001a\u00020A2\u0006\u0010K\u001a\u00020\u000bJ\u000e\u0010L\u001a\u00020A2\u0006\u0010M\u001a\u00020\u000bJ\u000e\u0010N\u001a\u00020A2\u0006\u0010O\u001a\u00020\u000bJ\u000e\u0010P\u001a\u00020A2\u0006\u0010O\u001a\u00020\u000bJ\u000e\u0010Q\u001a\u00020A2\u0006\u0010O\u001a\u00020\u000bJ\u000e\u0010R\u001a\u00020A2\u0006\u0010O\u001a\u00020\u000bJ\u000e\u0010S\u001a\u00020A2\u0006\u0010O\u001a\u00020\u000bR\u0016\u0010\u0006\u001a\n \b*\u0004\u0018\u00010\u00070\u0007X\u0082\u0004¢\u0006\u0002\n\u0000R\u0014\u0010\t\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\f\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b\u000e\u0010\u000fR\u0014\u0010\u0010\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\u0011\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b\u0012\u0010\u000fR\u0014\u0010\u0013\u001a\b\u0012\u0004\u0012\u00020\u00140\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\u0015\u001a\b\u0012\u0004\u0012\u00020\u00140\r¢\u0006\b\n\u0000\u001a\u0004\b\u0016\u0010\u000fR\u0014\u0010\u0017\u001a\b\u0012\u0004\u0012\u00020\u00180\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\u0019\u001a\b\u0012\u0004\u0012\u00020\u00180\r¢\u0006\b\n\u0000\u001a\u0004\b\u001a\u0010\u000fR\u0014\u0010\u001b\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\u001c\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b\u001d\u0010\u000fR\u0014\u0010\u001e\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\u001f\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b \u0010\u000fR\u0014\u0010!\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010\"\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b#\u0010\u000fR\u0014\u0010$\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010%\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b&\u0010\u000fR\u0014\u0010'\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010(\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b)\u0010\u000fR\u0014\u0010*\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010+\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b,\u0010\u000fR\u0014\u0010-\u001a\b\u0012\u0004\u0012\u00020\u000b0\nX\u0082\u0004¢\u0006\u0002\n\u0000R\u0017\u0010.\u001a\b\u0012\u0004\u0012\u00020\u000b0\r¢\u0006\b\n\u0000\u001a\u0004\b/\u0010\u000fR$\u00102\u001a\u0002012\u0006\u00100\u001a\u0002018F@FX\u0086\u000e¢\u0006\f\u001a\u0004\b3\u00104\"\u0004\b5\u00106R$\u00107\u001a\u0002012\u0006\u00100\u001a\u0002018F@FX\u0086\u000e¢\u0006\f\u001a\u0004\b8\u00104\"\u0004\b9\u00106R$\u0010:\u001a\u0002012\u0006\u00100\u001a\u0002018F@FX\u0086\u000e¢\u0006\f\u001a\u0004\b;\u00104\"\u0004\b<\u00106R\u0011\u0010=\u001a\u00020\u000b8F¢\u0006\u0006\u001a\u0004\b>\u0010?¨\u0006U"}, d2 = {"Lcom/example/wayfindr/dash/DashConfig;", "", "context", "Landroid/content/Context;", "<init>", "(Landroid/content/Context;)V", "prefs", "Landroid/content/SharedPreferences;", "kotlin.jvm.PlatformType", "_mapDark", "Lkotlinx/coroutines/flow/MutableStateFlow;", "", "mapDarkMode", "Lkotlinx/coroutines/flow/StateFlow;", "getMapDarkMode", "()Lkotlinx/coroutines/flow/StateFlow;", "_mapDarkAuto", "mapDarkAuto", "getMapDarkAuto", "_routingSource", "Lcom/example/wayfindr/dash/RoutingSource;", "routingSource", "getRoutingSource", "_mapTheme", "Lcom/example/wayfindr/dash/MapTheme;", "mapTheme", "getMapTheme", "_autoConnectOnStart", "autoConnectOnStart", "getAutoConnectOnStart", "_invertZoom", "invertZoom", "getInvertZoom", "_sharperMap", "sharperMap", "getSharperMap", "_highQualityVideo", "highQualityVideo", "getHighQualityVideo", "_pickerDoubleTap", "pickerDoubleTap", "getPickerDoubleTap", "_showJoystickTrail", "showJoystickTrail", "getShowJoystickTrail", "_showPhoneBattery", "showPhoneBattery", "getShowPhoneBattery", "v", "", "ssidPrefix", "getSsidPrefix", "()Ljava/lang/String;", "setSsidPrefix", "(Ljava/lang/String;)V", DashConfig.KEY_SSID, "getSsid", "setSsid", "password", "getPassword", "setPassword", "needsDiscovery", "getNeedsDiscovery", "()Z", "forgetDash", "", "setMapDarkMode", "dark", "setRoutingSource", "choice", "setMapTheme", "theme", "setAutoConnectOnStart", "enabled", "setMapDarkAuto", "auto", "setInvertZoom", "invert", "setSharperMap", DebugKt.DEBUG_PROPERTY_VALUE_ON, "setHighQualityVideo", "setPickerDoubleTap", "setShowJoystickTrail", "setShowPhoneBattery", "Companion", "app"}, k = 1, mv = {2, 2, 0}, xi = 48)
-/* loaded from: classes11.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class DashConfig {
     public static final String DEFAULT_PASSWORD = "12345678";
     public static final String DEFAULT_PREFIX = "RE_";
@@ -45,39 +40,33 @@ public final class DashConfig {
     private static final String KEY_SHARPER_MAP = "sharper_map";
     private static final String KEY_SSID = "ssid";
     private static volatile DashConfig instance;
-    private final MutableStateFlow<Boolean> _autoConnectOnStart;
-    private final MutableStateFlow<Boolean> _highQualityVideo;
-    private final MutableStateFlow<Boolean> _invertZoom;
-    private final MutableStateFlow<Boolean> _mapDark;
-    private final MutableStateFlow<Boolean> _mapDarkAuto;
-    private final MutableStateFlow<MapTheme> _mapTheme;
-    private final MutableStateFlow<Boolean> _pickerDoubleTap;
-    private final MutableStateFlow<RoutingSource> _routingSource;
-    private final MutableStateFlow<Boolean> _sharperMap;
-    private final MutableStateFlow<Boolean> _showJoystickTrail;
-    private final MutableStateFlow<Boolean> _showPhoneBattery;
-    private final StateFlow<Boolean> autoConnectOnStart;
-    private final StateFlow<Boolean> highQualityVideo;
-    private final StateFlow<Boolean> invertZoom;
-    private final StateFlow<Boolean> mapDarkAuto;
-    private final StateFlow<Boolean> mapDarkMode;
-    private final StateFlow<MapTheme> mapTheme;
-    private final StateFlow<Boolean> pickerDoubleTap;
+    private final MutableStateFlow _autoConnectOnStart;
+    private final MutableStateFlow _highQualityVideo;
+    private final MutableStateFlow _invertZoom;
+    private final MutableStateFlow _mapDark;
+    private final MutableStateFlow _mapDarkAuto;
+    private final MutableStateFlow _mapTheme;
+    private final MutableStateFlow _pickerDoubleTap;
+    private final MutableStateFlow _routingSource;
+    private final MutableStateFlow _sharperMap;
+    private final MutableStateFlow _showJoystickTrail;
+    private final MutableStateFlow _showPhoneBattery;
+    private final StateFlow autoConnectOnStart;
+    private final StateFlow highQualityVideo;
+    private final StateFlow invertZoom;
+    private final StateFlow mapDarkAuto;
+    private final StateFlow mapDarkMode;
+    private final StateFlow mapTheme;
+    private final StateFlow pickerDoubleTap;
     private final SharedPreferences prefs;
-    private final StateFlow<RoutingSource> routingSource;
-    private final StateFlow<Boolean> sharperMap;
-    private final StateFlow<Boolean> showJoystickTrail;
-    private final StateFlow<Boolean> showPhoneBattery;
-
-    /* renamed from: Companion, reason: from kotlin metadata */
-    public static final Companion INSTANCE = new Companion(null);
+    private final StateFlow routingSource;
+    private final StateFlow sharperMap;
+    private final StateFlow showJoystickTrail;
+    private final StateFlow showPhoneBattery;
+    public static final Companion Companion = new Companion((DefaultConstructorMarker) null);
     public static final int $stable = 8;
 
-    public /* synthetic */ DashConfig(Context context, DefaultConstructorMarker defaultConstructorMarker) {
-        this(context);
-    }
-
-    /* JADX WARN: Code restructure failed: missing block: B:10:0x0076, code lost:
+    /* JADX WARN: Code restructure failed: missing block: B:10:0x0079, code lost:
     
         if (r5 == null) goto L15;
      */
@@ -86,8 +75,8 @@ public final class DashConfig {
     */
     private DashConfig(Context context) {
         RoutingSource routingSource;
-        RoutingSource routingSource2;
-        Object m8392constructorimpl;
+        Object obj;
+        GPlus.init(context);
         this.prefs = context.getApplicationContext().getSharedPreferences("dash_config", 0);
         this._mapDark = StateFlowKt.MutableStateFlow(Boolean.valueOf(this.prefs.getBoolean(KEY_MAP_DARK, false)));
         this.mapDarkMode = FlowKt.asStateFlow(this._mapDark);
@@ -96,29 +85,25 @@ public final class DashConfig {
         String string = this.prefs.getString(KEY_ROUTING_SOURCE, null);
         if (string != null) {
             try {
-                Result.Companion companion = Result.INSTANCE;
+                Result.Companion companion = Result.Companion;
                 DashConfig dashConfig = this;
-                m8392constructorimpl = Result.m8392constructorimpl(RoutingSource.valueOf(string));
+                obj = Result.constructor-impl(RoutingSource.valueOf(string));
             } catch (Throwable th) {
-                Result.Companion companion2 = Result.INSTANCE;
-                m8392constructorimpl = Result.m8392constructorimpl(ResultKt.createFailure(th));
+                Result.Companion companion2 = Result.Companion;
+                obj = Result.constructor-impl(ResultKt.createFailure(th));
             }
-            routingSource2 = (RoutingSource) (Result.m8398isFailureimpl(m8392constructorimpl) ? null : m8392constructorimpl);
+            routingSource = (RoutingSource) (Result.isFailure-impl(obj) ? null : obj);
         }
-        if (this.prefs.getBoolean(KEY_OFFLINE_ROUTING, false)) {
-            routingSource = RoutingSource.BROUTER;
-        } else {
-            routingSource = this.prefs.getBoolean(KEY_FREE_ROUTING, false) ? RoutingSource.OSM : RoutingSource.GOOGLE;
-        }
-        routingSource2 = (routingSource != RoutingSource.GOOGLE || GoogleKey.INSTANCE.getPresent()) ? routingSource : RoutingSource.OSM;
-        this._routingSource = StateFlowKt.MutableStateFlow(routingSource2);
+        RoutingSource routingSource2 = this.prefs.getBoolean(KEY_OFFLINE_ROUTING, false) ? RoutingSource.BROUTER : this.prefs.getBoolean(KEY_FREE_ROUTING, false) ? RoutingSource.OSM : RoutingSource.GOOGLE;
+        routingSource = (routingSource2 != RoutingSource.GOOGLE || GoogleKey.INSTANCE.getPresent()) ? routingSource2 : RoutingSource.OSM;
+        this._routingSource = StateFlowKt.MutableStateFlow(routingSource);
         this.routingSource = FlowKt.asStateFlow(this._routingSource);
-        this._mapTheme = StateFlowKt.MutableStateFlow(MapTheme.INSTANCE.fromStored(this.prefs.getString(KEY_MAP_THEME, null)));
+        this._mapTheme = StateFlowKt.MutableStateFlow(MapTheme.Companion.fromStored(this.prefs.getString(KEY_MAP_THEME, null)));
         this.mapTheme = FlowKt.asStateFlow(this._mapTheme);
         this._autoConnectOnStart = StateFlowKt.MutableStateFlow(Boolean.valueOf(this.prefs.getBoolean(KEY_AUTO_CONNECT_ON_START, true)));
         this.autoConnectOnStart = FlowKt.asStateFlow(this._autoConnectOnStart);
         this.prefs.edit().remove(KEY_MAP_SOURCE).remove(KEY_OFFLINE_MAP).remove(KEY_OFFLINE_MAP_FILE).remove(KEY_FREE_MAPS).apply();
-        Router.INSTANCE.setSource(this._routingSource.getValue());
+        Router.INSTANCE.setSource((RoutingSource) this._routingSource.getValue());
         this._invertZoom = StateFlowKt.MutableStateFlow(Boolean.valueOf(this.prefs.getBoolean(KEY_INVERT_ZOOM, false)));
         this.invertZoom = FlowKt.asStateFlow(this._invertZoom);
         this._sharperMap = StateFlowKt.MutableStateFlow(Boolean.valueOf(this.prefs.getBoolean(KEY_SHARPER_MAP, false)));
@@ -133,58 +118,65 @@ public final class DashConfig {
         this.showPhoneBattery = FlowKt.asStateFlow(this._showPhoneBattery);
     }
 
-    public final StateFlow<Boolean> getMapDarkMode() {
-        return this.mapDarkMode;
+    public /* synthetic */ DashConfig(Context context, DefaultConstructorMarker defaultConstructorMarker) {
+        this(context);
     }
 
-    public final StateFlow<Boolean> getMapDarkAuto() {
-        return this.mapDarkAuto;
+    public final void forgetDash() {
+        setSsid("");
     }
 
-    public final StateFlow<RoutingSource> getRoutingSource() {
-        return this.routingSource;
-    }
-
-    public final StateFlow<MapTheme> getMapTheme() {
-        return this.mapTheme;
-    }
-
-    public final StateFlow<Boolean> getAutoConnectOnStart() {
+    public final StateFlow getAutoConnectOnStart() {
         return this.autoConnectOnStart;
     }
 
-    public final StateFlow<Boolean> getInvertZoom() {
-        return this.invertZoom;
-    }
-
-    public final StateFlow<Boolean> getSharperMap() {
-        return this.sharperMap;
-    }
-
-    public final StateFlow<Boolean> getHighQualityVideo() {
+    public final StateFlow getHighQualityVideo() {
         return this.highQualityVideo;
     }
 
-    public final StateFlow<Boolean> getPickerDoubleTap() {
+    public final StateFlow getInvertZoom() {
+        return this.invertZoom;
+    }
+
+    public final StateFlow getMapDarkAuto() {
+        return this.mapDarkAuto;
+    }
+
+    public final StateFlow getMapDarkMode() {
+        return this.mapDarkMode;
+    }
+
+    public final StateFlow getMapTheme() {
+        return this.mapTheme;
+    }
+
+    public final boolean getNeedsDiscovery() {
+        return StringsKt.isBlank(getSsid());
+    }
+
+    public final String getPassword() {
+        String string = this.prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD);
+        return string == null ? DEFAULT_PASSWORD : string;
+    }
+
+    public final StateFlow getPickerDoubleTap() {
         return this.pickerDoubleTap;
     }
 
-    public final StateFlow<Boolean> getShowJoystickTrail() {
+    public final StateFlow getRoutingSource() {
+        return this.routingSource;
+    }
+
+    public final StateFlow getSharperMap() {
+        return this.sharperMap;
+    }
+
+    public final StateFlow getShowJoystickTrail() {
         return this.showJoystickTrail;
     }
 
-    public final StateFlow<Boolean> getShowPhoneBattery() {
+    public final StateFlow getShowPhoneBattery() {
         return this.showPhoneBattery;
-    }
-
-    public final String getSsidPrefix() {
-        String string = this.prefs.getString(KEY_PREFIX, DEFAULT_PREFIX);
-        return string == null ? DEFAULT_PREFIX : string;
-    }
-
-    public final void setSsidPrefix(String v) {
-        Intrinsics.checkNotNullParameter(v, "v");
-        this.prefs.edit().putString(KEY_PREFIX, v).apply();
     }
 
     public final String getSsid() {
@@ -192,114 +184,82 @@ public final class DashConfig {
         return string == null ? "" : string;
     }
 
-    public final void setSsid(String v) {
-        Intrinsics.checkNotNullParameter(v, "v");
-        this.prefs.edit().putString(KEY_SSID, v).apply();
+    public final String getSsidPrefix() {
+        String string = this.prefs.getString(KEY_PREFIX, DEFAULT_PREFIX);
+        return string == null ? DEFAULT_PREFIX : string;
     }
 
-    public final String getPassword() {
-        String string = this.prefs.getString("password", DEFAULT_PASSWORD);
-        return string == null ? DEFAULT_PASSWORD : string;
+    public final void setAutoConnectOnStart(boolean z) {
+        this.prefs.edit().putBoolean(KEY_AUTO_CONNECT_ON_START, z).apply();
+        this._autoConnectOnStart.setValue(Boolean.valueOf(z));
     }
 
-    public final void setPassword(String v) {
-        Intrinsics.checkNotNullParameter(v, "v");
-        this.prefs.edit().putString("password", v).apply();
+    public final void setHighQualityVideo(boolean z) {
+        this.prefs.edit().putBoolean(KEY_HQ_VIDEO, z).apply();
+        this._highQualityVideo.setValue(Boolean.valueOf(z));
     }
 
-    public final boolean getNeedsDiscovery() {
-        return StringsKt.isBlank(getSsid());
+    public final void setInvertZoom(boolean z) {
+        this.prefs.edit().putBoolean(KEY_INVERT_ZOOM, z).apply();
+        this._invertZoom.setValue(Boolean.valueOf(z));
     }
 
-    public final void forgetDash() {
-        setSsid("");
+    public final void setMapDarkAuto(boolean z) {
+        this.prefs.edit().putBoolean(KEY_MAP_DARK_AUTO, z).apply();
+        this._mapDarkAuto.setValue(Boolean.valueOf(z));
     }
 
-    public final void setMapDarkMode(boolean dark) {
-        this.prefs.edit().putBoolean(KEY_MAP_DARK, dark).apply();
-        this._mapDark.setValue(Boolean.valueOf(dark));
+    public final void setMapDarkMode(boolean z) {
+        this.prefs.edit().putBoolean(KEY_MAP_DARK, z).apply();
+        this._mapDark.setValue(Boolean.valueOf(z));
     }
 
-    public final void setRoutingSource(RoutingSource choice) {
-        Intrinsics.checkNotNullParameter(choice, "choice");
-        RoutingSource source = (choice != RoutingSource.GOOGLE || GoogleKey.INSTANCE.getPresent()) ? choice : RoutingSource.OSM;
-        this.prefs.edit().putString(KEY_ROUTING_SOURCE, source.name()).apply();
-        this._routingSource.setValue(source);
-        Router.INSTANCE.setSource(source);
+    public final void setMapTheme(MapTheme mapTheme) {
+        Intrinsics.checkNotNullParameter(mapTheme, "theme");
+        this.prefs.edit().putString(KEY_MAP_THEME, mapTheme.name()).apply();
+        this._mapTheme.setValue(mapTheme);
     }
 
-    public final void setMapTheme(MapTheme theme) {
-        Intrinsics.checkNotNullParameter(theme, "theme");
-        this.prefs.edit().putString(KEY_MAP_THEME, theme.name()).apply();
-        this._mapTheme.setValue(theme);
+    public final void setPassword(String str) {
+        Intrinsics.checkNotNullParameter(str, "v");
+        this.prefs.edit().putString(KEY_PASSWORD, str).apply();
     }
 
-    public final void setAutoConnectOnStart(boolean enabled) {
-        this.prefs.edit().putBoolean(KEY_AUTO_CONNECT_ON_START, enabled).apply();
-        this._autoConnectOnStart.setValue(Boolean.valueOf(enabled));
+    public final void setPickerDoubleTap(boolean z) {
+        this.prefs.edit().putBoolean(KEY_PICKER_DOUBLE_TAP, z).apply();
+        this._pickerDoubleTap.setValue(Boolean.valueOf(z));
     }
 
-    public final void setMapDarkAuto(boolean auto) {
-        this.prefs.edit().putBoolean(KEY_MAP_DARK_AUTO, auto).apply();
-        this._mapDarkAuto.setValue(Boolean.valueOf(auto));
+    public final void setRoutingSource(RoutingSource routingSource) {
+        Intrinsics.checkNotNullParameter(routingSource, "choice");
+        RoutingSource routingSource2 = (routingSource != RoutingSource.GOOGLE || GoogleKey.INSTANCE.getPresent()) ? routingSource : RoutingSource.OSM;
+        this.prefs.edit().putString(KEY_ROUTING_SOURCE, routingSource2.name()).apply();
+        this._routingSource.setValue(routingSource2);
+        Router.INSTANCE.setSource(routingSource2);
     }
 
-    public final void setInvertZoom(boolean invert) {
-        this.prefs.edit().putBoolean(KEY_INVERT_ZOOM, invert).apply();
-        this._invertZoom.setValue(Boolean.valueOf(invert));
+    public final void setSharperMap(boolean z) {
+        this.prefs.edit().putBoolean(KEY_SHARPER_MAP, z).apply();
+        this._sharperMap.setValue(Boolean.valueOf(z));
     }
 
-    public final void setSharperMap(boolean on) {
-        this.prefs.edit().putBoolean(KEY_SHARPER_MAP, on).apply();
-        this._sharperMap.setValue(Boolean.valueOf(on));
+    public final void setShowJoystickTrail(boolean z) {
+        this.prefs.edit().putBoolean(KEY_JOY_TRAIL, z).apply();
+        this._showJoystickTrail.setValue(Boolean.valueOf(z));
     }
 
-    public final void setHighQualityVideo(boolean on) {
-        this.prefs.edit().putBoolean(KEY_HQ_VIDEO, on).apply();
-        this._highQualityVideo.setValue(Boolean.valueOf(on));
+    public final void setShowPhoneBattery(boolean z) {
+        this.prefs.edit().putBoolean(KEY_PHONE_BATTERY, z).apply();
+        this._showPhoneBattery.setValue(Boolean.valueOf(z));
     }
 
-    public final void setPickerDoubleTap(boolean on) {
-        this.prefs.edit().putBoolean(KEY_PICKER_DOUBLE_TAP, on).apply();
-        this._pickerDoubleTap.setValue(Boolean.valueOf(on));
+    public final void setSsid(String str) {
+        Intrinsics.checkNotNullParameter(str, "v");
+        this.prefs.edit().putString(KEY_SSID, str).apply();
     }
 
-    public final void setShowJoystickTrail(boolean on) {
-        this.prefs.edit().putBoolean(KEY_JOY_TRAIL, on).apply();
-        this._showJoystickTrail.setValue(Boolean.valueOf(on));
-    }
-
-    public final void setShowPhoneBattery(boolean on) {
-        this.prefs.edit().putBoolean(KEY_PHONE_BATTERY, on).apply();
-        this._showPhoneBattery.setValue(Boolean.valueOf(on));
-    }
-
-    /* compiled from: DashConfig.kt */
-    @Metadata(d1 = {"\u0000\"\n\u0002\u0018\u0002\n\u0002\u0010\u0000\n\u0002\b\u0003\n\u0002\u0010\u000e\n\u0002\b\u0016\n\u0002\u0018\u0002\n\u0002\b\u0002\n\u0002\u0018\u0002\n\u0000\b\u0086\u0003\u0018\u00002\u00020\u0001B\t\b\u0002¢\u0006\u0004\b\u0002\u0010\u0003J\u000e\u0010\u001d\u001a\u00020\u001c2\u0006\u0010\u001e\u001a\u00020\u001fR\u000e\u0010\u0004\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0006\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0007\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\b\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\t\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\n\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u000b\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\f\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\r\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u000e\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u000f\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0010\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0011\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0012\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0013\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0014\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0015\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0016\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0017\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0018\u001a\u00020\u0005X\u0082T¢\u0006\u0002\n\u0000R\u000e\u0010\u0019\u001a\u00020\u0005X\u0086T¢\u0006\u0002\n\u0000R\u000e\u0010\u001a\u001a\u00020\u0005X\u0086T¢\u0006\u0002\n\u0000R\u0010\u0010\u001b\u001a\u0004\u0018\u00010\u001cX\u0082\u000e¢\u0006\u0002\n\u0000¨\u0006 "}, d2 = {"Lcom/example/wayfindr/dash/DashConfig$Companion;", "", "<init>", "()V", "KEY_PREFIX", "", "KEY_SSID", "KEY_PASSWORD", "KEY_MAP_DARK", "KEY_MAP_DARK_AUTO", "KEY_FREE_ROUTING", "KEY_ROUTING_SOURCE", "KEY_FREE_MAPS", "KEY_OFFLINE_MAP", "KEY_MAP_SOURCE", "KEY_OFFLINE_MAP_FILE", "KEY_MAP_THEME", "KEY_AUTO_CONNECT_ON_START", "KEY_OFFLINE_ROUTING", "KEY_INVERT_ZOOM", "KEY_SHARPER_MAP", "KEY_HQ_VIDEO", "KEY_PICKER_DOUBLE_TAP", "KEY_JOY_TRAIL", "KEY_PHONE_BATTERY", "DEFAULT_PREFIX", "DEFAULT_PASSWORD", "instance", "Lcom/example/wayfindr/dash/DashConfig;", "get", "context", "Landroid/content/Context;", "app"}, k = 1, mv = {2, 2, 0}, xi = 48)
-    public static final class Companion {
-        public /* synthetic */ Companion(DefaultConstructorMarker defaultConstructorMarker) {
-            this();
-        }
-
-        private Companion() {
-        }
-
-        public final DashConfig get(Context context) {
-            DashConfig dashConfig;
-            Intrinsics.checkNotNullParameter(context, "context");
-            DashConfig dashConfig2 = DashConfig.instance;
-            if (dashConfig2 == null) {
-                synchronized (this) {
-                    dashConfig = DashConfig.instance;
-                    if (dashConfig == null) {
-                        dashConfig = new DashConfig(context, null);
-                        Companion companion = DashConfig.INSTANCE;
-                        DashConfig.instance = dashConfig;
-                    }
-                }
-                return dashConfig;
-            }
-            return dashConfig2;
-        }
+    public final void setSsidPrefix(String str) {
+        Intrinsics.checkNotNullParameter(str, "v");
+        this.prefs.edit().putString(KEY_PREFIX, str).apply();
     }
 }

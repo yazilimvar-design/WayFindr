@@ -11,7 +11,7 @@ import android.os.SystemClock;
 import com.example.wayfindr.data.RideDiagnostics;
 import java.util.concurrent.Executor;
 
-/* loaded from: classes2.dex */
+/* loaded from: /home/claude/dec/c2in/classes2.dex */
 public final class LocPlus {
     public static volatile long fusedAt;
     public static volatile boolean fusedGood;
