@@ -13,6 +13,7 @@ import com.example.wayfindr.dash.map.MapRenderer
 import com.example.wayfindr.dash.map.TileProvider
 import com.example.wayfindr.dash.nav.DashGlyph
 import com.example.wayfindr.dash.nav.GeoPoint
+import com.example.wayfindr.dash.video.DashEncoder
 import com.example.wayfindr.ui.navigation.AppNavigation
 import com.example.wayfindr.ui.theme.Bg1
 import com.example.wayfindr.ui.theme.WayfindrTheme
@@ -100,14 +101,13 @@ class MainActivity : ComponentActivity() {
      * achieved fps, ms per stage and bytes per frame to files/framebench.txt.
      */
     private fun runFrameBench() = Thread {
-        val enc = com.example.wayfindr.dash.video.DashEncoder
-        val w = enc.WIDTH; val h = enc.HEIGHT
+        val w = DashEncoder.WIDTH; val h = DashEncoder.HEIGHT
         val renderer = MapRenderer(TileProvider(applicationContext, kotlinx.coroutines.MainScope()))
         val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
         val report = StringBuilder()
         for (frameMs in listOf(250L, com.example.wayfindr.viewmodel.DashViewModel.FRAME_MS_ACTIVE)) {
             var bytes = 0L; var frames = 0
-            val e = enc { data, _ -> bytes += data.size; frames++ }.also { it.prepare() }
+            val e = DashEncoder { data, _ -> bytes += data.size; frames++ }.also { it.prepare() }
             val render = ArrayList<Long>(); val copy = ArrayList<Long>(); val encode = ArrayList<Long>()
             val t0 = System.currentTimeMillis(); var next = t0; var sent = 0
             while (System.currentTimeMillis() - t0 < 12_000) {
