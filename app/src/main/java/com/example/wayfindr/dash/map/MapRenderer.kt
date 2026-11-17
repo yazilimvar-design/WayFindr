@@ -173,7 +173,7 @@ class MapRenderer(private val tiles: TileProvider) {
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         GoogleTheme.dark = f.dark
         // Google tiles come pre-styled in the chosen theme (night → "Gece"), so no inversion for them.
-        tilePaint.colorFilter = if (GPlus.tilesOn) null else if (f.dark) darkTileFilter else lightTileFilter
+        tilePaint.colorFilter = if (GPlus.tilesOn && !tiles.offlineNow) null else if (f.dark) darkTileFilter else lightTileFilter
         routeCasing.color = if (f.dark) Color.rgb(150, 196, 255) else Color.rgb(13, 60, 140) // light-blue rim on dark tiles, like the reference // dark-blue edge on light tiles
         standbyPaint.color = if (f.dark) Color.rgb(186, 192, 200) else Color.rgb(60, 64, 67)
 

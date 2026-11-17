@@ -92,6 +92,9 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
     @Volatile var forceVector = false
         set(v) { field = v; vecCheckedAt = 0L }
 
+    /** Renderer: tiles on screen come from the offline map (they need the night filter, Google ones don't). */
+    val offlineNow: Boolean get() = vectorMode()
+
     private fun keyOf(z: Int, x: Int, y: Int) = (if (vectorMode()) "vec/" else "osm/") + "$z/$x/$y"
     // Byte-budgeted (not count-based): adapts to tile size and OEM heap, keeping the current zoom
     // PLUS a neighbouring level resident for the renderer's scaled-tile fallback.
