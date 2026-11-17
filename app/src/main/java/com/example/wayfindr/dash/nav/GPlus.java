@@ -57,6 +57,18 @@ public final class GPlus {
         return str;
     }
 
+    /** Google's own error text from the last failed call, shortened, so the key test says why (e.g. Map Tiles 404). */
+    public static String errMsg() {
+        try {
+            JSONObject e = new JSONObject(lastBody).optJSONObject("error");
+            String m = e == null ? "" : e.optString("message");
+            if (m.length() == 0) return "";
+            return " (" + (m.length() > 90 ? m.substring(0, 90) + "…" : m) + ")";
+        } catch (Throwable t) {
+            return "";
+        }
+    }
+
     public static String codeText(int i) {
         return i < 0 ? "bağlantı yok" : String.valueOf(i);
     }
@@ -568,7 +580,7 @@ public final class GPlus {
             sess1 = null;
             StringBuilder sb = new StringBuilder();
             sb.append("Harita ");
-            sb.append(session(false) != null ? "✓" : "✗ ".concat(codeText(lastCode)));
+            sb.append(session(false) != null ? "✓" : "✗ ".concat(codeText(lastCode)).concat(errMsg()));
             int http = http("https://routes.googleapis.com/directions/v2:computeRoutes", "{\"origin\":{\"location\":{\"latLng\":{\"latitude\":39.9208,\"longitude\":32.8541}}},\"destination\":{\"location\":{\"latLng\":{\"latitude\":39.9255,\"longitude\":32.8662}}},\"travelMode\":\"DRIVE\"}", "routes.distanceMeters");
             sb.append(" · Rota ");
             sb.append(okText(http));
