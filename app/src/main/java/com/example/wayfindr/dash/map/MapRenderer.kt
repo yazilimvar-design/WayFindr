@@ -135,6 +135,7 @@ class MapRenderer(private val tiles: TileProvider) {
     private val arrowFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val arrowPath = Path()
     private val cardRect = RectF()
+    private val musicArtRect = RectF()
 
     // Reused across frames
     private val routePath = Path()
@@ -381,6 +382,14 @@ class MapRenderer(private val tiles: TileProvider) {
 
         }
 
+        // ── Now playing on the map: small card near the top (album art, title, artist) while music
+        //    plays; hidden while the dash menu is open. ▼ then ▶/◀ changes the track. ──
+        overlay("now playing") {
+            if (f.pickerRows == null) com.example.wayfindr.dash.nav.NavPlus.phNow()?.let { np ->
+                drawMusicPill(canvas, np.title, np.artist, np.art, w, h)
+            }
+        }
+
         // ── "▼ again: destinations": a lone DOWN is waiting for its second press (3 s) ──
         overlay("down hint") {
             f.downHint?.let { hint ->
@@ -604,6 +613,32 @@ class MapRenderer(private val tiles: TileProvider) {
         }
         pickerItemPaint.textAlign = align
         pickerItemPaint.isFakeBoldText = false
+    }
+
+    /** Compact music card at the top of the map: art left, bold title, grey artist (same look as the turn card). */
+    private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int) {
+        if (title.isBlank()) return
+        val ch = h * 0.105f
+        val cw = w * 0.58f
+        val left = (w - cw) / 2f
+        val top = h * 0.165f
+        cardRect.set(left, top, left + cw, top + ch)
+        canvas.drawRoundRect(cardRect, ch * 0.28f, ch * 0.28f, cardPaint)
+        val pad = ch * 0.12f
+        var x = left + pad
+        if (art != null) {
+            val s = ch - pad * 2
+            musicArtRect.set(x, top + pad, x + s, top + pad + s)
+            canvas.drawBitmap(art, null, musicArtRect, tilePaint)
+            x += s + pad
+        }
+        val maxW = left + cw - pad - x
+        cardDistPaint.textSize = ch * 0.34f
+        canvas.drawText(ellipsize(title, cardDistPaint, maxW), x, top + ch * 0.46f, cardDistPaint)
+        if (artist.isNotBlank()) {
+            cardSubPaint.textSize = ch * 0.26f
+            canvas.drawText(ellipsize(artist, cardSubPaint, maxW), x, top + ch * 0.82f, cardSubPaint)
+        }
     }
 
     /** Dark rounded card like the music card: turn arrow left, big distance, grey instruction below. */

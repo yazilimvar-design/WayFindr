@@ -181,6 +181,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var lastLoneDownMs = 0L
     // "DOWN again" hint on the dash, shown while a lone DOWN waits for its partner.
     @Volatile private var downHintUntilMs = 0L
+    @Volatile private var musicHintUntilMs = 0L   // after a lone ▼ while music plays: ▶ next / ◀ previous
     // Short confirmation drawn on the dash (e.g. after "Cancel next stop") until noticeUntilMs.
     @Volatile private var notice: List<String>? = null
     @Volatile private var noticeUntilMs = 0L
@@ -736,6 +737,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 // Map/media controls run whenever a call ISN'T ringing (still usable during an active
                 // call — only DOWN is reserved for hang-up, and that's not a map/media code anyway).
                 // "Invert zoom" setting swaps which joystick direction zooms in.
+                // ▼ then ▶ / ◀ (within 3 s, menu closed, music playing): next / previous track.
+                !ringing && pickerItems == null && System.currentTimeMillis() < musicHintUntilMs &&
+                    (code == BTN_JOY_RIGHT || code == BTN_JOY_LEFT) -> {
+                    musicHintUntilMs = 0L; downHintUntilMs = 0L
+                    if (code == BTN_JOY_RIGHT) { mediaInfo.skipNext(); "Next track (▼▶)" } else { mediaInfo.skipPrevious(); "Previous track (▼◀)" }
+                }
                 !ringing && code == zoomInCode()  -> { zoomIn();  "Zoom in (map)" }
                 !ringing && code == zoomOutCode() -> { zoomOut(); "Zoom out (map)" }
                 !ringing && code == BTN_MEDIA_NEXT -> { mediaInfo.skipNext(); "Next track" }
@@ -1148,8 +1155,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 "single DOWN ($gap) — waiting up to ${DOUBLE_DOWN_MS} ms for a second press")
             lastLoneDownMs = now
             if (canOpenPicker()) { downHintUntilMs = now + DOUBLE_DOWN_MS; wakeFrameLoop() }
+            // Music playing: ▼ then ▶/◀ within the same window changes track (no menu needed).
+            if (NavPlus.phNow() != null) { musicHintUntilMs = now + DOUBLE_DOWN_MS; wakeFrameLoop() }
         }
-        if (code == BTN_JOY_DOWN && g.activate) downHintUntilMs = 0L
+        if (code == BTN_JOY_DOWN && g.activate) { downHintUntilMs = 0L; musicHintUntilMs = 0L }
         // Plain RIGHT tap: remember the state before it acts, in case it turns out to be the first
         // half of a double-tap (or is followed by a long-press code).
         if (g.plainTap) { zoomBeforeRightTap = zoom }
@@ -2285,7 +2294,17 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // with no route, the one the next route will use.
             routingBadge = route?.source ?: dashConfig.routingSource.value,
             notice = notice?.takeIf { pickerItems == null && System.currentTimeMillis() < noticeUntilMs },
-            downHint = if (pickerItems == null && System.currentTimeMillis() < downHintUntilMs) "▼ tekrar: menüyü aç" else null,
+            downHint = run {
+                val now = System.currentTimeMillis()
+                val music = pickerItems == null && now < musicHintUntilMs
+                val menu = pickerItems == null && now < downHintUntilMs
+                when {
+                    music && menu -> "▼ menü · ▶ sonraki · ◀ önceki"
+                    music -> "▶ sonraki · ◀ önceki"
+                    menu -> "▼ tekrar: menüyü aç"
+                    else -> null
+                }
+            },
             joystickTrail = if (dashConfig.showJoystickTrail.value) joyTrail.text(System.currentTimeMillis()) else null,
             attribution = TileProvider.OSM_ATTRIBUTION,
             phoneBattery = if (dashConfig.showPhoneBattery.value) session.latestPhoneStatus?.let { it.batteryPct to it.charging } else null,
