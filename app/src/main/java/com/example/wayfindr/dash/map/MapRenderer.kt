@@ -386,10 +386,9 @@ class MapRenderer(private val tiles: TileProvider) {
         //    plays; hidden while the dash menu is open. ▼ then ▶/◀ changes the track. ──
         overlay("now playing") {
             if (f.pickerRows == null) com.example.wayfindr.dash.nav.NavPlus.phNow()?.let { np ->
-                // No turn card: the very same strip as on the wallpaper screen (wide, lower part).
-                // Navigating: the turn card owns the bottom, so the strip moves to the top.
-                if (f.turnCard == null) com.example.wayfindr.dash.nav.NavPlus.phStrip(canvas, w, h, np.title, np.artist, np.art)
-                else drawMusicPill(canvas, np.title, np.artist, np.art, w, h)
+                // Same look as the wallpaper-screen strip, but at the top: lower down it would sit
+                // on the rider arrow and the right-hand chips.
+                drawMusicPill(canvas, np.title, np.artist, np.art, w, h)
             }
         }
 
