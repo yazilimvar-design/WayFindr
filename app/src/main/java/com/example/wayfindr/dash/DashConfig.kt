@@ -76,6 +76,9 @@ class DashConfig private constructor(context: Context) {
         prefs.edit().remove(KEY_MAP_SOURCE).remove(KEY_OFFLINE_MAP).remove(KEY_OFFLINE_MAP_FILE).remove(KEY_FREE_MAPS).apply()
     }
     init { com.example.wayfindr.dash.nav.Router.source = _routingSource.value }
+    private val _scenicRoute = MutableStateFlow(prefs.getBoolean(KEY_SCENIC, false).also { com.example.wayfindr.dash.nav.Router.scenic = it })
+    /** "Manzaralı rota (otoyol yok)": routes avoid highways and tolls (Google, OSM; Navigation SDK). */
+    val scenicRoute: StateFlow<Boolean> = _scenicRoute.asStateFlow()
     private val _invertZoom = MutableStateFlow(prefs.getBoolean(KEY_INVERT_ZOOM, false))
     /** Swap the dash joystick's zoom directions (default: LEFT = in, RIGHT = out). */
     val invertZoom: StateFlow<Boolean> = _invertZoom.asStateFlow()
@@ -125,6 +128,12 @@ class DashConfig private constructor(context: Context) {
         prefs.edit().putString(KEY_ROUTING_SOURCE, source.name).apply()
         _routingSource.value = source
         com.example.wayfindr.dash.nav.Router.source = source
+    }
+
+    fun setScenicRoute(on: Boolean) {
+        prefs.edit().putBoolean(KEY_SCENIC, on).apply()
+        _scenicRoute.value = on
+        com.example.wayfindr.dash.nav.Router.scenic = on
     }
 
     fun setMapTheme(theme: MapTheme) {
@@ -193,6 +202,7 @@ class DashConfig private constructor(context: Context) {
         private const val KEY_PICKER_DOUBLE_TAP = "picker_double_tap"
         private const val KEY_JOY_TRAIL = "joystick_trail"
         private const val KEY_PHONE_BATTERY = "phone_battery"
+        private const val KEY_SCENIC = "scenic_route"
         const val DEFAULT_PREFIX   = "RE_"
         const val DEFAULT_PASSWORD = "12345678"
 

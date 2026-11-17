@@ -99,7 +99,10 @@ class GoogleNav(private val app: Application, private val listener: Listener) {
             NavigationUpdatesOptions.builder().setNumNextStepsToPreview(1).build(),
         )
         // shortcut: DRIVING, not TWO_WHEELER (that mode is only offered in some countries).
-        nav.setDestinations(waypoints, RoutingOptions().travelMode(RoutingOptions.TravelMode.DRIVING))
+        // Scenic: avoid highways/tolls for the whole trip, SDK reroutes included (RoutingOptions).
+        val scenic = DashConfig.get(app).scenicRoute.value
+        nav.setDestinations(waypoints, RoutingOptions().travelMode(RoutingOptions.TravelMode.DRIVING)
+            .avoidHighways(scenic).avoidTolls(scenic))
             .setOnResultListener { status ->
                 if (gen != generation) return@setOnResultListener
                 if (status != Navigator.RouteStatus.OK) { fail(gen, "route $status"); return@setOnResultListener }

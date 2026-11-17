@@ -21,6 +21,7 @@ import com.example.wayfindr.dash.nav.GeoPoint
 import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.Route
 import com.example.wayfindr.dash.nav.Router
+import com.example.wayfindr.dash.nav.TrafficSwitch
 import com.example.wayfindr.dash.nav.TrafficInterval
 import com.example.wayfindr.dash.protocol.DashCommands
 import com.example.wayfindr.dash.video.DashEncoder
@@ -125,12 +126,22 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             val cumulative = DoubleArray(points.size)
             for (i in 1 until points.size) cumulative[i] = cumulative[i - 1] + GeoPoint.distMeters(points[i - 1], points[i])
             val r = Route(points, emptyList(), meters.takeIf { it > 0.0 } ?: cumulative.last(), seconds, cumulative, source = com.example.wayfindr.dash.RoutingSource.GOOGLE)
+            val prev = route; val prevProgress = progressM
             route = r
             progressM = 0.0
             routeLegOffset = activeStopIndex
             navSdkRouteVersion++
             voice.resetTrip()
             tiles.prefetchRoute(points)
+            // The SDK itself moves to a faster route when traffic changes; only announce a clear gain.
+            val leftS = prev?.let { TrafficSwitch.remainingSeconds(it.totalSeconds, it.totalMeters, prevProgress) } ?: 0.0
+            val gainS = leftS - r.totalSeconds
+            val now = System.currentTimeMillis()
+            // The first SDK route replaces our own estimate, so it is never "a switch".
+            if (navSdkRouteVersion > 1 && TrafficSwitch.worthSwitching(leftS, r.totalSeconds, now, lastTrafficSwitchAt)) {
+                lastTrafficSwitchAt = now
+                voice.alert(TrafficSwitch.message(gainS))
+            }
             _ui.update { it.copy(errorMessage = null, hasRoute = true, routePoints = points, routeTraffic = emptyList()) }
             com.example.wayfindr.data.RideDiagnostics.log("navsdk", "route ${points.size} pts, ${meters.toInt()} m")
         }
@@ -280,6 +291,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var routeRequestGeneration = 0L
     private var routeRequestJob: Job? = null
     @Volatile private var lastTrafficRefreshAt = 0L
+    @Volatile private var lastTrafficSwitchAt = 0L   // no flip-flop: see TrafficSwitch.MIN_GAP_MS
     // Routes API bill guard (automatic calls only — a destination the rider picks is never blocked).
     @Volatile private var rerouteStreak = 0          // reroutes since last stably back on route → backoff
     @Volatile private var autoRouteCalls = 0         // automatic reroute + traffic calls for this destination
@@ -965,6 +977,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         routeStops = validStops
         // New destination picked by the rider → fresh Routes API budget and reroute backoff.
         autoRouteCalls = 0; autoRouteCapLogged = false; rerouteStreak = 0; lastRerouteAt = 0L
+        lastTrafficSwitchAt = 0L
         activeStopIndex = 0
         routeLegOffset = 0
         routeWaypoints = validStops.dropLast(1).map { GeoPoint(it.lat!!, it.lng!!) }
@@ -2058,9 +2071,23 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 val alternatives = Router.alternatives(
                     getApplication(), GeoPoint(loc.latitude, loc.longitude), GeoPoint(finalLat, finalLng), waypointSnapshot,
                 )
-                // Only accept a refresh that stays on the planned roads (NavPlus decides); else keep it.
-                val refreshed = NavPlus.pickPlanned(alternatives, this@DashViewModel, 1)
+                // Same roads → plain traffic refresh (NavPlus decides). Other roads are taken only when
+                // clearly faster (TrafficSwitch), and announced once.
+                val planned = NavPlus.pickPlanned(alternatives, this@DashViewModel, 1)
                 if (requestId != routeRequestGeneration || activeStopIndex != stopIndexSnapshot) return@launch
+                val current = route
+                val best = alternatives.minByOrNull { it.totalSeconds }
+                val leftS = current?.let { TrafficSwitch.remainingSeconds(it.totalSeconds, it.totalMeters, progressM) } ?: 0.0
+                val gainS = if (best != null && best !== planned) leftS - best.totalSeconds else 0.0
+                val switchNow = best != null && TrafficSwitch.worthSwitching(
+                    leftS, best.totalSeconds, System.currentTimeMillis(), lastTrafficSwitchAt) && best !== planned
+                val refreshed = if (switchNow) best else planned
+                if (switchNow) {
+                    lastTrafficSwitchAt = System.currentTimeMillis()
+                    tiles.prefetchRoute(best!!.geometry)
+                    voice.alert(TrafficSwitch.message(gainS))
+                    com.example.wayfindr.data.RideDiagnostics.log("reroute", "traffic switch: ${gainS.toInt()} s faster")
+                }
                 if (refreshed != null) {
                     route = refreshed
                     progressM = 0.0

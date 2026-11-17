@@ -561,6 +561,22 @@ fun RouteScreen(
                 },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             )
+            val scenic by dashConfig.scenicRoute.collectAsState()
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+                    .clickable { dashConfig.setScenicRoute(!scenic); routeViewModel.recomputeRoute() },
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Manzaralı rota (otoyol yok)", color = TextHi, fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+                    Text("Otoyol ve ücretli yollardan kaçınır · Google ve OSM; BRouter'da etkisiz",
+                        color = TextLo, fontSize = 11.5.sp, fontFamily = GeistFamily)
+                }
+                androidx.compose.material3.Switch(checked = scenic, onCheckedChange = {
+                    dashConfig.setScenicRoute(it); routeViewModel.recomputeRoute()
+                })
+            }
             ChoiceHeader("OpenStreetMap harita temaları", "10 stil · çevrimiçi OSM haritası")
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp),

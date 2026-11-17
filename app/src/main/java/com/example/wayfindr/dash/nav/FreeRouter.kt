@@ -89,6 +89,9 @@ object FreeRouter {
         NavPlus.addHeading(locations, from)   // rider's heading on the start point, when known
         put("locations", locations)
         put("costing", "motorcycle")
+        // Scenic route: Valhalla's closest equivalent of "no motorway / no toll".
+        if (Router.scenic) put("costing_options", JSONObject().put("motorcycle",
+            JSONObject().put("use_highways", 0.0).put("use_tolls", 0.0)))
         put("units", "kilometers")
         put("language", "en-US")
         if (includeAlternates && intermediates.isEmpty()) put("alternates", MAX_ALTERNATES)
