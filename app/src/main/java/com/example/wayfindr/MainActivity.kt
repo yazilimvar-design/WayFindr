@@ -220,13 +220,13 @@ class MainActivity : ComponentActivity() {
         val was = cfg.offlineSafety.value
         val report = StringBuilder("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
         cfg.setOfflineSafety(true)
+        // Parser check with Overpass-style answers (the app's own parseLimit).
+        for (v in listOf("50", "90 mph", "TR:urban", "TR:rural", "none", "signals"))
+            report.append("parseLimit('$v') = ${com.example.wayfindr.dash.nav.NavPlus.parseLimit(v)}\n")
         val roads = listOf(
             "Eskişehir Yolu (ODTÜ)" to (39.90795 to 32.77297),
             "İstanbul Yolu (Batıkent)" to (39.95560 to 32.71520),
-            "Konya Yolu (Gölbaşı)" to (39.82690 to 32.81330),
             "Atatürk Bulvarı (Kızılay)" to (39.92310 to 32.85395),
-            "Mamak Cd. (Mamak)" to (39.92280 to 32.91120),
-            "Esenboğa Yolu" to (40.06200 to 32.89300),
         )
         var anyLimit = false
         for ((name, p) in roads) {

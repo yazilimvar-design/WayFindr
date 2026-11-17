@@ -32,6 +32,18 @@ jobs:
             echo "MAPS_API_KEY: not set"
           fi
 
+      # The live radar / speed-limit data comes from public Overpass servers: can this runner reach them?
+      - name: Overpass erişimi
+        continue-on-error: true
+        run: |
+          Q='[out:json][timeout:20];(node(around:6000,39.9208,32.8541)["highway"="speed_camera"];way(around:40,39.90795,32.77297)["highway"]["maxspeed"];);out tags 20;'
+          for U in https://overpass-api.de/api/interpreter https://lz4.overpass-api.de/api/interpreter https://z.overpass-api.de/api/interpreter \
+                   https://overpass.private.coffee/api/interpreter https://maps.mail.ru/osm/tools/overpass/api/interpreter \
+                   https://overpass.kumi.systems/api/interpreter https://overpass.osm.jp/api/interpreter; do
+            curl -4 -s -m 40 -o ov.json -w "$U: HTTP %{http_code} %{time_total}s %{size_download} B\n" -A "Wayfindr-CI/1.0" --data-urlencode "data=$Q" "$U"
+            python3 -c 'import json; d=json.load(open("ov.json")); e=d.get("elements",[]); print("   ", len(e), "elements:", sum(1 for x in e if x.get("tags",{}).get("highway")=="speed_camera"), "cameras, maxspeed", sorted({x["tags"]["maxspeed"] for x in e if "maxspeed" in x.get("tags",{})}))' 2>/dev/null || head -c 200 ov.json; echo
+          done
+
       # standardDebug = com.wayfindr.app.preview, same variant as the v34-v40 APKs.
       - name: APK derle (standard, debug)
         run: ./gradlew --no-daemon assembleStandardDebug

@@ -288,11 +288,11 @@ adb shell svc wifi enable; adb shell svc data enable; sleep 10
 # Online radar / speed limit: the live Overpass fetch the app does on the road, at known Ankara
 # spots, with the switch on and off (debug SAFETY_TEST → files/safety.txt).
 adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.SAFETY_TEST
-for n in $(seq 1 24); do sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/safety.txt" >/dev/null 2>&1 && break; done
+for n in $(seq 1 60); do sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/safety.txt" >/dev/null 2>&1 && break; done
 adb pull "/sdcard/Android/data/$PKG/files/safety.txt" "$OUT/safety.txt" && cat "$OUT/safety.txt" || echo "::warning::safety.txt not written"
 # The same Overpass query from the runner itself, for comparison.
 for S in overpass-api.de overpass.private.coffee; do
-  curl -s -m 30 -o "$OUT/overpass-$S.json" -w "runner $S: HTTP %{http_code} %{time_total}s %{size_download} B\n" -A "Wayfindr-CI/1.0" \
+  curl -4 -s -m 30 -o "$OUT/overpass-$S.json" -w "runner $S: HTTP %{http_code} %{time_total}s %{size_download} B\n" -A "Wayfindr-CI/1.0" \
     --data-urlencode 'data=[out:json][timeout:20];(node(around:6000,39.9208,32.8541)["highway"="speed_camera"];way(around:40,39.90795,32.77297)["highway"]["maxspeed"];);out tags 20;' \
     "https://$S/api/interpreter" | tee -a "$OUT/safety.txt"
 done
