@@ -1296,15 +1296,32 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun menuRows0(): List<MapRenderer.MenuRow> = when (menuPage) {
-        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Rota kaynağı", submenu = true)) +
+        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Rota ve uyarılar", submenu = true)) +
             (if (hasDestination()) listOf(MapRenderer.MenuRow("Navigasyon", submenu = true)) else emptyList()) +
             (pickerItems ?: emptyList()).map { MapRenderer.MenuRow(it.name) }
         MenuPage.CANCEL -> cancelRows().map { MapRenderer.MenuRow(it.first) }
         MenuPage.SOURCE -> {
             val routing = dashConfig.routingSource.value
             listOf(MapRenderer.MenuRow("Rota kaynağı", header = true)) +
-                MENU_ROUTING_SOURCES.map { (s, label) -> MapRenderer.MenuRow(label, active = s == routing) }
+                MENU_ROUTING_SOURCES.map { (s, label) -> MapRenderer.MenuRow(label, active = s == routing) } +
+                // Alert switches on the same page: the green tick = on; select toggles it.
+                MapRenderer.MenuRow("Uyarılar", header = true) +
+                alertToggles().map { (label, on) -> MapRenderer.MenuRow(label, active = on) }
         }
+    }
+
+    /** Alert switches shown on the SOURCE page (label, on). Order matches [toggleAlert]. */
+    private fun alertToggles(): List<Pair<String, Boolean>> = listOf(
+        "Viraj uyarısı" to dashConfig.curveWarning.value,
+        "Yağmur uyarısı" to dashConfig.rainWarning.value,
+        "Radar ve hız limiti (çevrimdışı)" to dashConfig.offlineSafety.value,
+    )
+
+    private fun toggleAlert(i: Int): String? = when (i) {
+        0 -> { val on = !dashConfig.curveWarning.value; dashConfig.setCurveWarning(on); "Viraj uyarısı ${if (on) "açık" else "kapalı"}" }
+        1 -> { val on = !dashConfig.rainWarning.value; dashConfig.setRainWarning(on); "Yağmur uyarısı ${if (on) "açık" else "kapalı"}" }
+        2 -> { val on = !dashConfig.offlineSafety.value; dashConfig.setOfflineSafety(on); "Radar ${if (on) "açık" else "kapalı"}" }
+        else -> null
     }
 
     /** CANCEL page rows (label, action id). */
@@ -1335,8 +1352,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun selectPickerItem0(): String {
         val items = pickerItems ?: return "Picker: nothing to select"
         if (menuPage == MenuPage.SOURCE) {
-            // Rows: 0 header, 1..n routing sources. Stays on the page so the green tick moves to
-            // the new choice.
+            // Rows: 0 header, 1..n routing sources, header "Uyarılar", then the alert switches. Stays
+            // on the page so the green tick moves to the new choice.
+            val alertIdx = pickerIndex - 1 - MENU_ROUTING_SOURCES.size - 1
+            if (alertIdx >= 0) {
+                val msg = toggleAlert(alertIdx) ?: return "Picker: nothing to select"
+                showNotice(msg)
+                return "Picker → $msg"
+            }
             val (s, label) = MENU_ROUTING_SOURCES.getOrNull(pickerIndex - 1) ?: return "Picker: nothing to select"
             dashConfig.setRoutingSource(s)
             com.example.wayfindr.data.RideDiagnostics.log("picker",
