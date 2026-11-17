@@ -271,13 +271,13 @@ object OfflineRouter {
     }
 
     private fun instructionFor(cmd: Int, exit: Int): String = when (cmd) {
-        1 -> "Continue"
-        2 -> "Turn left"; 3 -> "Slight left"; 4 -> "Sharp left"
-        5 -> "Turn right"; 6 -> "Slight right"; 7 -> "Sharp right"
-        8 -> "Keep left"; 9 -> "Keep right"
-        10, 11, 12 -> "Make a U-turn"
-        14, 15 -> if (exit > 0) "At the roundabout, take exit $exit" else "Enter the roundabout"
-        17 -> "Take the exit on the left"; 18 -> "Take the exit on the right"
-        else -> "Continue"
+        1 -> "Düz devam edin"
+        2 -> "Sola dönün"; 3 -> "Hafif sola dönün"; 4 -> "Keskin sola dönün"
+        5 -> "Sağa dönün"; 6 -> "Hafif sağa dönün"; 7 -> "Keskin sağa dönün"
+        8 -> "Soldan devam edin"; 9 -> "Sağdan devam edin"
+        10, 11, 12 -> "U dönüşü yapın"
+        14, 15 -> if (exit > 0) "Göbekte $exit. çıkışı alın" else "Göbeğe girin"
+        17 -> "Soldaki çıkışı alın"; 18 -> "Sağdaki çıkışı alın"
+        else -> "Düz devam edin"
     }
 }

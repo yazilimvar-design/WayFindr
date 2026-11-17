@@ -93,7 +93,7 @@ object FreeRouter {
         if (Router.scenic) put("costing_options", JSONObject().put("motorcycle",
             JSONObject().put("use_highways", 0.0).put("use_tolls", 0.0)))
         put("units", "kilometers")
-        put("language", "en-US")
+        put("language", "tr-TR") // Turkish turn text on the dash card
         if (includeAlternates && intermediates.isEmpty()) put("alternates", MAX_ALTERNATES)
     }
 

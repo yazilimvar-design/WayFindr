@@ -601,7 +601,7 @@ private fun turkishManeuver(instruction: String): String {
         "Continue" to "Düz devam et",
     )
     val match = translations.firstOrNull { (en, _) -> instruction.startsWith(en, ignoreCase = true) }
-        ?: return "Rotaya devam edin"
+        ?: return instruction.ifBlank { "Rotaya devam edin" } // routers now answer in Turkish already
     val suffix = instruction.drop(match.first.length)
         .replace(" onto ", " yoluna ", ignoreCase = true)
         .replace(" on ", " üzerinde ", ignoreCase = true)

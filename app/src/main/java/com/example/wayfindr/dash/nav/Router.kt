@@ -230,7 +230,7 @@ object Router {
                 }
             )
 
-            put("languageCode", "en-US")
+            put("languageCode", "tr") // Turkish turn text on the dash card
             put("units", "METRIC")
         }
     }
