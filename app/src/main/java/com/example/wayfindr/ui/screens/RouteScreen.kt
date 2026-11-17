@@ -809,7 +809,7 @@ private fun RouteMapLegend(
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE80B0E12))))
             .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
-        Text("ANA ROTAYA GÖRE · MESAFE / SÜRE FARKI", color = Color.White.copy(alpha = 0.82f), fontSize = 9.sp,
+        Text("ROTALAR · MESAFE / SÜRE", color = Color.White.copy(alpha = 0.82f), fontSize = 9.sp,
             fontWeight = FontWeight.Bold, fontFamily = GeistMonoFamily)
         Spacer(Modifier.height(6.dp))
         Row(
@@ -837,9 +837,15 @@ private fun RouteMapLegend(
                     Column {
                         Text(if (index == 0) "Ana rota" else "Alternatif $index", color = TextHi, fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily, maxLines = 1)
+                        // Real distance and time first; alternatives also show how they compare to the main one.
                         Text(
+                            formatAlternativeDistance(route.totalMeters) + " · " + formatAlternativeDuration(route.totalSeconds),
+                            color = Color.White.copy(alpha = 0.92f), fontSize = 10.sp, fontFamily = GeistMonoFamily,
+                            maxLines = 1,
+                        )
+                        if (index > 0) Text(
                             routeDifferenceLabel(route.totalMeters, route.totalSeconds, main.totalMeters, main.totalSeconds),
-                            color = Color.White.copy(alpha = 0.86f), fontSize = 9.sp, fontFamily = GeistMonoFamily,
+                            color = Color.White.copy(alpha = 0.62f), fontSize = 9.sp, fontFamily = GeistMonoFamily,
                             maxLines = 1,
                         )
                     }
