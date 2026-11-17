@@ -386,7 +386,10 @@ class MapRenderer(private val tiles: TileProvider) {
         //    plays; hidden while the dash menu is open. ▼ then ▶/◀ changes the track. ──
         overlay("now playing") {
             if (f.pickerRows == null) com.example.wayfindr.dash.nav.NavPlus.phNow()?.let { np ->
-                drawMusicPill(canvas, np.title, np.artist, np.art, w, h)
+                // No turn card: the very same strip as on the wallpaper screen (wide, lower part).
+                // Navigating: the turn card owns the bottom, so the strip moves to the top.
+                if (f.turnCard == null) com.example.wayfindr.dash.nav.NavPlus.phStrip(canvas, w, h, np.title, np.artist, np.art)
+                else drawMusicPill(canvas, np.title, np.artist, np.art, w, h)
             }
         }
 
@@ -618,13 +621,13 @@ class MapRenderer(private val tiles: TileProvider) {
     /** Compact music card at the top of the map: art left, bold title, grey artist (same look as the turn card). */
     private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int) {
         if (title.isBlank()) return
-        val ch = h * 0.105f
-        val cw = w * 0.58f
+        val ch = h * 0.16f
+        val cw = w * 0.74f                  // round display: the top is narrower than the 5–95 % strip
         val left = (w - cw) / 2f
-        val top = h * 0.165f
+        val top = h * 0.15f
         cardRect.set(left, top, left + cw, top + ch)
-        canvas.drawRoundRect(cardRect, ch * 0.28f, ch * 0.28f, cardPaint)
-        val pad = ch * 0.12f
+        canvas.drawRoundRect(cardRect, ch * 0.24f, ch * 0.24f, cardPaint)
+        val pad = ch * 0.13f
         var x = left + pad
         if (art != null) {
             val s = ch - pad * 2
