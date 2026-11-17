@@ -196,10 +196,10 @@ class GoogleNav(private val app: Application, private val listener: Listener) {
             if (key != BuildConfig.MAPS_API_KEY) NavigationApi.setApiKey(key)
         }
 
-        /** Real key, Google routing chosen, and Google Play services installed. */
+        /** Real key, internet (offline the app's own BRouter route is used), and Google Play services installed. */
         fun canUse(ctx: Context): Boolean =
             GoogleKey.present &&
-                DashConfig.get(ctx).routingSource.value == RoutingSource.GOOGLE &&
+                com.example.wayfindr.util.InternetNetwork.validated(ctx) != null &&
                 runCatching { ctx.packageManager.getApplicationInfo("com.google.android.gms", 0).enabled }.getOrDefault(false)
 
         /**

@@ -27,6 +27,7 @@ import android.text.TextUtils;
 import android.view.KeyEvent;
 import androidx.core.content.FileProvider;
 import btools.routingapp.IBRouterService;
+import com.example.wayfindr.dash.DashConfig;
 import com.example.wayfindr.dash.RoutingSource;
 import com.example.wayfindr.dash.map.LocPlus;
 import com.example.wayfindr.dash.map.LocationTracker;
@@ -651,7 +652,7 @@ public final class NavPlus {
                 thread2.start();
             }
             int i = wxRain;
-            if (i >= 60 && elapsedRealtime - wxAt < 1200000 && elapsedRealtime - wxWarnAt >= 1800000 && pend1 == null) {
+            if (rainOn() && i >= 60 && elapsedRealtime - wxAt < 1200000 && elapsedRealtime - wxWarnAt >= 1800000 && pend1 == null) {
                 wxWarnAt = elapsedRealtime;
                 pend2 = "Önümüzdeki 3 saatte %" + i + " ihtimal";
                 pend1 = "Yağmur olabilir";
@@ -3000,6 +3001,7 @@ public final class NavPlus {
     }
 
     public static void rdTick(float f, double d, double d2) {
+        if (!safetyOn()) { rdAheadM = -1; return; }
         try {
             long elapsedRealtime = SystemClock.elapsedRealtime();
             if (!rdBusy && elapsedRealtime >= rdNextAt && (rdData == null || LocPlus.stDist(d, d2, rdCLat, rdCLng) >= 2500.0d)) {
@@ -3504,14 +3506,9 @@ public final class NavPlus {
         boolean z = false;
         if (context != null) {
             try {
-                ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService("connectivity");
-                if (connectivityManager != null) {
-                    z = true;
-                    NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-                    if (activeNetworkInfo != null && activeNetworkInfo.isConnected()) {
-                        z = false;
-                    }
-                }
+                // A validated internet network, not merely "connected": the dash Wi-Fi (or any Wi-Fi
+                // without internet) counted as online and kept the online routers.
+                z = InternetNetwork.INSTANCE.validated(context) == null;
             } catch (Throwable unused) {
                 return;
             }
@@ -3562,7 +3559,28 @@ public final class NavPlus {
         }
     }
 
+    /** "Radar ve hız limiti" switch (DashConfig.offlineSafety): off = no fetching, alerts, sign or pill. */
+    public static boolean safetyOn() {
+        try {
+            Context c = GPlus.ctx;
+            return c == null || DashConfig.Companion.get(c).getOfflineSafety().getValue().booleanValue();
+        } catch (Throwable unused) {
+            return true;
+        }
+    }
+
+    /** "Yağmur uyarısı" switch (DashConfig.rainWarning). */
+    public static boolean rainOn() {
+        try {
+            Context c = GPlus.ctx;
+            return c == null || DashConfig.Companion.get(c).getRainWarning().getValue().booleanValue();
+        } catch (Throwable unused) {
+            return true;
+        }
+    }
+
     public static void spdTick0(float f, double d, double d2) {
+        if (!safetyOn()) { spdLimit = 0; spdShowUntil = 0L; return; }
         try {
             float f2 = f * 3.6f;
             if (f2 >= 15.0f) {

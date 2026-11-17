@@ -455,12 +455,6 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val DASH_MAX_ZOOM = 20
         /** How long a dash notice ("Skipped …") stays up. */
         private const val NOTICE_MS = 4_000L
-        /** On-dash Source page rows, in order. */
-        private val MENU_ROUTING_SOURCES = listOf(
-            com.example.wayfindr.dash.RoutingSource.GOOGLE to "Google Maps",
-            com.example.wayfindr.dash.RoutingSource.OSM to "OSM",
-            com.example.wayfindr.dash.RoutingSource.BROUTER to "Offline (BRouter)",
-        ).filter { it.first in com.example.wayfindr.dash.RoutingSource.available }
     }
 
     /** Project a lat/lng forward [distM] metres along [bearingDeg] (great-circle). */
@@ -994,7 +988,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val lng = finalDestination?.lng
         val selectedForTrip = selectedRoute?.takeIf { r ->
             val end = r.geometry.lastOrNull()
-            r.source == dashConfig.routingSource.value && r.geometry.size >= 2 &&
+            // Any router's route (routing is automatic: Google, OSM or offline BRouter).
+            r.geometry.size >= 2 &&
                 r.totalMeters.isFinite() && r.totalMeters >= 0.0 &&
                 end != null && lat != null && lng != null &&
                 GeoPoint.distMeters(end, GeoPoint(lat, lng)) <= 750.0
@@ -1307,31 +1302,28 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun menuRows0(): List<MapRenderer.MenuRow> = when (menuPage) {
-        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Rota ve uyarılar", submenu = true)) +
+        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Uyarılar", submenu = true)) +
             (if (hasDestination()) listOf(MapRenderer.MenuRow("Navigasyon", submenu = true)) else emptyList()) +
             (pickerItems ?: emptyList()).map { MapRenderer.MenuRow(it.name) }
         MenuPage.CANCEL -> cancelRows().map { MapRenderer.MenuRow(it.first) }
-        MenuPage.SOURCE -> {
-            val routing = dashConfig.routingSource.value
-            listOf(MapRenderer.MenuRow("Rota kaynağı", header = true)) +
-                MENU_ROUTING_SOURCES.map { (s, label) -> MapRenderer.MenuRow(label, active = s == routing) } +
-                // Alert switches on the same page: the green tick = on; select toggles it.
-                MapRenderer.MenuRow("Uyarılar", header = true) +
+        // Routing is automatic since V57 (Google → OSM → offline BRouter), so this page only holds
+        // the alert switches: the green tick = on; select toggles it.
+        MenuPage.SOURCE ->
+            listOf(MapRenderer.MenuRow("Uyarılar", header = true)) +
                 alertToggles().map { (label, on) -> MapRenderer.MenuRow(label, active = on) }
-        }
     }
 
     /** Alert switches shown on the SOURCE page (label, on). Order matches [toggleAlert]. */
     private fun alertToggles(): List<Pair<String, Boolean>> = listOf(
         "Viraj uyarısı" to dashConfig.curveWarning.value,
         "Yağmur uyarısı" to dashConfig.rainWarning.value,
-        "Radar ve hız limiti (çevrimdışı)" to dashConfig.offlineSafety.value,
+        "Radar ve hız limiti" to dashConfig.offlineSafety.value,
     )
 
     private fun toggleAlert(i: Int): String? = when (i) {
         0 -> { val on = !dashConfig.curveWarning.value; dashConfig.setCurveWarning(on); "Viraj uyarısı ${if (on) "açık" else "kapalı"}" }
         1 -> { val on = !dashConfig.rainWarning.value; dashConfig.setRainWarning(on); "Yağmur uyarısı ${if (on) "açık" else "kapalı"}" }
-        2 -> { val on = !dashConfig.offlineSafety.value; dashConfig.setOfflineSafety(on); "Radar ${if (on) "açık" else "kapalı"}" }
+        2 -> { val on = !dashConfig.offlineSafety.value; dashConfig.setOfflineSafety(on); "Radar ve hız limiti ${if (on) "açık" else "kapalı"}" }
         else -> null
     }
 
@@ -1363,19 +1355,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun selectPickerItem0(): String {
         val items = pickerItems ?: return "Picker: nothing to select"
         if (menuPage == MenuPage.SOURCE) {
-            // Rows: 0 header, 1..n routing sources, header "Uyarılar", then the alert switches. Stays
-            // on the page so the green tick moves to the new choice.
-            val alertIdx = pickerIndex - 1 - MENU_ROUTING_SOURCES.size - 1
-            if (alertIdx >= 0) {
-                val msg = toggleAlert(alertIdx) ?: return "Picker: nothing to select"
-                showNotice(msg)
-                return "Picker → $msg"
-            }
-            val (s, label) = MENU_ROUTING_SOURCES.getOrNull(pickerIndex - 1) ?: return "Picker: nothing to select"
-            dashConfig.setRoutingSource(s)
-            com.example.wayfindr.data.RideDiagnostics.log("picker",
-                "routing source → $label (from the dash; used from the next route/reroute)")
-            return "Picker → routing source $label"
+            // Rows: 0 header "Uyarılar", then the alert switches. Stays on the page so the tick updates.
+            val msg = toggleAlert(pickerIndex - 1) ?: return "Picker: nothing to select"
+            showNotice(msg)
+            return "Picker → $msg"
         }
         if (menuPage == MenuPage.CANCEL) {
             return when (cancelRows().getOrNull(pickerIndex)?.second) {
@@ -2127,7 +2110,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         if (!userWantsConnection || session.state.value != DashState.STREAMING) return
         if (loc == null || !LocationTracker.isFreshForNavigation(loc) || route == null || rerouting || trafficRefreshInFlight) return
         // Free/offline routing has no traffic data, so a refresh would only load the router.
-        if (dashConfig.routingSource.value != com.example.wayfindr.dash.RoutingSource.GOOGLE) return
+        if (route?.source != com.example.wayfindr.dash.RoutingSource.GOOGLE) return
         if (!com.example.wayfindr.dash.GoogleKey.present) return
         val now = System.currentTimeMillis()
         if (now - lastTrafficRefreshAt < TRAFFIC_REFRESH_MS) return
@@ -2282,7 +2265,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             etaPrimary = etaPrimary,
             etaSecondary = etaSecondary,
             pickerRows = pickerItems?.let { menuRows() },
-            pickerTitle = when (menuPage) { MenuPage.SOURCE -> "ROTA KAYNAĞI"; MenuPage.CANCEL -> "ROTA / DURAK"; MenuPage.ROOT -> "KAYITLI YERLER" },
+            pickerTitle = when (menuPage) { MenuPage.SOURCE -> "UYARILAR"; MenuPage.CANCEL -> "ROTA / DURAK"; MenuPage.ROOT -> "KAYITLI YERLER" },
             pickerSelectHint = when (menuPage) {
                 MenuPage.SOURCE -> "Sol/sağ: gez · sağ basılı: seç"
                 MenuPage.CANCEL -> "Sol/sağ: gez · sağ basılı: seç"

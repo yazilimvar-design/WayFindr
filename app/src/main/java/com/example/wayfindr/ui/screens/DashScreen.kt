@@ -519,7 +519,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
             WayfindrToggle(on = ui.mapDark, onChange = { vm.setMapDark(it) })
         }
 
-        // Ride alerts: same switches as on the dash menu ("Rota ve uyarılar").
+        // Ride alerts: same switches as on the dash menu ("Uyarılar").
         val curveWarning by dashConfig.curveWarning.collectAsState()
         val rainWarning by dashConfig.rainWarning.collectAsState()
         val offlineSafety by dashConfig.offlineSafety.collectAsState()
@@ -528,9 +528,7 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
         Spacer(Modifier.height(10.dp))
         AlertToggleRow(WayfindrIcons.Drop, "Yağmur uyarısı", "Rotada yağış beklenirse bildirir", rainWarning) { dashConfig.setRainWarning(it) }
         Spacer(Modifier.height(10.dp))
-        AlertToggleRow(WayfindrIcons.Gauge, "Radar ve hız limiti (çevrimdışı)", "Rota boyunca kaydedilir; internet yokken kullanılır", offlineSafety) { dashConfig.setOfflineSafety(it) }
-        Spacer(Modifier.height(10.dp))
-        OfflinePackCard()
+        AlertToggleRow(WayfindrIcons.Gauge, "Radar ve hız limiti", "İnternet varken canlı veri, yokken kayıtlı veri", offlineSafety) { dashConfig.setOfflineSafety(it) }
 
         Spacer(Modifier.height(16.dp))
 

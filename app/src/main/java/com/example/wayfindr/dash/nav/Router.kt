@@ -75,8 +75,10 @@ object Router {
      */
     suspend fun route(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? {
         NavPlus.rtPick(context)
-        val online = source != RoutingSource.BROUTER
-        return when (source) {
+        val src = effectiveSource()
+        val online = src != RoutingSource.BROUTER
+        val t0 = System.currentTimeMillis()
+        return when (src) {
             RoutingSource.GOOGLE ->
                 if (!com.example.wayfindr.dash.GoogleKey.present)
                     FreeRouter.route(context, from, to, intermediates)?.copy(source = RoutingSource.OSM)
@@ -91,7 +93,22 @@ object Router {
                             "BRouter unavailable (${OfflineRouter.lastError}) — trying the free OSM server")
                         FreeRouter.route(context, from, to, intermediates)?.copy(source = RoutingSource.OSM)
                     }
+        }.also { r ->
+            com.example.wayfindr.data.RideDiagnostics.log("route", "auto routing: $src → " +
+                (r?.let { "${it.source} %.1f km".format(it.totalMeters / 1000) } ?: "failed") +
+                " in ${System.currentTimeMillis() - t0} ms")
         } ?: if (online) offlineFallback(from, to, intermediates) else null
+    }
+
+    /**
+     * Automatic router: no internet ([NavPlus.rtPick] set BROUTER) → BRouter on the phone; otherwise
+     * Google when a key is set, else the free OSM server. Re-checked per request so a key entered
+     * later counts at once.
+     */
+    fun effectiveSource(): RoutingSource = when {
+        source == RoutingSource.BROUTER -> RoutingSource.BROUTER
+        com.example.wayfindr.dash.GoogleKey.present -> RoutingSource.GOOGLE
+        else -> RoutingSource.OSM
     }
 
     /**
@@ -114,14 +131,15 @@ object Router {
         context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList(),
     ): List<Route> {
         NavPlus.rtPick(context)
+        val src = effectiveSource()
         val routes: List<Route> =
-            if (source == RoutingSource.OSM)
+            if (src == RoutingSource.OSM)
                 FreeRouter.alternatives(context, from, to, intermediates).map { it.copy(source = RoutingSource.OSM) }
                     .ifEmpty { listOfNotNull(offlineFallback(from, to, intermediates)) }
             else NavPlus.googleChoices(route(context, from, to, NavPlus.altMarker(intermediates) as List<GeoPoint>)) as List<Route>
         // Google often returns a single route (always with stops); top up the picker with the free OSM
         // alternatives so the rider still gets up to 3 choices. Costs nothing extra.
-        val choices = if (source == RoutingSource.GOOGLE && routes.size < 2)
+        val choices = if (src == RoutingSource.GOOGLE && routes.size < 2 && routes.firstOrNull()?.source != RoutingSource.BROUTER)
             routes + runCatching { FreeRouter.alternatives(context, from, to, intermediates) }.getOrDefault(emptyList())
                 .map { it.copy(source = RoutingSource.OSM) }
         else routes

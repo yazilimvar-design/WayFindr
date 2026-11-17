@@ -57,6 +57,12 @@ object PlaceSearch {
     @Volatile var lastError: String? = null
         private set
 
+    /** True when the last suggestions came from the offline index (Türkiye çevrimdışı paketi). */
+    @Volatile var lastOffline: Boolean = false
+        private set
+
+    private fun online(ctx: Context) = InternetNetwork.validated(ctx) != null
+
     suspend fun search(
         ctx: Context, query: String, source: RoutingSource,
         near: Pair<Double, Double>?, saved: List<SavedLocation>,
@@ -64,11 +70,21 @@ object PlaceSearch {
         val q = query.trim()
         if (q.isEmpty()) return null
         lastError = null
-        val hit = when (source) {
+        val offlineIndex = com.example.wayfindr.dash.offline.OfflineSearch.available(ctx)
+        val hit = if (!online(ctx)) {
+            // No internet: saved places, then the offline index of the Türkiye package.
+            savedMatch(q, saved)
+                ?: (if (offlineIndex) withContext(Dispatchers.IO) {
+                    com.example.wayfindr.dash.offline.OfflineSearch.best(ctx, q, near)
+                } else null)
+                ?: run { lastError = if (offlineIndex) "no match" else "no internet"; null }
+        } else when (source) {
             RoutingSource.GOOGLE -> google(ctx, q)
             RoutingSource.OSM -> osm(ctx, q, near)
             RoutingSource.BROUTER -> savedMatch(q, saved) ?: osm(ctx, q, near)
-        }
+        } ?: (if (offlineIndex) withContext(Dispatchers.IO) {
+            com.example.wayfindr.dash.offline.OfflineSearch.best(ctx, q, near)
+        } else null)
         val msg = hit?.let { "search '$q' (${it.provider}) → ${it.name} %.5f,%.5f".format(it.lat, it.lng) }
             ?: "search '$q' (${label(source)}) → nothing: $lastError"
         Log.i(TAG, msg)
@@ -88,6 +104,14 @@ object PlaceSearch {
             val q = query.trim()
             if (q.length < 2) return@withContext emptyList()
             lastError = null
+            lastOffline = false
+            val offline = com.example.wayfindr.dash.offline.OfflineSearch
+            if (!online(ctx)) {
+                // No internet: the offline index answers alone (Photon, Places and the geocoder can't).
+                if (!offline.available(ctx)) { lastError = "no internet for OpenStreetMap search"; return@withContext emptyList() }
+                lastOffline = true
+                return@withContext offline.search(ctx, q, near).also { if (it.isEmpty()) lastError = "no match" }
+            }
             val hits: List<Hit> = try {
                 val url = buildString {
                     append(PHOTON).append("?limit=20&location_bias_scale=0.6&q=").append(URLEncoder.encode(q, "UTF-8"))
@@ -121,7 +145,12 @@ object PlaceSearch {
             } catch (e: Exception) {
                 lastError = "OpenStreetMap suggestions failed (${e.message})"; emptyList()
             }
-            SearchPlus.augment(ctx, query, near, hits) as List<Hit>
+            val merged = SearchPlus.augment(ctx, query, near, hits) as List<Hit>
+            // Online search failed (server down, network dropped) or found nothing: the offline index.
+            if (merged.isEmpty() && offline.available(ctx)) {
+                offline.search(ctx, q, near).takeIf { it.isNotEmpty() }?.let { lastOffline = true; lastError = null; return@withContext it }
+            }
+            merged
         }
 
     /** Saved destinations (and their stops) whose name contains every word typed. */

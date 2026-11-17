@@ -22,9 +22,10 @@ import java.net.HttpURLConnection
 
 /**
  * "Türkiye çevrimdışı paketi": the offline vector map of Turkey (PMTiles, published monthly by the
- * tr-map workflow of the public WayFindr repo) plus the 8 BRouter routing segments that cover Turkey.
- * With it the console map ([com.example.wayfindr.dash.map.VectorTiles]) and routing
- * ([com.example.wayfindr.dash.nav.BRouterEngine]) work with no internet.
+ * tr-map workflow of the public WayFindr repo), its place search index (SQLite FTS4 from OSM, same
+ * release, "search" in the manifest) plus the 8 BRouter routing segments that cover Turkey.
+ * With it the console map ([com.example.wayfindr.dash.map.VectorTiles]), routing
+ * ([com.example.wayfindr.dash.nav.BRouterEngine]) and search ([OfflineSearch]) work with no internet.
  *
  * Downloads go through the system DownloadManager (resumes after network loss, keeps going with the
  * screen off or the app closed, shows its own notification) into a staging folder. Only when every
@@ -40,9 +41,10 @@ object OfflinePack {
         "E25_N35", "E30_N35", "E35_N35", "E40_N35",
         "E25_N40", "E30_N40", "E35_N40", "E40_N40",
     ).map { "$it.rd5" }
-    /** Rough sizes until the server has been asked (Nov 2026: map 858 MB, segments 210 MB). */
+    /** Rough sizes until the server has been asked (Nov 2026: map 858 MB, segments 210 MB, search ~100 MB). */
     private const val MAP_SIZE_GUESS = 860_000_000L
     private const val SEGMENTS_SIZE_GUESS = 211_000_000L
+    private const val SEARCH_SIZE_GUESS = 100_000_000L
     /** Segments are rebuilt every few days; only call it an update after this long. */
     private const val SEGMENT_UPDATE_AGE_MS = 28L * 24 * 3600 * 1000
     private const val SPACE_MARGIN = 100L * 1024 * 1024
@@ -50,8 +52,9 @@ object OfflinePack {
     data class Status(
         val mapInstalled: Boolean = false,
         val routingInstalled: Boolean = false,
+        val searchInstalled: Boolean = false,
         val mapDate: String? = null,          // YYYYMMDD of the installed map
-        val totalBytes: Long = MAP_SIZE_GUESS + SEGMENTS_SIZE_GUESS, // size of the whole package
+        val totalBytes: Long = MAP_SIZE_GUESS + SEGMENTS_SIZE_GUESS + SEARCH_SIZE_GUESS, // size of the whole package
         val downloading: Boolean = false,
         val doneBytes: Long = 0,
         val wantBytes: Long = 0,
@@ -81,6 +84,7 @@ object OfflinePack {
     private fun base(ctx: Context) = File(ctx.getExternalFilesDir(null) ?: ctx.filesDir, "offline")
     fun segmentDir(ctx: Context) = File(base(ctx), "segments4").apply { mkdirs() }
     private fun mapDir(ctx: Context) = File(base(ctx), "map").apply { mkdirs() }
+    private fun searchDir(ctx: Context) = File(base(ctx), "search").apply { mkdirs() }
     private fun stagingDir(ctx: Context) = File(base(ctx), "staging").apply { mkdirs() }
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("offline_pack", Context.MODE_PRIVATE)
 
@@ -89,6 +93,20 @@ object OfflinePack {
         ctx ?: return null
         val name = prefs(ctx).getString("map.file", null) ?: return null
         return File(mapDir(ctx), name).takeIf { it.length() > 0 }
+    }
+
+    /** The installed search index (tr-search-YYYYMMDD.sqlite), or null. */
+    fun searchFile(ctx: Context? = app): File? {
+        ctx ?: return null
+        val name = prefs(ctx).getString("search.file", null) ?: return null
+        return File(searchDir(ctx), name).takeIf { it.length() > 0 }
+    }
+
+    /** Debug/CI only: use a search index already placed in offline/search/. */
+    fun debugInstallSearch(ctx: Context, fileName: String, date: String) {
+        if (!com.example.wayfindr.BuildConfig.DEBUG) return
+        prefs(ctx).edit().putString("search.file", fileName).putString("search.date", date).commit()
+        OfflineSearch.reset()
     }
 
     /** Debug/CI only: use a map file already placed in offline/map/ (e.g. a small Ankara extract). */
@@ -144,6 +162,18 @@ object OfflinePack {
             if (mapFile(ctx) != null) update = true
             items += Remote("map", m.getString("url"), mapSize, mapDate, File(mapDir(ctx), m.getString("file")))
         }
+        // Search index (manifests from before V57 have none).
+        var searchSize = 0L
+        m.optJSONObject("search")?.let { s ->
+            searchSize = s.optLong("size")
+            val date = s.optString("date")
+            val have = searchFile(ctx)
+            if (have == null || (p.getString("search.date", "") ?: "") < date) {
+                // An installed package without the index (V56) or with an older one: offer "Güncelle".
+                if (mapFile(ctx) != null) update = true
+                items += Remote("search", s.getString("url"), searchSize, date, File(searchDir(ctx), s.getString("file")))
+            }
+        }
         var segTotal = 0L
         for (name in SEGMENTS) {
             val (len, lm) = runCatching { head(ctx, SEGMENT_URL + name) }.getOrElse { -1L to 0L }
@@ -156,7 +186,7 @@ object OfflinePack {
                 items += Remote(name, SEGMENT_URL + name, len, lm.toString(), File(segmentDir(ctx), name))
             }
         }
-        return Plan(items, mapDate, mapSize + segTotal, update)
+        return Plan(items, mapDate, mapSize + segTotal + searchSize, update)
     }
 
     // ── Public actions ───────────────────────────────────────────────────
@@ -217,7 +247,11 @@ object OfflinePack {
         for (it in items) {
             val part = File(stagingDir(ctx), it.dest.name + ".part").apply { delete() }
             val req = DownloadManager.Request(Uri.parse(it.url))
-                .setTitle(if (it.name == "map") "Türkiye çevrimdışı haritası" else "Türkiye rota verisi ${it.name}")
+                .setTitle(when (it.name) {
+                    "map" -> "Türkiye çevrimdışı haritası"
+                    "search" -> "Türkiye çevrimdışı arama dizini"
+                    else -> "Türkiye rota verisi ${it.name}"
+                })
                 .setDescription("Türkiye çevrimdışı paketi")
                 .setDestinationUri(Uri.fromFile(part))
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
@@ -311,6 +345,7 @@ object OfflinePack {
         val ed = p.edit()
         val names = p.getStringSet("dl.names", emptySet()).orEmpty()
         val oldMap = mapFile(ctx)
+        val oldSearch = searchFile(ctx)
         for (name in names) {
             val part = File(p.getString("dl.$name.part", null) ?: continue)
             val dest = File(p.getString("dl.$name.dest", null) ?: continue)
@@ -318,12 +353,16 @@ object OfflinePack {
             dest.parentFile?.mkdirs()
             if (!part.renameTo(dest)) { part.copyTo(dest, overwrite = true); part.delete() }
             val stamp = p.getString("dl.$name.stamp", "") ?: ""
-            if (name == "map") {
-                ed.putString("map.file", dest.name).putString("map.date", stamp)
-            } else ed.putLong("seg.$name", stamp.toLongOrNull() ?: 0L)
+            when (name) {
+                "map" -> ed.putString("map.file", dest.name).putString("map.date", stamp)
+                "search" -> ed.putString("search.file", dest.name).putString("search.date", stamp)
+                else -> ed.putLong("seg.$name", stamp.toLongOrNull() ?: 0L)
+            }
         }
         ed.putBoolean("update", false).commit()
         oldMap?.takeIf { it.name != mapFile(ctx)?.name }?.delete()
+        OfflineSearch.reset()
+        oldSearch?.takeIf { it.name != searchFile(ctx)?.name }?.delete()
         clearJob(ctx)
         Log.i(TAG, "installed: $names")
         com.example.wayfindr.data.RideDiagnostics.log("offline", "Türkiye package installed/updated: $names")
@@ -337,8 +376,9 @@ object OfflinePack {
         _status.value = _status.value.copy(
             mapInstalled = mapFile(ctx) != null,
             routingInstalled = routingReady(ctx),
+            searchInstalled = searchFile(ctx) != null,
             mapDate = date,
-            totalBytes = p.getLong("total", MAP_SIZE_GUESS + SEGMENTS_SIZE_GUESS),
+            totalBytes = p.getLong("total", MAP_SIZE_GUESS + SEGMENTS_SIZE_GUESS + SEARCH_SIZE_GUESS),
             downloading = downloading ?: false,
             doneBytes = done, wantBytes = want,
             latestMapDate = latest,

@@ -20,8 +20,8 @@ import com.example.wayfindr.ui.theme.*
 import kotlinx.coroutines.delay
 
 /**
- * "Türkiye çevrimdışı paketi" card (Konsol tab): offline Turkey map + BRouter routing data in one
- * download. Not installed → size and "indir"; downloading → progress; installed → map date and
+ * "Türkiye çevrimdışı paketi" card (Ayarlar → Çevrimdışı harita): offline Turkey map, place search
+ * index and BRouter routing data in one download. Not installed → size and "indir"; downloading → progress; installed → map date and
  * "Güncelle" (newer map / segments replace the old files only once fully downloaded).
  */
 @Composable
@@ -52,9 +52,11 @@ fun OfflinePackCard(modifier: Modifier = Modifier) {
                     st.downloading -> "İndiriliyor… %" + (st.progress * 100).toInt() +
                         (if (st.wantBytes > 0) " · ${OfflinePack.gb(st.doneBytes)} / ${OfflinePack.gb(st.wantBytes)}" else "")
                     st.busy -> "Sunucu kontrol ediliyor…"
-                    st.installed -> "Kurulu · harita ${OfflinePack.prettyDate(st.mapDate)} · internetsiz harita ve rota"
+                    st.installed && !st.searchInstalled ->
+                        "Kurulu · harita ${OfflinePack.prettyDate(st.mapDate)} · arama dizini yok, Güncelle ile ekleyin"
+                    st.installed -> "Kurulu · harita ${OfflinePack.prettyDate(st.mapDate)} · internetsiz harita, arama ve rota"
                     st.mapInstalled || st.routingInstalled -> "Yarım kalmış · tamamlamak için indirin"
-                    else -> "Kurulu değil · ~${OfflinePack.gb(st.totalBytes)} · harita + rota verisi"
+                    else -> "Kurulu değil · ~${OfflinePack.gb(st.totalBytes)} · harita, arama ve rota verisi"
                 }
                 Text(sub, color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
             }

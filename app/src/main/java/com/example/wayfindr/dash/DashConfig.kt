@@ -56,15 +56,13 @@ class DashConfig private constructor(context: Context) {
     private val _mapDarkAuto = MutableStateFlow(prefs.getBoolean(KEY_MAP_DARK_AUTO, true))
     /** Dark map by the clock (7 pm–5 am, [DarkSchedule]); when off, [mapDarkMode] is used. */
     val mapDarkAuto: StateFlow<Boolean> = _mapDarkAuto.asStateFlow()
-    private val _routingSource = MutableStateFlow(
-        prefs.getString(KEY_ROUTING_SOURCE, null)?.let { runCatching { RoutingSource.valueOf(it) }.getOrNull() }
-            // First run after the switch to one setting: carry over the old two toggles.
-            ?: when {
-                prefs.getBoolean(KEY_OFFLINE_ROUTING, false) -> RoutingSource.BROUTER
-                prefs.getBoolean(KEY_FREE_ROUTING, false) -> RoutingSource.OSM
-                else -> RoutingSource.GOOGLE
-            }.let { if (it == RoutingSource.GOOGLE && !GoogleKey.present) RoutingSource.OSM else it })
-    /** Who works out routes: Google Routes API, free OSM/Valhalla server, or BRouter on the phone. */
+    /**
+     * Routing is automatic (no picker since V57): Google with a key, else the free OSM server; with no
+     * internet, or when those fail, [com.example.wayfindr.dash.nav.Router] falls through to the
+     * built-in BRouter and then the BRouter app. A stored choice from older versions (GOOGLE / OSM /
+     * BROUTER, or the even older toggles) is ignored and dropped once.
+     */
+    private val _routingSource = MutableStateFlow(autoSource())
     val routingSource: StateFlow<RoutingSource> = _routingSource.asStateFlow()
     private val _mapTheme = MutableStateFlow(MapTheme.fromStored(prefs.getString(KEY_MAP_THEME, null)))
     val mapTheme: StateFlow<MapTheme> = _mapTheme.asStateFlow()
@@ -75,7 +73,10 @@ class DashConfig private constructor(context: Context) {
         // v34 dropped the map-source choice (OSM vector map only); clear the old keys once.
         prefs.edit().remove(KEY_MAP_SOURCE).remove(KEY_OFFLINE_MAP).remove(KEY_OFFLINE_MAP_FILE).remove(KEY_FREE_MAPS).apply()
     }
-    init { com.example.wayfindr.dash.nav.Router.source = _routingSource.value }
+    init {
+        prefs.edit().remove(KEY_ROUTING_SOURCE).remove(KEY_FREE_ROUTING).remove(KEY_OFFLINE_ROUTING).apply()
+        com.example.wayfindr.dash.nav.Router.source = _routingSource.value
+    }
     private val _scenicRoute = MutableStateFlow(prefs.getBoolean(KEY_SCENIC, false).also { com.example.wayfindr.dash.nav.Router.scenic = it })
     /** "Manzaralı rota (otoyol yok)": routes avoid highways and tolls (Google, OSM; Navigation SDK). */
     val scenicRoute: StateFlow<Boolean> = _scenicRoute.asStateFlow()
@@ -133,12 +134,18 @@ class DashConfig private constructor(context: Context) {
         _mapDark.value = dark
     }
 
-    fun setRoutingSource(choice: RoutingSource) {
-        val source = if (choice == RoutingSource.GOOGLE && !GoogleKey.present) RoutingSource.OSM else choice
-        prefs.edit().putString(KEY_ROUTING_SOURCE, source.name).apply()
+    /**
+     * Re-derives the automatic router (e.g. after a Google key was entered or removed). [choice] is
+     * only a hint from older call sites: BRouter is never a standing choice any more, it is the
+     * offline fallback.
+     */
+    fun setRoutingSource(@Suppress("UNUSED_PARAMETER") choice: RoutingSource = autoSource()) {
+        val source = autoSource()
         _routingSource.value = source
         com.example.wayfindr.dash.nav.Router.source = source
     }
+
+    private fun autoSource() = if (GoogleKey.present) RoutingSource.GOOGLE else RoutingSource.OSM
 
     fun setScenicRoute(on: Boolean) {
         prefs.edit().putBoolean(KEY_SCENIC, on).apply()

@@ -60,7 +60,7 @@ fun SettingsScreen(
             .padding(bottom = 24.dp),
     ) {
         ScreenHeader(title = "Ayarlar", onBack = onBack,
-            hint = "Bağlantı, ekran kapalıyken aktarım, sesli yönlendirme, birimler ve medya/arama izinleri.")
+            hint = "Bağlantı, çevrimdışı harita, ekran kapalıyken aktarım, sesli yönlendirme, birimler ve medya/arama izinleri.")
 
         SectionLabel("Bağlantı")
         WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 6.dp) {
@@ -77,6 +77,9 @@ fun SettingsScreen(
                 if (hqVideo) "400 kbps · daha net görüntü, konsola daha fazla yük" else "Dengeli · 200 kbps",
                 control = { WayfindrToggle(hqVideo) { streamCfg.setHighQualityVideo(it) } }, last = true)
         }
+
+        SectionLabel("Çevrimdışı harita")
+        OfflinePackCard()
 
         SectionLabel("Sürüş sırasında")
         val dashConfig = remember { DashConfig.get(ctx) }
