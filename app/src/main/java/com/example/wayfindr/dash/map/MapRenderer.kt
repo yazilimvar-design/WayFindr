@@ -10,6 +10,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import com.example.wayfindr.dash.nav.GPlus
+import com.example.wayfindr.dash.nav.GoogleTheme
 import com.example.wayfindr.dash.nav.GeoPoint
 import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.TrafficInterval
@@ -170,7 +171,9 @@ class MapRenderer(private val tiles: TileProvider) {
         // Wallpaper / music-card frame (NavPlus) replaces the map entirely when it draws.
         if (NavPlus.phDraw(canvas, f, w, h)) return
         canvas.drawColor(if (f.dark) darkBg else lightBg)
-        tilePaint.colorFilter = if (f.dark) darkTileFilter else lightTileFilter
+        GoogleTheme.dark = f.dark
+        // Google tiles come pre-styled in the chosen theme (night → "Gece"), so no inversion for them.
+        tilePaint.colorFilter = if (GPlus.tilesOn) null else if (f.dark) darkTileFilter else lightTileFilter
         routeCasing.color = if (f.dark) Color.rgb(150, 196, 255) else Color.rgb(13, 60, 140) // light-blue rim on dark tiles, like the reference // dark-blue edge on light tiles
         standbyPaint.color = if (f.dark) Color.rgb(186, 192, 200) else Color.rgb(60, 64, 67)
 
