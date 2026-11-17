@@ -359,7 +359,7 @@ class MapRenderer(private val tiles: TileProvider) {
         // ── Next-turn card, bottom-left where the dash's round turn widget sat (that one is hidden
         //    by sending no glyph, see DashViewModel). Sits above the map credit, clear of the rider. ──
         overlay("turn card") {
-            f.turnCard?.let { drawTurnCard(canvas, it, f.etaSecondary, ETA_MARGIN_RIGHT, bottomEdge, w, h) }
+            f.turnCard?.let { drawTurnCard(canvas, it, listOfNotNull(f.etaSecondary, f.remainingText).joinToString(" · ").ifBlank { null }, ETA_MARGIN_RIGHT, bottomEdge, w, h) }
         }
 
         // ── Recent joystick presses ("DDRR"), small box at the bottom centre (the DOWN hint
