@@ -271,7 +271,7 @@ object OfflineRouter {
 
         val props = feature.getJSONObject("properties")
         val maneuvers = ArrayList<Maneuver>()
-        maneuvers.add(Maneuver(ManeuverType.DEPART, "Head out", geometry[0], 0.0, googleManeuver = "DEPART"))
+        maneuvers.add(Maneuver(ManeuverType.DEPART, "Yola çıkın", geometry[0], 0.0, googleManeuver = "DEPART"))
         props.optJSONArray("voicehints")?.let { hints ->
             for (i in 0 until hints.length()) {
                 val h = hints.getJSONArray(i)
