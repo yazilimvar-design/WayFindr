@@ -5,6 +5,11 @@
 # publishes it as a release asset:
 #   - release tr-map-YYYYMMDD : tr-YYYYMMDD.pmtiles + manifest.json
 #   - release tr-map-latest   : manifest.json only, pointing at the newest dated file
+# It also builds the offline search index (tr-search-YYYYMMDD.sqlite, SQLite + FTS4: named POIs,
+# il/ilçe/mahalle/köy, streets, with the containing ilçe/il) from the Geofabrik Türkiye OSM extract
+# with .github/scripts/tr_search.py, uploads it to the same dated release and lists it under
+# "search" in manifest.json. When the newest map is already published but has no search index (or
+# force_search is set), only the index is built and added.
 # The app reads
 #   https://github.com/<repo>/releases/download/tr-map-latest/manifest.json
 # to find the newest map, its date and size. No secrets are used: only the job's GITHUB_TOKEN.
@@ -14,6 +19,11 @@ on:
   schedule:
     - cron: "17 3 3 * *"   # monthly, 3rd day 03:17 UTC
   workflow_dispatch:
+    inputs:
+      force_search:
+        description: "Arama dizinini yeniden oluştur (harita yayımlanmış olsa da)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -33,6 +43,8 @@ jobs:
       MAXZOOM: "14"
       PMTILES_VERSION: "1.31.2"
     steps:
+      - uses: actions/checkout@v4
+
       - name: pmtiles CLI
         run: |
           if curl -fsSL -o pmtiles.tgz "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"; then
@@ -52,6 +64,10 @@ jobs:
           echo "Source: https://build.protomaps.com/$KEY"
           if gh release view "tr-map-$DATE" -R "$REPO" >/dev/null 2>&1; then
             echo "tr-map-$DATE already published"; echo "skip=1" >> "$GITHUB_OUTPUT"
+            if gh release view "tr-map-$DATE" -R "$REPO" --json assets --jq '.assets[].name' | grep -q '^tr-search-' \
+               && [ "${{ inputs.force_search }}" != "true" ]; then
+              echo "search index already published"; echo "search_skip=1" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Extract Türkiye
@@ -62,23 +78,63 @@ jobs:
           ./pmtiles show "tr-${{ steps.src.outputs.date }}.pmtiles"
           ls -l tr-*.pmtiles
 
+      - name: Search index (OSM → SQLite FTS4)
+        id: search
+        if: steps.src.outputs.search_skip != '1'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          pip install --quiet osmium==4.3.2 shapely==2.2.0
+          curl -fsSL -o turkey.osm.pbf https://download.geofabrik.de/europe/turkey-latest.osm.pbf
+          ls -l turkey.osm.pbf
+          # Every named object (+ the nodes/ways it is made of, so boundaries and areas stay whole).
+          osmium tags-filter turkey.osm.pbf nwr/name nwr/name:tr -o named.osm.pbf --overwrite
+          ls -l named.osm.pbf
+          SDATE=$(date -u +%Y%m%d)
+          python3 .github/scripts/tr_search.py named.osm.pbf "tr-search-$SDATE.sqlite" "$SDATE"
+          echo "file=tr-search-$SDATE.sqlite" >> "$GITHUB_OUTPUT"
+          echo "date=$SDATE" >> "$GITHUB_OUTPUT"
+          echo "entries=$(python3 -c 'import sqlite3,sys; print(sqlite3.connect(sys.argv[1]).execute("SELECT v FROM meta WHERE k=?", ("entries",)).fetchone()[0])' "tr-search-$SDATE.sqlite")" >> "$GITHUB_OUTPUT"
+          rm -f turkey.osm.pbf named.osm.pbf
+
       - name: Publish release
-        if: steps.src.outputs.skip != '1'
+        if: steps.src.outputs.skip != '1' || steps.src.outputs.search_skip != '1'
         run: |
           DATE=${{ steps.src.outputs.date }}
           FILE="tr-$DATE.pmtiles"
           TAG="tr-map-$DATE"
-          SIZE=$(stat -c %s "$FILE")
-          SHA=$(sha256sum "$FILE" | cut -d' ' -f1)
-          URL="https://github.com/$REPO/releases/download/$TAG/$FILE"
-          jq -n --arg date "$DATE" --arg file "$FILE" --arg url "$URL" --arg sha "$SHA" \
-                --arg bbox "$BBOX" --argjson size "$SIZE" --argjson maxzoom "$MAXZOOM" \
-                --arg source "https://build.protomaps.com/${{ steps.src.outputs.key }}" \
-            '{version:1, date:$date, file:$file, url:$url, size:$size, sha256:$sha, bbox:$bbox, maxzoom:$maxzoom, source:$source,
-              attribution:"© OpenStreetMap contributors, Protomaps"}' > manifest.json
+          if [ "${{ steps.src.outputs.skip }}" = "1" ]; then
+            # Map already out: start from its published manifest, only the search part changes.
+            gh release download "$TAG" -R "$REPO" -p manifest.json -O base.json --clobber
+          else
+            SIZE=$(stat -c %s "$FILE")
+            SHA=$(sha256sum "$FILE" | cut -d' ' -f1)
+            URL="https://github.com/$REPO/releases/download/$TAG/$FILE"
+            jq -n --arg date "$DATE" --arg file "$FILE" --arg url "$URL" --arg sha "$SHA" \
+                  --arg bbox "$BBOX" --argjson size "$SIZE" --argjson maxzoom "$MAXZOOM" \
+                  --arg source "https://build.protomaps.com/${{ steps.src.outputs.key }}" \
+              '{version:1, date:$date, file:$file, url:$url, size:$size, sha256:$sha, bbox:$bbox, maxzoom:$maxzoom, source:$source,
+                attribution:"© OpenStreetMap contributors, Protomaps"}' > base.json
+          fi
+          SFILE="${{ steps.search.outputs.file }}"
+          if [ -n "$SFILE" ] && [ -s "$SFILE" ]; then
+            jq --arg file "$SFILE" --arg url "https://github.com/$REPO/releases/download/$TAG/$SFILE" \
+               --argjson size "$(stat -c %s "$SFILE")" --arg sha "$(sha256sum "$SFILE" | cut -d' ' -f1)" \
+               --arg date "${{ steps.search.outputs.date }}" --argjson entries "${{ steps.search.outputs.entries }}" \
+               '.search = {file:$file, url:$url, size:$size, sha256:$sha, date:$date, entries:$entries,
+                           source:"https://download.geofabrik.de/europe/turkey-latest.osm.pbf"}' base.json > manifest.json
+          else
+            cp base.json manifest.json
+          fi
           cat manifest.json
-          NOTES="Türkiye çevrimdışı vektör harita (Protomaps basemap $DATE, zoom 0-$MAXZOOM, bbox $BBOX). Veri: © OpenStreetMap katkıcıları (ODbL)."
-          gh release create "$TAG" "$FILE" manifest.json -R "$REPO" --title "Türkiye haritası $DATE" --notes "$NOTES" --latest=false
+          if [ "${{ steps.src.outputs.skip }}" = "1" ]; then
+            # Old search files of this release go, the new one and the manifest are added.
+            gh release view "$TAG" -R "$REPO" --json assets --jq '.assets[].name' | grep '^tr-search-' | grep -vx "$SFILE" \
+              | while read -r a; do gh release delete-asset "$TAG" "$a" -R "$REPO" --yes; done
+            gh release upload "$TAG" "$SFILE" manifest.json -R "$REPO" --clobber
+          else
+            NOTES="Türkiye çevrimdışı vektör harita (Protomaps basemap $DATE, zoom 0-$MAXZOOM, bbox $BBOX) ve arama dizini (Geofabrik OSM). Veri: © OpenStreetMap katkıcıları (ODbL)."
+            gh release create "$TAG" "$FILE" ${SFILE:+"$SFILE"} manifest.json -R "$REPO" --title "Türkiye haritası $DATE" --notes "$NOTES" --latest=false
+          fi
           # Stable pointer: tr-map-latest carries only the manifest of the newest file.
           if ! gh release view tr-map-latest -R "$REPO" >/dev/null 2>&1; then
             gh release create tr-map-latest -R "$REPO" --title "Türkiye haritası (en yeni)" \
