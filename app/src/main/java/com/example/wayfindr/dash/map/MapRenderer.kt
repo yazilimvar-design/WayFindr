@@ -92,11 +92,11 @@ class MapRenderer(private val tiles: TileProvider) {
     private val darkTileFilter = ColorMatrixColorFilter(nightTileMatrix())
     private val routeCasing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE; style = Paint.Style.STROKE
-        strokeWidth = 20f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 15f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = routeBlue; style = Paint.Style.STROKE
-        strokeWidth = 13f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 9.5f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val dotPaint     = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 22f; isFakeBoldText = true }
