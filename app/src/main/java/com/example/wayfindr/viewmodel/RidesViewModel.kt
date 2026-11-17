@@ -43,7 +43,8 @@ class RidesViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun resolveNames() = withContext(Dispatchers.IO) {
         val known = HashMap<String, String>()
-        namePrefs.all.forEach { (k, v) -> if (v is String) known[k] = v }
+        // Drop old door-number titles ("5A") saved by earlier versions, so they get re-resolved.
+        namePrefs.all.forEach { (k, v) -> if (v is String && !(v.any(Char::isDigit) && v.length <= 6)) known[k] = v }
         _names.value = known.toMap()
         if (!Geocoder.isPresent()) return@withContext
         for (r in _rides.value) {
@@ -60,8 +61,9 @@ class RidesViewModel(app: Application) : AndroidViewModel(app) {
         com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.REVERSE_GEOCODE)
         val a = Geocoder(getApplication(), Locale.forLanguageTag("tr-TR")).getFromLocation(lat, lng, 1)?.firstOrNull()
         // featureName is often just a house number; prefer the street / district then.
+        // featureName is often a door number ("5A", "12/3"): skip short codes that contain digits.
         listOf(a?.featureName, a?.thoroughfare, a?.subLocality, a?.locality)
-            .firstOrNull { !it.isNullOrBlank() && !it.all { c -> c.isDigit() || c == '/' || c == '-' } }
+            .firstOrNull { !it.isNullOrBlank() && !(it.any(Char::isDigit) && it.length <= 6) && !it.all { c -> c.isDigit() || c == '/' || c == '-' } }
     } catch (_: Exception) {
         null
     }

@@ -298,6 +298,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var routeRequestGeneration = 0L
     private var routeRequestJob: Job? = null
     @Volatile private var lastTrafficRefreshAt = 0L
+    @Volatile private var rideDestName: String? = null   // navigation destination during this ride → ride title
     @Volatile private var lastTrafficSwitchAt = 0L   // no flip-flop: see TrafficSwitch.MIN_GAP_MS
     // Routes API bill guard (automatic calls only — a destination the rider picks is never blocked).
     @Volatile private var rerouteStreak = 0          // reroutes since last stably back on route → backoff
@@ -921,6 +922,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     // ── Ride recording (the connected session) ───────────────────────────────
     private fun startRecording() {
         if (recorder.isRecording) return
+        rideDestName = routeStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }
         recorder.start()
         recordJob = viewModelScope.launch {
             location.location.collect { loc ->
@@ -939,6 +941,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         if (!recorder.isRecording) return
         val ride = recorder.stop() ?: return   // null = trivial session, don't save
         repo.addRide(ride)   // self-scoped on the repo (survives ViewModel teardown)
+        rideDestName?.let { getApplication<android.app.Application>().getSharedPreferences("ride_names", 0).edit().putString(ride.sid, it).apply() }
+        rideDestName = null
         android.util.Log.i("DashViewModel", "Ride saved: ${"%.1f".format(ride.distanceKm)} km, ${ride.durationSec}s")
     }
 
@@ -987,6 +991,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 GeoPoint.distMeters(end, GeoPoint(lat, lng)) <= 750.0
         }
         routeStops = validStops
+        // The ride is named after where it was going (not a reverse-geocoded house number).
+        validStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }?.let { rideDestName = it }
         // New destination picked by the rider → fresh Routes API budget and reroute backoff.
         autoRouteCalls = 0; autoRouteCapLogged = false; rerouteStreak = 0; lastRerouteAt = 0L
         lastTrafficSwitchAt = 0L
