@@ -240,6 +240,7 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
             com.example.wayfindr.data.ApiUsage.record(GPlus.usageName(com.example.wayfindr.data.ApiUsage.OSM_TILES))
             val conn = (net?.openConnection(url) ?: url.openConnection()) as HttpURLConnection
             conn.setRequestProperty("User-Agent", OSM_USER_AGENT)
+            GPlus.androidAuth(conn) // only acts on Google tile URLs
             conn.connectTimeout = 8_000
             conn.readTimeout = 8_000
             if (conn.responseCode !in 200..299) {

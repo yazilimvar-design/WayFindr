@@ -123,6 +123,7 @@ object Router {
                 val conn =
                     InternetNetwork.openConnection(context, ENDPOINT).apply {
 
+                        GPlus.androidAuth(this)
                         requestMethod = "POST"
                         doOutput = true
 

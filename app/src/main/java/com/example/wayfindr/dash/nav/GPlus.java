@@ -137,6 +137,34 @@ public final class GPlus {
         return obj4;
     }
 
+    private static volatile String certSha1;
+
+    /**
+     * Adds the Android app identity headers Google checks for keys restricted to "Android apps"
+     * (package + signing-cert SHA-1). Without them such a key answers 403 "Requests from this Android
+     * client application <empty> are blocked." Safe to call for any googleapis.com request.
+     */
+    public static void androidAuth(java.net.URLConnection conn) {
+        try {
+            Context c = ctx;
+            if (c == null || conn == null || !conn.getURL().getHost().endsWith("googleapis.com")) return;
+            String sha = certSha1;
+            if (sha == null) {
+                android.content.pm.Signature[] sigs = c.getPackageManager()
+                        .getPackageInfo(c.getPackageName(), android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES)
+                        .signingInfo.getApkContentsSigners();
+                byte[] d = java.security.MessageDigest.getInstance("SHA-1").digest(sigs[0].toByteArray());
+                StringBuilder sb = new StringBuilder();
+                for (byte b : d) sb.append(String.format("%02X", b));
+                sha = sb.toString();
+                certSha1 = sha;
+            }
+            conn.setRequestProperty("X-Android-Package", c.getPackageName());
+            conn.setRequestProperty("X-Android-Cert", sha);
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static int http(String str, String str2, String str3) {
         try {
             Context context = ctx;
@@ -146,6 +174,7 @@ public final class GPlus {
                 return -1;
             }
             HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, str);
+            androidAuth(openConnection);
             openConnection.setRequestMethod("POST");
             openConnection.setDoOutput(true);
             openConnection.setRequestProperty("Content-Type", "application/json");
@@ -578,15 +607,16 @@ public final class GPlus {
             failUntil = 0L;
             placesFailUntil = 0L;
             sess1 = null;
+            // Rota and Arama first: the Harita part may carry Google's long error text.
             StringBuilder sb = new StringBuilder();
-            sb.append("Harita ");
-            sb.append(session(false) != null ? "✓" : "✗ ".concat(codeText(lastCode)).concat(errMsg()));
             int http = http("https://routes.googleapis.com/directions/v2:computeRoutes", "{\"origin\":{\"location\":{\"latLng\":{\"latitude\":39.9208,\"longitude\":32.8541}}},\"destination\":{\"location\":{\"latLng\":{\"latitude\":39.9255,\"longitude\":32.8662}}},\"travelMode\":\"DRIVE\"}", "routes.distanceMeters");
-            sb.append(" · Rota ");
+            sb.append("Rota ");
             sb.append(okText(http));
             int http2 = http("https://places.googleapis.com/v1/places:searchText", "{\"textQuery\":\"Ankara\",\"pageSize\":1}", "places.id");
             sb.append(" · Arama ");
             sb.append(okText(http2));
+            sb.append(" · Harita ");
+            sb.append(session(false) != null ? "✓" : "✗ ".concat(codeText(lastCode)).concat(errMsg()));
             return sb.toString();
         } catch (Throwable unused) {
             return "Kontrol edilemedi";
