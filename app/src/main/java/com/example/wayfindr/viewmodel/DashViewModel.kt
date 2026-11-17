@@ -1582,6 +1582,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
         // Navigation SDK turn-by-turn while its guidance runs (null = our own route data).
         val navInfo = com.example.wayfindr.dash.nav.GoogleNav.navInfo?.takeIf { googleNav.active }
+        // Card stays through a stale GPS tick (like the dash's widget); gone with the route or the link.
+        if (r == null || !streaming) turnCard = null
         if (r != null && loc != null && LocationTracker.isFreshForNavigation(loc)) {
             val ns = trackProgress(
                 r, GeoPoint(loc.latitude, loc.longitude),
@@ -1682,7 +1684,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 val (sv, su) = toDashDistance(gap)
                 Triple(second.dashCode, sv, su)
             } else Triple(DashCommands.NAV_SECONDARY_NONE, 0, DashCommands.NAV_UNIT_METERS)
-            if (streaming) session.updateNavInfo(glyph, pv, pu, tv, tu, etaHHMM, secGlyph, secDist, secUnit)
+            // Turn card on: the frame shows the turn, so the dash gets no glyph and drops its round widget.
+            val card = NavPlus.navCard
+            turnCard = if (streaming && card) MapRenderer.TurnCard(glyph, ns.nextTurnM, next?.instruction,
+                secGlyph.takeIf { it != DashCommands.NAV_SECONDARY_NONE }) else null
+            if (streaming) session.updateNavInfo(
+                if (card) DashCommands.NAV_MANEUVER_NONE else glyph, pv, pu, tv, tu, etaHHMM,
+                if (card) DashCommands.NAV_SECONDARY_NONE else secGlyph, secDist, secUnit,
+            )
             // Spoken/chime turn guidance (no-op when voice mode is OFF).
             // Voice output must never be allowed to cancel the navigation ticker. TTS providers
             // can throw during initialization or audio-route changes while the map must continue.
@@ -2167,6 +2176,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             route = aheadRoute,
             traffic = aheadTraffic,
             maneuverText = null, // turn-by-turn maneuver banner removed
+            turnCard = turnCard,
             remainingText = remainingM?.let { fmtDist(it) },
             // Top-down (heading-up) nav view. The 3D perspective tilt is DISABLED: warping
             // flat raster tiles via setPolyToPoly stretches the baked-in map labels and
@@ -2257,6 +2267,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     // Instead we advance progress along the route, searching a window AHEAD of where
     // we already are, only re-acquiring globally if we're clearly off-route.
     @Volatile private var progressM = 0.0
+    /** Next turn for the frame's turn card (null = no card); set by tick(), read by redrawFrame(). */
+    @Volatile private var turnCard: MapRenderer.TurnCard? = null
 
     private data class NavState(
         val remainingM: Double, val nextTurnM: Double, val heading: Float, val offRoute: Boolean,
