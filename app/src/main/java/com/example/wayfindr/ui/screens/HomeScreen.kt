@@ -1,5 +1,17 @@
 package com.example.wayfindr.ui.screens
 
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocalHospital
+import androidx.compose.material.icons.outlined.LocalPharmacy
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Factory
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.LocalGasStation
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material.icons.Icons
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -174,7 +186,7 @@ private fun placeIcon(name: String): androidx.compose.ui.graphics.vector.ImageVe
     val n = name.lowercase(java.util.Locale("tr", "TR"))
     val words = n.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.toSet()
     fun has(vararg keys: String) = keys.any { k -> if (k.length <= 3) k in words else n.contains(k) }
-    val I = androidx.compose.material.icons.Icons.Outlined
+    val I = Icons.Outlined
     return when {
         has("ev", "evim", "home", "1866") -> I.Home
         has("hastane", "sağlık", "hospital", "klinik", "tıp", "acil") -> I.LocalHospital
