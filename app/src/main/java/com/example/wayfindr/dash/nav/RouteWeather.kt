@@ -43,7 +43,7 @@ class RouteWeather {
             val h = runCatching { JSONObject(json).getJSONObject("hourly") }.getOrNull() ?: continue
             if (h.optJSONArray("precipitation_probability")?.optInt(hour, 0)?.let { it >= PROB } == true ||
                 (h.optJSONArray("precipitation")?.optDouble(hour, 0.0) ?: 0.0) >= MM) {
-                return "Rotada yağmur bekleniyor: ~${maxOf(1, Math.round((at - progressM) / 1000.0).toInt())} km sonra"
+                return "Yaklaşık ${maxOf(1, Math.round((at - progressM) / 1000.0).toInt())} km sonra yağmur olabilir"
             }
         }
         return null

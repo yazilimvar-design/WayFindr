@@ -497,17 +497,23 @@ class MapRenderer(private val tiles: TileProvider) {
         overlay("speed limit") {
             val now = android.os.SystemClock.elapsedRealtime()
             val lim = com.example.wayfindr.dash.nav.NavPlus.spdLimit
-            if (f.pickerRows == null && lim > 0 && now - com.example.wayfindr.dash.nav.NavPlus.spdAt < 120_000) {
+            // Google Nav SDK says we're over the limit: the sign blinks (red fill every other half second).
+            val over = com.example.wayfindr.dash.nav.NavPlus.gSpeeding && now - com.example.wayfindr.dash.nav.NavPlus.gSpeedingAt < 10_000
+            val hasLim = lim > 0 && now - com.example.wayfindr.dash.nav.NavPlus.spdAt < 120_000
+            if (f.pickerRows == null && (hasLim || over)) {
+                val blink = over && (now / 500) % 2 == 0L
                 val r = 19f
                 val cx = w - ETA_MARGIN_RIGHT - r
                 val cy = stackTop - 8f - r
-                limitPaint.style = Paint.Style.FILL; limitPaint.color = Color.WHITE
+                limitPaint.style = Paint.Style.FILL; limitPaint.color = if (blink) googleRed else Color.WHITE
                 canvas.drawCircle(cx, cy, r, limitPaint)
                 limitPaint.style = Paint.Style.STROKE; limitPaint.strokeWidth = 4.5f; limitPaint.color = googleRed
                 canvas.drawCircle(cx, cy, r - 2.25f, limitPaint)
+                val label = if (hasLim) lim.toString() else "!"
                 limitText.textSize = if (lim >= 100) 15f else 18f
+                limitText.color = if (blink) Color.WHITE else Color.BLACK
                 val fm = limitText.fontMetrics
-                canvas.drawText(lim.toString(), cx, cy - (fm.ascent + fm.descent) / 2f, limitText)
+                canvas.drawText(label, cx, cy - (fm.ascent + fm.descent) / 2f, limitText)
                 stackTop = cy - r
             }
             val cam = com.example.wayfindr.dash.nav.NavPlus.rdAheadM

@@ -1772,7 +1772,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // can throw during initialization or audio-route changes while the map must continue.
             if (streaming) runCatching {
                 if (dashConfig.curveWarning.value) curveWarner.tick(r, ns.progressM, loc.speed.toDouble())?.let { voice.alert(it) }
-                if (dashConfig.rainWarning.value) routeWeather.tick(r, ns.progressM)?.let { voice.alert(it); NavPlus.pend1 = it }
+                if (dashConfig.rainWarning.value) routeWeather.tick(r, ns.progressM)?.let { voice.alert("$it, dikkatli sürüşler"); NavPlus.pend1 = "Yağmur olabilir"; NavPlus.pend2 = it.removePrefix("Yaklaşık ") }
                 voice.maybeAnnounce(ns.nextManeuver, ns.nextTurnM, ns.remainingM)
             }.onFailure {
                 android.util.Log.w("DashViewModel", "Voice guidance failed: ${it.message}")

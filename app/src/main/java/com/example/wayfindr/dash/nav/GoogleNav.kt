@@ -94,6 +94,13 @@ class GoogleNav(private val app: Application, private val listener: Listener) {
         nav.setAudioGuidance(Navigator.AudioGuidance.SILENT)
         nav.addArrivalListener(arrivalListener)
         nav.addRouteChangedListener(routeListener)
+        // Google's own limit data: it won't give the number, only "you are over it" (shown by flashing the sign).
+        runCatching {
+            nav.setSpeedingListener { _, sev ->
+                NavPlus.gSpeeding = sev != com.google.android.libraries.navigation.SpeedAlertSeverity.NONE
+                NavPlus.gSpeedingAt = android.os.SystemClock.elapsedRealtime()
+            }
+        }
         nav.registerServiceForNavUpdates(
             app.packageName, NavInfoService::class.java.name,
             NavigationUpdatesOptions.builder().setNumNextStepsToPreview(1).build(),
@@ -138,12 +145,14 @@ class GoogleNav(private val app: Application, private val listener: Listener) {
         generation++
         active = false
         navInfo = null
+        NavPlus.gSpeeding = false
         snapped?.let { s -> runCatching { s.removeLocationListener(snapListener) } }
         snapped = null
         navigator?.let { nav ->
             runCatching {
                 nav.removeArrivalListener(arrivalListener)
                 nav.removeRouteChangedListener(routeListener)
+                nav.setSpeedingListener(null)
                 nav.unregisterServiceForNavUpdates()
                 nav.stopGuidance()
                 nav.clearDestinations()

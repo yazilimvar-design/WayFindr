@@ -170,6 +170,10 @@ public final class NavPlus {
     public static volatile long spdWarnAt;
     public static volatile float turn;
     public static volatile long wxAt;
+    public static volatile long wxShowUntil;
+    public static volatile int wxDay = 1;
+    public static volatile boolean gSpeeding;   // Google Navigation SDK: rider is over the limit
+    public static volatile long gSpeedingAt;
     public static volatile boolean wxBusy;
     public static volatile double wxCLat;
     public static volatile double wxCLng;
@@ -647,8 +651,8 @@ public final class NavPlus {
             int i = wxRain;
             if (i >= 60 && elapsedRealtime - wxAt < 1200000 && elapsedRealtime - wxWarnAt >= 1800000 && pend1 == null) {
                 wxWarnAt = elapsedRealtime;
-                pend2 = "Yağmur ihtimali %" + i + " (3 saat içinde)";
-                pend1 = "Yağmur bekleniyor";
+                pend2 = "Önümüzdeki 3 saatte %" + i + " ihtimal";
+                pend1 = "Yağmur olabilir";
             }
             fuAhead(d, d2);
         } catch (Throwable unused) {
@@ -1094,37 +1098,109 @@ public final class NavPlus {
 
     public static void hudDraw(Canvas canvas, int i, int i2) {
         try {
-            if (hudOn) {
-                String hudText = hudText();
-                if (hudText.length() != 0) {
-                    float f = i;
-                    float f2 = i2;
-                    Paint paint = hudTx;
-                    if (paint == null) {
-                        paint = new Paint(1);
-                        paint.setColor(-1);
-                        paint.setFakeBoldText(true);
-                        hudTx = paint;
-                        Paint paint2 = new Paint(1);
-                        paint2.setColor(-1325400064);
-                        hudBg = paint2;
-                    }
-                    Paint paint3 = hudBg;
-                    float f3 = f2 * 0.06f;
-                    paint.setTextSize(f3);
-                    float measureText = paint.measureText(hudText);
-                    float f4 = f3 * 0.5f;
-                    float f5 = f * 0.5f;
-                    float f6 = (measureText + f3) * 0.5f;
-                    float f7 = f2 * 0.14f;
-                    float f8 = f7 + (f3 * 1.5f);
-                    RectF rectF = new RectF(f5 - f6, f7, f5 + f6, f8);
-                    float f9 = (f8 - f7) * 0.5f;
-                    canvas.drawRoundRect(rectF, f9, f9, paint3);
-                    canvas.drawText(hudText, f5 - (measureText * 0.5f), f7 + (f3 * 0.85f) + (f3 * 0.3f), paint);
-                }
+            if (!hudOn) return;
+            long now = SystemClock.elapsedRealtime();
+            boolean wx = wxAt != 0 && now < wxShowUntil;
+            String fuel = fuBest >= 0.0f ? fuelText() : null;
+            if (!wx && fuel == null) return;
+            Paint paint = hudTx;
+            if (paint == null) {
+                paint = new Paint(1);
+                paint.setColor(-1);
+                paint.setFakeBoldText(true);
+                hudTx = paint;
+                Paint bg = new Paint(1);
+                bg.setColor(-1325400064);
+                hudBg = bg;
             }
+            float ts = i2 * 0.06f;
+            paint.setTextSize(ts);
+            float icon = ts * 1.35f;
+            String temp = wx ? Math.round(wxTemp) + "°" : null;
+            String sep = (wx && fuel != null) ? "  ·  " : "";
+            float w = 0f;
+            if (wx) w += icon + ts * 0.3f + paint.measureText(temp);
+            w += paint.measureText(sep);
+            if (fuel != null) w += paint.measureText(fuel);
+            float top = i2 * 0.14f;
+            float bh = ts * 1.6f;
+            float cx = i * 0.5f;
+            float half = (w + ts) * 0.5f;
+            RectF r = new RectF(cx - half, top, cx + half, top + bh);
+            canvas.drawRoundRect(r, bh * 0.5f, bh * 0.5f, hudBg);
+            float x = r.left + ts * 0.5f;
+            float base = top + bh * 0.5f - (paint.ascent() + paint.descent()) * 0.5f;
+            if (wx) {
+                wxIcon(canvas, wxCode, wxDay == 1, x + icon * 0.5f, top + bh * 0.5f, icon);
+                x += icon + ts * 0.3f;
+                canvas.drawText(temp, x, base, paint);
+                x += paint.measureText(temp);
+            }
+            if (sep.length() != 0) { canvas.drawText(sep, x, base, paint); x += paint.measureText(sep); }
+            if (fuel != null) canvas.drawText(fuel, x, base, paint);
         } catch (Throwable unused) {
+        }
+    }
+
+    static String fuelText() {
+        int round = Math.round((fuBest / 1000.0f) * 10.0f);
+        return "⛽ " + (round / 10) + "," + (round % 10) + " km";
+    }
+
+    private static Paint wxP;
+
+    /** Small weather glyph centred on (cx, cy), s = box size: sun / moon, cloud, rain, snow, fog, storm. */
+    static void wxIcon(Canvas c, int code, boolean day, float cx, float cy, float s) {
+        Paint p = wxP;
+        if (p == null) { p = new Paint(1); wxP = p; }
+        p.setStyle(Paint.Style.FILL);
+        float u = s / 10f;
+        if (code == 0 || code == 1) {
+            float sx = code == 1 ? cx - u * 1.5f : cx, sy = code == 1 ? cy - u * 1.5f : cy;
+            if (day) {
+                p.setColor(0xFFFFC83D);
+                p.setStrokeWidth(u * 0.8f);
+                p.setStrokeCap(Paint.Cap.ROUND);
+                for (int k = 0; k < 8; k++) {
+                    double a = k * Math.PI / 4;
+                    c.drawLine(sx + (float) Math.cos(a) * u * 3.2f, sy + (float) Math.sin(a) * u * 3.2f,
+                            sx + (float) Math.cos(a) * u * 4.5f, sy + (float) Math.sin(a) * u * 4.5f, p);
+                }
+                c.drawCircle(sx, sy, u * 2.4f, p);
+            } else {
+                p.setColor(0xFFE8E4C9);
+                c.drawCircle(sx, sy, u * 3.2f, p);
+                p.setColor(0xFF22252A);
+                c.drawCircle(sx + u * 1.6f, sy - u * 1.1f, u * 2.7f, p);
+            }
+            if (code == 0) return;
+        }
+        int cloud = code >= 61 || code == 95 || code >= 96 ? 0xFF9AA3AD : 0xFFDDE2E8;
+        float by = code <= 3 ? cy + u * 1.0f : cy - u * 0.5f;
+        p.setColor(cloud);
+        c.drawCircle(cx - u * 2.0f, by, u * 2.0f, p);
+        c.drawCircle(cx + u * 0.3f, by - u * 1.3f, u * 2.6f, p);
+        c.drawCircle(cx + u * 2.6f, by, u * 1.8f, p);
+        c.drawRect(cx - u * 2.0f, by, cx + u * 2.6f, by + u * 1.9f, p);
+        float dy = by + u * 3.0f;
+        if (code >= 45 && code <= 48) {          // fog: three bars
+            p.setStrokeWidth(u * 0.8f);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            for (int k = 0; k < 2; k++) c.drawLine(cx - u * 3.5f, dy + k * u * 1.3f, cx + u * 3.5f, dy + k * u * 1.3f, p);
+        } else if ((code >= 71 && code <= 77) || code == 85 || code == 86) {   // snow: white dots
+            p.setColor(-1);
+            for (int k = -1; k <= 1; k++) c.drawCircle(cx + k * u * 2.2f, dy + (k == 0 ? u * 0.9f : 0f), u * 0.75f, p);
+        } else if (code >= 95) {                 // storm: yellow bolt
+            p.setColor(0xFFFFC83D);
+            android.graphics.Path b = new android.graphics.Path();
+            b.moveTo(cx + u * 0.6f, dy - u * 1.0f); b.lineTo(cx - u * 1.2f, dy + u * 1.4f); b.lineTo(cx, dy + u * 1.4f);
+            b.lineTo(cx - u * 0.8f, dy + u * 3.4f); b.lineTo(cx + u * 1.6f, dy + u * 0.6f); b.lineTo(cx + u * 0.3f, dy + u * 0.6f); b.close();
+            c.drawPath(b, p);
+        } else if (code >= 51) {                 // drizzle / rain / showers: blue drops
+            p.setColor(0xFF4FA3FF);
+            p.setStrokeWidth(u * 0.8f);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            for (int k = -1; k <= 1; k++) c.drawLine(cx + k * u * 2.2f + u * 0.5f, dy - u * 0.4f, cx + k * u * 2.2f - u * 0.3f, dy + u * 1.4f, p);
         }
     }
 
@@ -4058,7 +4134,7 @@ public final class NavPlus {
         JSONObject optJSONObject;
         JSONArray optJSONArray;
         try {
-            String httpGet = httpGet("https://api.open-meteo.com/v1/forecast?latitude=" + d + "&longitude=" + d2 + "&current=temperature_2m,weather_code&hourly=precipitation_probability&forecast_hours=3&timezone=auto");
+            String httpGet = httpGet("https://api.open-meteo.com/v1/forecast?latitude=" + d + "&longitude=" + d2 + "&current=temperature_2m,weather_code,is_day&hourly=precipitation_probability&forecast_hours=3&timezone=auto");
             if (httpGet == null || (optJSONObject = (jSONObject = new JSONObject(httpGet)).optJSONObject("current")) == null) {
                 return;
             }
@@ -4079,6 +4155,12 @@ public final class NavPlus {
                     }
                 }
             }
+            int day = optJSONObject.optInt("is_day", 1);
+            // The weather pill shows for 10 s only when the weather is new or has changed.
+            if (wxAt == 0 || optInt != wxCode || Math.round(f) != Math.round(wxTemp) || day != wxDay) {
+                wxShowUntil = SystemClock.elapsedRealtime() + 10000L;
+            }
+            wxDay = day;
             wxTemp = f;
             wxCode = optInt;
             wxRain = i;
