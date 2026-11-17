@@ -87,6 +87,9 @@ fun SettingsScreen(
         val pickerDoubleTap by dashConfig.pickerDoubleTap.collectAsState()
         val showJoystickTrail by dashConfig.showJoystickTrail.collectAsState()
         val showPhoneBattery by dashConfig.showPhoneBattery.collectAsState()
+        val curveWarning by dashConfig.curveWarning.collectAsState()
+        val rainWarning by dashConfig.rainWarning.collectAsState()
+        val offlineSafety by dashConfig.offlineSafety.collectAsState()
         WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 6.dp) {
             SettingRow(WayfindrIcons.Power, "Telefon ekranını kapat", "Harita konsola aktarılmaya devam eder",
                 control = { WayfindrToggle(screenOff) { screenOff = it } })
@@ -116,6 +119,15 @@ fun SettingsScreen(
             SettingRow(WayfindrIcons.Target, "Joystick basışlarını göster",
                 "Konsolun alt ortasında son 4 basışı D / R / L olarak, her biri 2 sn göster",
                 control = { WayfindrToggle(showJoystickTrail) { dashConfig.setShowJoystickTrail(it) } })
+            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+            SettingRow(WayfindrIcons.Target, "Viraj uyarısı", "Keskin virajlardan önce sesli uyarı",
+                control = { WayfindrToggle(curveWarning) { dashConfig.setCurveWarning(it) } })
+            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+            SettingRow(WayfindrIcons.Target, "Rotada yağmur uyarısı", "Rotada yağış beklenirse bildir",
+                control = { WayfindrToggle(rainWarning) { dashConfig.setRainWarning(it) } })
+            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+            SettingRow(WayfindrIcons.Target, "Çevrimdışı radar ve hız limitleri", "Rota boyunca kaydedilir; internet yokken kullanılır",
+                control = { WayfindrToggle(offlineSafety) { dashConfig.setOfflineSafety(it) } })
             WayfindrDivider(Modifier.padding(horizontal = 6.dp))
             SettingRow(WayfindrIcons.Target, "Telefon pilini konsolda göster",
                 "Tahmini varış süresinin üstünde pil yüzdesi; şarj olurken şimşek simgesi",

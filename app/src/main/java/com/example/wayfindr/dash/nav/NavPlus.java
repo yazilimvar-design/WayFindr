@@ -760,6 +760,7 @@ public final class NavPlus {
                 openConnection.setRequestProperty("User-Agent", "Wayfindr-SpeedLimit/1.0");
                 if (openConnection.getResponseCode() != 200) {
                     openConnection.disconnect();
+                    offlineLimit(d, d2);
                     return;
                 }
                 InputStream inputStream = openConnection.getInputStream();
@@ -781,6 +782,16 @@ public final class NavPlus {
                 spdAt = SystemClock.elapsedRealtime();
             }
         } catch (Throwable unused) {
+            offlineLimit(d, d2);
+        }
+    }
+
+    /** No usable online answer: use the speed limit cached along the route (OfflineSafetyCache). */
+    private static void offlineLimit(double d, double d2) {
+        int l = OfflineSafetyCache.INSTANCE.limitAt(d, d2);
+        if (l > 0) {
+            spdLimit = l;
+            spdAt = SystemClock.elapsedRealtime();
         }
     }
 
@@ -2866,6 +2877,9 @@ public final class NavPlus {
         JSONArray optJSONArray;
         try {
             String ovGet = ovGet("[out:json][timeout:10];(node(around:6000," + d + "," + d2 + ")[\"highway\"=\"speed_camera\"];node(around:6000," + d + "," + d2 + ")[\"traffic_calming\"];);out 400;");
+            if (ovGet == null) {
+                ovGet = OfflineSafetyCache.INSTANCE.cameraJson(d, d2, 6000.0d);
+            }
             if (ovGet == null || (optJSONArray = new JSONObject(ovGet).optJSONArray("elements")) == null) {
                 return;
             }
