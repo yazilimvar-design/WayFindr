@@ -209,6 +209,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var zoomBeforeRightTap = 0
     private var sendPaceMs = 0.0    // EMA of the real frame-send interval — exposes cadence jitter
     private var sendPaceMaxMs = 0L  // worst interval since the last diag line
+    private var tickMsAvg = 0.0     // EMA of tick (nav + render) time per frame
+    private var encodeMsAvg = 0.0   // EMA of encoder feed + drain time per frame
+    private var lastPreviewMs = 0L
+    private var diagDecoded = 0L    // session.framesDecoded at the last diag line
     // Backstop so a dropped/never-reached connection can't drain the battery forever: if we don't
     // reach STREAMING within this window, give up completely (stop the Wi‑Fi reconnect loop, the
     // foreground service, GPS and the encoder). Cancelled the moment streaming starts.
@@ -398,8 +402,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Back to 4 fps to MATCH the dash exactly (measured at ~3.7 fps). The
         // 12 fps experiment was smoother but ~3× the 2.4 GHz WiFi load, which stresses the dash AP and
         // its BT coexistence; 4 fps is the proven-stable envelope the dash decoder never overruns.
-        private const val FRAME_MS_ACTIVE = 250L   // 4 fps while moving — matched
-        private const val FRAME_MS_IDLE   = 250L   // keep a steady 4 fps while connected; avoids dash idle stalls
+        // 10 fps again (rider: map moves "kare kare" — at 50 km/h, zoom 19, 4 fps is a ~15 px jump per
+        // frame). The WiFi-load worry no longer holds: the encoder is CBR now, so bytes/s stay at the
+        // same 200 kbps whatever the frame rate; only the per-frame budget shrinks, and small per-frame
+        // motion is exactly what P-frames compress well. Field log showed 12 fps stable on this dash.
+        internal const val FRAME_MS_ACTIVE = 100L  // 10 fps
+        private const val FRAME_MS_IDLE   = 100L   // steady cadence while connected; avoids dash idle stalls
+        private const val PREVIEW_MS = 250L        // phone preview copy cadence (a full-frame copy per frame is GC churn)
         // Stay on the fast profile this long after the last visible change, so brief pauses (e.g.
         // between joystick nudges, or a GPS fix gap) don't flap the cadence back and forth.
         private const val MOTION_HOLD_MS  = 1_500L
@@ -1486,7 +1495,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // connected, so a dead frame loop = frozen map with the connection "up".
             while (isActive && session.state.value == DashState.STREAMING) {
                 try {
+                    val tickStartNs = System.nanoTime()
                     val changed = tick()
+                    val encStartNs = System.nanoTime()
+                    tickMsAvg += ((encStartNs - tickStartNs) / 1e6 - tickMsAvg) * 0.1
                     val nowMs = System.currentTimeMillis()
                     if (changed) lastChangeMs = nowMs
                     // Keep a steady connected-dash cadence. The dash can stop advancing its
@@ -1510,6 +1522,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         // frame(s) pulled this iteration carry an evenly-spaced RTP timestamp.
                         videoPtsMs += frameMs
                         enc.drain()
+                        encodeMsAvg += ((System.nanoTime() - encStartNs) / 1e6 - encodeMsAvg) * 0.1
                     }
                     failures = 0
                     // Track the real send cadence (EMA + worst) so the ride log proves it's even.
@@ -1604,6 +1617,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
         // Navigation SDK turn-by-turn while its guidance runs (null = our own route data).
         val navInfo = com.example.wayfindr.dash.nav.GoogleNav.navInfo?.takeIf { googleNav.active }
+        // Card stays through a stale GPS tick (like the dash's widget); gone with the route or the link.
+        if (r == null || !streaming) turnCard = null
         if (r != null && loc != null && LocationTracker.isFreshForNavigation(loc)) {
             val ns = trackProgress(
                 r, GeoPoint(loc.latitude, loc.longitude),
@@ -1704,7 +1719,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 val (sv, su) = toDashDistance(gap)
                 Triple(second.dashCode, sv, su)
             } else Triple(DashCommands.NAV_SECONDARY_NONE, 0, DashCommands.NAV_UNIT_METERS)
-            if (streaming) session.updateNavInfo(glyph, pv, pu, tv, tu, etaHHMM, secGlyph, secDist, secUnit)
+            // Turn card on: the frame shows the turn, so the dash gets no glyph and drops its round widget.
+            val card = NavPlus.navCard
+            turnCard = if (streaming && card) MapRenderer.TurnCard(glyph, ns.nextTurnM, next?.instruction,
+                secGlyph.takeIf { it != DashCommands.NAV_SECONDARY_NONE }) else null
+            if (streaming) session.updateNavInfo(
+                if (card) DashCommands.NAV_MANEUVER_NONE else glyph, pv, pu, tv, tu, etaHHMM,
+                if (card) DashCommands.NAV_SECONDARY_NONE else secGlyph, secDist, secUnit,
+            )
             // Spoken/chime turn guidance (no-op when voice mode is OFF).
             // Voice output must never be allowed to cancel the navigation ticker. TTS providers
             // can throw during initialization or audio-route changes while the map must continue.
@@ -1729,6 +1751,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // so a post-ride read shows where the map stuttered (weak GPS) or the dash struggled.
         val nowD = System.currentTimeMillis()
         if (nowD - lastDiagMs > 15_000) {
+            val diagSpanS = (nowD - lastDiagMs) / 1000.0
             lastDiagMs = nowD
             com.example.wayfindr.data.RideDiagnostics.log(
                 "ride",
@@ -1736,7 +1759,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         " ridden=%.2fkm".format(recorder.distanceSoFarM / 1000.0) +
                         " fixGap=%.0fms".format(gpsFixIntervalMs) +
                         " frames=${_ui.value.frameCount} thermal=${_ui.value.thermal}" +
-                        " pace=%.0fms/max=%dms".format(sendPaceMs, sendPaceMaxMs) +  // send cadence (≈250ms active / 500ms idle)
+                        " pace=%.0fms/max=%dms".format(sendPaceMs, sendPaceMaxMs) +  // send cadence (≈100ms = 10 fps)
+                        " fps=%.1f tick=%.0fms enc=%.0fms".format(if (sendPaceMs > 0) 1000 / sendPaceMs else 0.0, tickMsAvg, encodeMsAvg) +
+                        " dashFps=%.1f".format((session.framesDecoded - diagDecoded) / diagSpanS).also { diagDecoded = session.framesDecoded } +
                         " remaining=" + (remainingM?.let { "%.1fkm".format(it / 1000.0) } ?: "-") +
                         " offRoute=$offRoute" +
                         (if (lastSnapDist >= 0) " snap=%.0fm".format(lastSnapDist) else ""),
@@ -2208,6 +2233,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             route = aheadRoute,
             traffic = aheadTraffic,
             maneuverText = null, // turn-by-turn maneuver banner removed
+            turnCard = turnCard,
             remainingText = remainingM?.let { fmtDist(it) },
             // Top-down (heading-up) nav view. The 3D perspective tilt is DISABLED: warping
             // flat raster tiles via setPolyToPoly stretches the baked-in map labels and
@@ -2245,8 +2271,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // now-playing/call cards (confirmed: 05 0d/05 22 are sent fine but never displayed mid-map).
         // So we draw them INTO the frame ourselves, as the CLAUDE.md design always intended.
         drawDashOverlays(canvas, DashEncoder.WIDTH, DashEncoder.HEIGHT)
-        // Publish a snapshot for the in-app preview (immutable copy — see _previewFrame).
-        _previewFrame.value = bmp.copy(Bitmap.Config.ARGB_8888, false)
+        // Publish a snapshot for the in-app preview (immutable copy — see _previewFrame), at 4 Hz.
+        val nowP = System.currentTimeMillis()
+        if (nowP - lastPreviewMs >= PREVIEW_MS) { lastPreviewMs = nowP; _previewFrame.value = bmp.copy(Bitmap.Config.ARGB_8888, false) }
     }
 
     // Overlay paints — created once (never per-frame). ~50% smaller than the first cut, per feedback.
@@ -2298,6 +2325,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     // Instead we advance progress along the route, searching a window AHEAD of where
     // we already are, only re-acquiring globally if we're clearly off-route.
     @Volatile private var progressM = 0.0
+    /** Next turn for the frame's turn card (null = no card); set by tick(), read by redrawFrame(). */
+    @Volatile private var turnCard: MapRenderer.TurnCard? = null
 
     private data class NavState(
         val remainingM: Double, val nextTurnM: Double, val heading: Float, val offRoute: Boolean,

@@ -61,7 +61,12 @@ class MapRenderer(private val tiles: TileProvider) {
         val gpsWeak: Boolean = false,      // imprecise/slow fix → amber marker + "GPS weak" pill
         val gpsLost: Boolean = false,      // no fresh fix → grey marker + "GPS lost" pill
         val dark: Boolean = false,         // night ColorMatrix on cached light tiles
+        val turnCard: TurnCard? = null,    // next turn, bottom-left card (replaces the dash's round turn widget)
     )
+
+    /** Next turn for the bottom-left card: dash glyph code ([com.example.wayfindr.dash.nav.DashGlyph]),
+     *  metres to it, its instruction/street, and the "then" glyph for back-to-back turns. */
+    data class TurnCard(val glyph: Int, val meters: Double, val instruction: String?, val thenGlyph: Int? = null)
 
     /**
      * One row of the on-dash menu. [header] rows are section titles the cursor skips; [active]
@@ -76,7 +81,7 @@ class MapRenderer(private val tiles: TileProvider) {
 
     private val lightBg   = Color.rgb(229, 227, 223) // Google Maps land colour, behind missing tiles
     private val darkBg    = Color.rgb(22, 28, 36)
-    private val routeBlue = Color.rgb(66, 133, 244)  // Google Maps directions blue (#4285F4)
+    private val routeBlue = Color.rgb(26, 115, 232)  // strong directions blue (#1A73E8), reads on light Google tiles
     private val trafficAmber = Color.rgb(251, 188, 5)
     private val trafficRed = Color.rgb(234, 67, 53)
     private val googleRed = Color.rgb(234, 67, 53)   // Google destination pin red (#EA4335)
@@ -87,11 +92,11 @@ class MapRenderer(private val tiles: TileProvider) {
     private val darkTileFilter = ColorMatrixColorFilter(nightTileMatrix())
     private val routeCasing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE; style = Paint.Style.STROKE
-        strokeWidth = 11f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 20f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = routeBlue; style = Paint.Style.STROKE
-        strokeWidth = 6f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 13f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val dotPaint     = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 22f; isFakeBoldText = true }
@@ -120,9 +125,23 @@ class MapRenderer(private val tiles: TileProvider) {
     // GPS-health pill (top-centre, shown only when the signal is weak/lost)
     private val gpsPillText    = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 13f; isFakeBoldText = true; textAlign = Paint.Align.CENTER }
 
+    // Turn card: same colour, radius and text greys as the NavPlus music card (phStrip)
+    private val cardPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE6201C18.toInt() }
+    private val cardDistPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; typeface = android.graphics.Typeface.DEFAULT_BOLD }
+    private val cardSubPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFB8B8B8.toInt() }
+    private val arrowStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE; style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+    }
+    private val arrowFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val arrowPath = Path()
+    private val cardRect = RectF()
+
     // Reused across frames
     private val routePath = Path()
     private val riderPath = Path()
+    private val riderOutline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE; strokeWidth = 4f; strokeJoin = Paint.Join.ROUND
+    }
     private val tmpRect = RectF()
     private val pillRect = RectF()
     // Saved-destination picker (centred panel inside the round safe zone)
@@ -148,7 +167,7 @@ class MapRenderer(private val tiles: TileProvider) {
         if (NavPlus.phDraw(canvas, f, w, h)) return
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         tilePaint.colorFilter = if (f.dark) darkTileFilter else lightTileFilter
-        routeCasing.color = if (f.dark) Color.rgb(18, 22, 28) else Color.WHITE
+        routeCasing.color = if (f.dark) Color.rgb(18, 22, 28) else Color.rgb(13, 60, 140) // dark-blue edge on light tiles
         standbyPaint.color = if (f.dark) Color.rgb(186, 192, 200) else Color.rgb(60, 64, 67)
 
         val rotate = f.headingUp
@@ -260,7 +279,7 @@ class MapRenderer(private val tiles: TileProvider) {
             val markerColor = when {
                 f.gpsLost -> Color.rgb(150, 154, 160)
                 f.gpsWeak -> Color.rgb(251, 188, 5)
-                else -> routeBlue
+                else -> Color.rgb(229, 57, 53) // red arrow like the reference
             }
             val haloColor = Color.argb(60, Color.red(markerColor), Color.green(markerColor), Color.blue(markerColor))
             dotPaint.color = haloColor
@@ -276,16 +295,15 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.translate(rx, ry)
             canvas.rotate(relativeHeading)
 
-            dotPaint.color = Color.WHITE
-            canvas.drawCircle(0f, 0f, 10f, dotPaint)
-
             riderPath.reset()
-            riderPath.moveTo(0f, -8f)
-            riderPath.lineTo(6.5f, 7f)
-            riderPath.lineTo(0f, 3.5f)
-            riderPath.lineTo(-6.5f, 7f)
+            riderPath.moveTo(0f, -17f)
+            riderPath.lineTo(12f, 13f)
+            riderPath.lineTo(0f, 6f)
+            riderPath.lineTo(-12f, 13f)
             riderPath.close()
 
+            riderOutline.color = Color.WHITE
+            canvas.drawPath(riderPath, riderOutline)   // white edge so the red arrow reads on any tile
             dotPaint.color = markerColor
             canvas.drawPath(riderPath, dotPaint)
             canvas.restore()
@@ -336,6 +354,12 @@ class MapRenderer(private val tiles: TileProvider) {
                 canvas.drawText(text, w / 2f, pillRect.top + 2f - fm.ascent, attributionPaint)
                 bottomEdge = pillRect.top - 3f
             }
+        }
+
+        // ── Next-turn card, bottom-left where the dash's round turn widget sat (that one is hidden
+        //    by sending no glyph, see DashViewModel). Sits above the map credit, clear of the rider. ──
+        overlay("turn card") {
+            f.turnCard?.let { drawTurnCard(canvas, it, f.etaSecondary, ETA_MARGIN_RIGHT, bottomEdge, w, h) }
         }
 
         // ── Recent joystick presses ("DDRR"), small box at the bottom centre (the DOWN hint
@@ -580,6 +604,114 @@ class MapRenderer(private val tiles: TileProvider) {
         }
         pickerItemPaint.textAlign = align
         pickerItemPaint.isFakeBoldText = false
+    }
+
+    /** Dark rounded card like the music card: turn arrow left, big distance, grey instruction below. */
+    private fun drawTurnCard(canvas: Canvas, c: TurnCard, eta: String?, left: Float, bottom: Float, w: Int, h: Int) {
+        val ch = h * 0.22f                       // music card height (0.68H..0.90H)
+        val top = bottom - ch
+        val right = left + w * 0.40f             // stops short of the rider marker on the centre line
+        cardRect.set(left, top, right, bottom)
+        canvas.drawRoundRect(cardRect, ch * 0.24f, ch * 0.24f, cardPaint)
+        val pad = ch * 0.13f
+        val icon = ch - pad * 2                  // square slot, like the album art
+        drawTurnArrow(canvas, c.glyph, left + pad + icon / 2f, top + ch / 2f, icon)
+        val x = left + pad * 2 + icon
+        var distRight = right - pad
+        c.thenGlyph?.let { g ->
+            // "sonra ↱": small then-arrow in the top-right corner, label to its left
+            val s = ch * 0.30f
+            drawTurnArrow(canvas, g, right - pad - s / 2f, top + pad + s / 2f, s)
+            cardSubPaint.textSize = ch * 0.20f
+            cardSubPaint.textAlign = Paint.Align.RIGHT
+            canvas.drawText("sonra", right - pad - s - 3f, top + pad + s * 0.75f, cardSubPaint)
+            cardSubPaint.textAlign = Paint.Align.LEFT
+            distRight = right - pad - s - 3f - cardSubPaint.measureText("sonra") - 4f
+        }
+        val hasEta = !eta.isNullOrBlank()
+        cardDistPaint.textSize = ch * 0.36f
+        canvas.drawText(ellipsize(turnDistance(c.meters), cardDistPaint, distRight - x), x, top + ch * (if (hasEta) 0.42f else 0.50f), cardDistPaint)
+        c.instruction?.takeIf { it.isNotBlank() }?.let { text ->
+            cardSubPaint.textSize = ch * (if (hasEta) 0.22f else 0.25f)
+            canvas.drawText(ellipsize(text.replace('\n', ' '), cardSubPaint, right - pad - x), x, top + ch * (if (hasEta) 0.66f else 0.82f), cardSubPaint)
+        }
+        if (hasEta) { // "13:32 · 18 km" — arrival and what's left, small, like the reference card
+            cardSubPaint.textSize = ch * 0.19f
+            canvas.drawText(ellipsize(eta!!, cardSubPaint, right - pad - x), x, top + ch * 0.88f, cardSubPaint)
+        }
+    }
+
+    /** "350 m" (to 10 m, steady while riding) or "1,2 km" (Turkish decimal comma). */
+    private fun turnDistance(m: Double): String =
+        if (m < 950.0) "${Math.round(m / 10.0) * 10} m"
+        else String.format(java.util.Locale("tr", "TR"), "%.1f km", m / 1000.0)
+
+    /**
+     * White turn arrow for a dash glyph code, drawn in a [size]-px square centred on ([cx],[cy]).
+     * Shapes are defined for right turns in unit space and mirrored for left ones.
+     */
+    private fun drawTurnArrow(canvas: Canvas, glyph: Int, cx: Float, cy: Float, size: Float) {
+        val G = com.example.wayfindr.dash.nav.DashGlyph
+        val (angle, mirror) = when (glyph) {
+            G.TURN_RIGHT -> 90f to false
+            G.TURN_LEFT -> 90f to true
+            G.TURN_SLIGHT_RIGHT, G.FORK_RIGHT, G.OFF_RAMP_RIGHT -> 45f to false
+            G.TURN_SLIGHT_LEFT, G.FORK_LEFT, G.OFF_RAMP_LEFT -> 45f to true
+            G.TURN_SHARP_RIGHT -> 135f to false
+            G.TURN_SHARP_LEFT -> 135f to true
+            G.U_TURN_CLOCKWISE -> -1f to true      // up, round to the right, back down
+            G.U_TURN_COUNTERCLOCKWISE -> -1f to false
+            G.ROUNDABOUT_CLOCKWISE, G.ROUNDABOUT_COUNTERCLOCKWISE -> -2f to false
+            G.DESTINATION -> -3f to false
+            else -> 0f to false                   // straight, depart, merge, ferry
+        }
+        canvas.save()
+        canvas.translate(cx, cy)
+        canvas.scale(if (mirror) -size else size, size)
+        arrowStroke.strokeWidth = 0.14f
+        arrowPath.reset()
+        when (angle) {
+            -3f -> {   // destination: ring with a dot (map pin seen from above)
+                canvas.drawCircle(0f, 0f, 0.30f, arrowStroke)
+                canvas.drawCircle(0f, 0f, 0.11f, arrowFill)
+            }
+            -2f -> {   // roundabout: ring, entry from below, exit up
+                canvas.drawCircle(0f, -0.02f, 0.20f, arrowStroke)
+                arrowPath.moveTo(0f, 0.46f); arrowPath.lineTo(0f, 0.18f)
+                canvas.drawPath(arrowPath, arrowStroke)
+                arrowHead(canvas, 0f, -0.22f, 0f, -0.48f)
+            }
+            -1f -> {   // U-turn (mirrored for clockwise): up the right, over the top, down the left
+                arrowPath.moveTo(0.20f, 0.46f); arrowPath.lineTo(0.20f, -0.12f)
+                arrowPath.arcTo(RectF(-0.20f, -0.32f, 0.20f, 0.08f), 0f, -180f)
+                arrowPath.lineTo(-0.20f, 0.10f)
+                canvas.drawPath(arrowPath, arrowStroke)
+                arrowHead(canvas, -0.20f, 0.06f, -0.20f, 0.36f)
+            }
+            else -> {  // stem up from the bottom, then bend by [angle] (0 = straight on)
+                val rad = Math.toRadians(angle.toDouble())
+                val dx = Math.sin(rad).toFloat(); val dy = -Math.cos(rad).toFloat()
+                val sharp = angle > 90f                       // bend higher + longer arm so the head clears the stem
+                val sx = if (sharp) -0.2f else -dx * 0.16f    // keep the whole arrow centred
+                val bendY = if (angle == 0f) 0.2f else if (sharp) -0.2f else 0.04f
+                val arm = if (angle == 0f) 0.68f else if (sharp) 0.6f else 0.44f
+                val tipX = sx + dx * arm; val tipY = bendY + dy * arm
+                arrowPath.moveTo(sx, 0.46f); arrowPath.lineTo(sx, bendY)
+                arrowPath.lineTo(tipX - dx * 0.2f, tipY - dy * 0.2f)
+                canvas.drawPath(arrowPath, arrowStroke)
+                arrowHead(canvas, tipX - dx * 0.26f, tipY - dy * 0.26f, tipX, tipY)
+            }
+        }
+        canvas.restore()
+    }
+
+    /** Filled triangular head from base centre ([bx],[by]) to [tx],[ty] (unit space). */
+    private fun arrowHead(canvas: Canvas, bx: Float, by: Float, tx: Float, ty: Float) {
+        val len = Math.hypot((tx - bx).toDouble(), (ty - by).toDouble()).toFloat()
+        val px = -(ty - by) / len * 0.19f; val py = (tx - bx) / len * 0.19f
+        arrowPath.reset()
+        arrowPath.moveTo(tx, ty); arrowPath.lineTo(bx + px, by + py); arrowPath.lineTo(bx - px, by - py); arrowPath.close()
+        canvas.drawPath(arrowPath, arrowFill)
     }
 
     private fun ellipsize(s: String, p: Paint, maxW: Float): String {

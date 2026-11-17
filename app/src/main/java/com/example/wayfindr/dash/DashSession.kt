@@ -33,7 +33,7 @@ class DashSession(private val scope: CoroutineScope) {
         // video rate; if it runs slower, raise this. Was 42 ms (24 Hz) to match the old fixed loop.
         private const val DASH_DATA_MIN_GAP_MS = 1_000L   // max one ride-log line per field per second
         private const val DASH_DATA_REPEAT_MS  = 30_000L  // re-log unchanged fields this often
-        private const val PROJ_HB_MS     = 250L   // 4 Hz — matches FRAME_MS_ACTIVE (the fastest video rate)
+        private const val PROJ_HB_MS     = 100L   // 10 Hz — matches FRAME_MS_ACTIVE (the fastest video rate)
         private const val ROUTE_CARD_MS  = 1_000L // 1 Hz keep-alive
         // While streaming, the dash sends a frame-decoded ack (09 06/04 55) every frame. If those
         // STOP for this long the dash is gone (out of range / powered off) — but over UDP there's no
@@ -49,6 +49,9 @@ class DashSession(private val scope: CoroutineScope) {
     private var auth: DashAuth? = null
     @Volatile private var authConfirmed = false
     @Volatile private var authRetries = 0
+    /** Frames the dash reports decoded (09 06/09 04 acks) — the frame rate the rider actually sees. */
+    @Volatile var framesDecoded = 0L
+        private set
     // Wall-clock of the last packet received from the dash — fed to the RX watchdog.
     @Volatile private var lastRxMs = 0L
     // One-shot: the first time the dash reports it DECODED our video (09 06 55). If this never
@@ -361,6 +364,7 @@ class DashSession(private val scope: CoroutineScope) {
                     loggedFirstAck = true
                     com.example.wayfindr.data.RideDiagnostics.log("dash", "dash DECODED first IDR (09 06 55) — video accepted ✓")
                 }
+                framesDecoded++
                 sock.send(DashCommands.frameDecodedIdr())
                 continue
             }
@@ -368,6 +372,7 @@ class DashSession(private val scope: CoroutineScope) {
             if (tlv.type == 0x09 && tlv.sub == 0x04 &&
                 tlv.value.firstOrNull()?.toInt() == 0x55
             ) {
+                framesDecoded++
                 sock.send(DashCommands.frameDecodedP())
                 continue
             }

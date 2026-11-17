@@ -257,6 +257,8 @@ object DashCommands {
     const val NAV_MANEUVER_CONTINUE = 0x09   // STRAIGHT in the dash glyph table (see DashGlyph)
     /** "No secondary turn": 0xFF when there's no next turn to show. */
     const val NAV_SECONDARY_NONE = 0xFF
+    /** No primary glyph: hides the dash's round turn widget while the app draws its own turn card. */
+    const val NAV_MANEUVER_NONE = 0xFF
     const val NAV_UNIT_KM_TENTHS = 0x10   // distance field = km × 10
     const val NAV_UNIT_METERS    = 0x30
     private const val NAV_HDR = "00000000020100054B31472000"

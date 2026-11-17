@@ -98,6 +98,8 @@ public final class NavPlus {
     public static volatile boolean hdgOk = false;
     public static volatile Paint hudBg = null;
     public static volatile boolean hudOn = true;
+    /** Turn card in the frame instead of the dash's own round turn widget. */
+    public static volatile boolean navCard = true;
     public static volatile Paint hudTx = null;
     public static volatile long mapWarnAt = 0;
     public static volatile boolean mbBusy = false;
@@ -2013,6 +2015,7 @@ public final class NavPlus {
                 phX = sharedPreferences.getFloat("ph_x", 0.5f);
                 phY = sharedPreferences.getFloat("ph_y", 0.5f);
                 hudOn = sharedPreferences.getBoolean("hud_on", true);
+                navCard = sharedPreferences.getBoolean("nav_card", true);
                 phCfgOk = true;
             } catch (Throwable unused) {
             }
