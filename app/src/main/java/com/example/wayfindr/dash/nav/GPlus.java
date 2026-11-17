@@ -42,6 +42,7 @@ public final class GPlus {
     public static volatile long placesFailUntil;
     public static volatile String sess1;
     public static volatile String sess2;
+    public static volatile String sessTheme;
     public static volatile boolean tilesOn;
 
     public static String attribution(String str) {
@@ -530,6 +531,14 @@ public final class GPlus {
                 str = sess1;
                 j = exp1;
             }
+            String tk = GoogleTheme.key(ctx);
+            if (!tk.equals(sessTheme)) {   // theme or day/night changed: new styled session + its own tile cache
+                sessTheme = tk;
+                sess1 = null;
+                sess2 = null;
+                gdir = null;
+                str = null;
+            }
             if (str != null && currentTimeMillis < j - 600000L) {
                 return str;
             }
@@ -540,7 +549,10 @@ public final class GPlus {
             if (!isReal(key2)) {
                 return null;
             }
-            int http = http("https://tile.googleapis.com/v1/createSession?key=".concat(key2), z ? "{\"mapType\":\"roadmap\",\"language\":\"tr-TR\",\"region\":\"TR\",\"scale\":\"scaleFactor2x\",\"highDpi\":true}" : "{\"mapType\":\"roadmap\",\"language\":\"tr-TR\",\"region\":\"TR\",\"scale\":\"scaleFactor1x\"}", null);
+            JSONObject body = new JSONObject().put("mapType", "roadmap").put("language", "tr-TR").put("region", "TR")
+                    .put("scale", z ? "scaleFactor2x" : "scaleFactor1x").put("styles", GoogleTheme.styles(ctx));
+            if (z) body.put("highDpi", true);
+            int http = http("https://tile.googleapis.com/v1/createSession?key=".concat(key2), body.toString(), null);
             if (http == 200) {
                 JSONObject jSONObject = new JSONObject(lastBody);
                 String optString = jSONObject.optString("session");
@@ -646,7 +658,7 @@ public final class GPlus {
             if (file2 != null) {
                 return file2;
             }
-            File file3 = new File(file.getParentFile(), "tiles_google_v1");
+            File file3 = new File(file.getParentFile(), "tiles_google_v2_" + GoogleTheme.key(ctx));
             file3.mkdirs();
             gdir = file3;
             return file3;

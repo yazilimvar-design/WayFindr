@@ -101,6 +101,8 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
     private val inflight = ConcurrentHashMap.newKeySet<String>()
     @Volatile private var lastFetchAt = 0L
 
+    @Volatile private var memLook = ""
+
     /** Non-blocking: returns the cached tile, else kicks off async load. */
     fun get(z: Int, x: Int, y: Int): Bitmap? {
         val max = 1 shl z
@@ -108,6 +110,9 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
         val xw = ((x % max) + max) % max
         val key = keyOf(z, xw, y)
 
+        // Google tiles of the old theme / day-night look must not linger in memory after a switch.
+        val look = if (com.example.wayfindr.dash.nav.GPlus.tilesOn) com.example.wayfindr.dash.nav.GoogleTheme.key(com.example.wayfindr.dash.nav.GPlus.ctx) else ""
+        if (look != memLook) { memLook = look; memory.evictAll() }
         memory.get(key)?.let { return it }
 
         if (inflight.add(key)) {
