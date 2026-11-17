@@ -234,7 +234,7 @@ class MainActivity : ComponentActivity() {
             val t0 = System.currentTimeMillis()
             com.example.wayfindr.dash.nav.NavPlus.fetchLimit(p.first, p.second)
             if (com.example.wayfindr.dash.nav.NavPlus.spdLimit > 0) anyLimit = true
-            report.append("hız limiti $name ${p.first},${p.second}: ${com.example.wayfindr.dash.nav.NavPlus.spdLimit} km/s (${System.currentTimeMillis() - t0} ms)\n")
+            report.append("hız limiti $name ${p.first},${p.second}: ${com.example.wayfindr.dash.nav.NavPlus.spdLimit} km/s (${System.currentTimeMillis() - t0} ms) [${com.example.wayfindr.dash.nav.NavPlus.ovLast}]\n")
             Thread.sleep(1500)   // be gentle with the public Overpass server
         }
         com.example.wayfindr.dash.nav.NavPlus.rdData = null; com.example.wayfindr.dash.nav.NavPlus.rdN = 0
@@ -242,6 +242,7 @@ class MainActivity : ComponentActivity() {
         com.example.wayfindr.dash.nav.NavPlus.rdFetch(39.9208, 32.8541)
         val kinds = (com.example.wayfindr.dash.nav.NavPlus.rdData as? Array<*>)?.getOrNull(2) as? IntArray
         val cams = kinds?.take(com.example.wayfindr.dash.nav.NavPlus.rdN)?.count { it == 1 } ?: 0
+        report.append("radar sunucu: ${com.example.wayfindr.dash.nav.NavPlus.ovLast}\n")
         report.append("radar Kızılay 6 km: ${com.example.wayfindr.dash.nav.NavPlus.rdN} nokta, $cams hız kamerası, ${com.example.wayfindr.dash.nav.NavPlus.rdN - cams} kasis/yavaşlatma (${System.currentTimeMillis() - t0} ms)\n")
         report.append("SONUÇ açık: limit=${if (anyLimit) "OK" else "YOK"} radar=${if (com.example.wayfindr.dash.nav.NavPlus.rdN > 0) "OK" else "YOK"}\n")
         cfg.setOfflineSafety(false)

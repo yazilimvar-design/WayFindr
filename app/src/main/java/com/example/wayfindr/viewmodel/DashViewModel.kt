@@ -1221,7 +1221,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val hairpin = Route(pts, emptyList(), cum.last(), 120.0, cum)
         for (on in listOf(false, true)) {
             cfg.setCurveWarning(on)
-            val a = curveAlert(com.example.wayfindr.dash.nav.CurveWarner(), hairpin, 250.0, 15.0)
+            val a = curveAlert(com.example.wayfindr.dash.nav.CurveWarner(), hairpin, 330.0, 15.0)
             out.append("Viraj uyarısı ${if (on) "açık" else "kapalı"} → ${a ?: "uyarı yok"} : ${if ((a != null) == on) "OK" else "HATA"}\n")
         }
         for (on in listOf(false, true)) {

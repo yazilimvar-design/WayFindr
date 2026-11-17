@@ -183,7 +183,7 @@ grep -q "source=BROUTER" "$OUT/offline-route.txt" 2>/dev/null || echo "::warning
 # hastanesi", "kizilay") → pick → route (distance/time, no provider picker); save it, Temizle
 # (search text must go too), saved place → offline route; then start navigation and save an
 # active-navigation console frame with a fake now-playing, weather pill, turn card, speed sign.
-( for n in $(seq 1 150); do adb emu geo fix 32.8541 39.9208 >/dev/null 2>&1; sleep 2; done ) & GEO=$!
+( for n in $(seq 1 600); do adb emu geo fix 32.8541 39.9208 >/dev/null 2>&1; sleep 2; done ) & GEO=$!
 ui_dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb exec-out cat /sdcard/ui.xml > "$OUT/ui.xml"; }
 find_sub() {  # centre of the first node whose text contains $1
   ui_dump
@@ -205,7 +205,10 @@ for node in re.findall(r'<node [^>]*>', xml):
         print(html.unescape(re.search(r' text="([^"]*)"', node).group(1))); break
 PY
 }
-sheet_up() { adb shell input swipe $((SW/2)) $((SH*9/10)) $((SW/2)) $((SH*6/10)) 400; sleep 1; }
+sheet_up() { adb shell input swipe $((SW/2)) $((SH*78/100)) $((SW/2)) $((SH*52/100)) 300; sleep 1; }
+sheet_down() { adb shell input swipe $((SW/2)) $((SH*52/100)) $((SW/2)) $((SH*78/100)) 300; sleep 1; }
+has_route() { ui_dump; grep -qE 'text="[0-9][0-9,.]* km' "$OUT/ui.xml"; }
+sheet_find() { for n in 1 2 3 4 5 6 7 8; do [ -n "$(find_xy "$1" 2>/dev/null)" ] && return 0; sheet_up; done; return 1; }
 type_search() {  # $1 = words separated by spaces
   xy=$(find_xy "Yer ara" 2>/dev/null); [ -n "$xy" ] || xy=$(find_xy "Durak ekle" 2>/dev/null)
   [ -n "$xy" ] && adb shell input tap $xy; sleep 1
@@ -216,9 +219,9 @@ wait_route() {
 }
 adb shell am force-stop "$PKG"; adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1; sleep 8
 tap "Rota"; sleep 5
-type_search "mamak devlet hastanesi"; shot offline-search-mamak
+type_search "mamak devlet hastanesi"; adb shell input keyevent KEYCODE_BACK; sleep 2; shot offline-search-mamak
 xy=$(find_xy "Aramayı temizle"); [ -n "$xy" ] && adb shell input tap $xy; sleep 2
-type_search "kizilay"; shot offline-search-kizilay
+type_search "kizilay"; adb shell input keyevent KEYCODE_BACK; sleep 2; shot offline-search-kizilay
 grep -o 'text="[^"]*"' "$OUT/ui.xml" | head -60 > "$OUT/offline-search-kizilay.txt"
 xy=$(find_xy "Aramayı temizle"); [ -n "$xy" ] && adb shell input tap $xy; sleep 2
 type_search "mamak devlet hastanesi"
@@ -228,43 +231,40 @@ if [ -n "$xy" ]; then adb shell input tap $xy; else echo "::warning::offline sug
 wait_route; shot offline-route-picked
 sheet_up; sheet_up; shot offline-route-stats
 ui_dump; grep -o 'text="[^"]*"' "$OUT/ui.xml" > "$OUT/offline-route-ui.txt"
-grep -q 'Rota sağlayıcısı\|ROTA SAĞLAYICISI' "$OUT/ui.xml" && echo "::error::provider selector still on the Rota tab"
-grep -q ' km"' "$OUT/ui.xml" && echo "offline route on Rota tab: OK ($(grep -o 'text="[0-9]* km"' "$OUT/ui.xml" | head -1))" \
+sheet_up; sheet_up; ui_dump; grep -o 'text="[^"]*"' "$OUT/ui.xml" >> "$OUT/offline-route-ui.txt"; shot offline-route-bottom
+grep -qi 'sağlayıcı' "$OUT/offline-route-ui.txt" && echo "::error::provider selector still on the Rota tab"
+grep -qE 'text="[0-9][0-9,.]* km' "$OUT/offline-route-ui.txt" && echo "offline route on Rota tab: OK ($(grep -oE 'text="[0-9][0-9,.]* km[^"]*"' "$OUT/offline-route-ui.txt" | head -3 | tr '\n' ' '))" \
   || echo "::warning::no route distance on the Rota tab offline"
+grep -o 'text="BR ·[^"]*"' "$OUT/offline-route-ui.txt" | head -1
 # Save it, then Temizle: route, target and search text must all go.
-adb shell input swipe $((SW/2)) $((SH*6/10)) $((SW/2)) $((SH*9/10)) 400; sleep 1
-adb shell input swipe $((SW/2)) $((SH*6/10)) $((SW/2)) $((SH*9/10)) 400; sleep 1
-tap0 "Bu hedefi kaydet"; sleep 2; tap0 "Kaydet"; sleep 2
+sheet_find "Bu hedefi kaydet"; tap0 "Bu hedefi kaydet"; sleep 2; tap0 "Kaydet"; sleep 2
+for n in 1 2 3 4 5 6 7 8; do sheet_down; done
 tap0 "Temizle"; sleep 3; shot temizle
 FT=$(field_text); echo "after Temizle: search field='$FT'" | tee "$OUT/temizle.txt"
 case "$FT" in *Mamak*) echo "::warning::Temizle left the search text" | tee -a "$OUT/temizle.txt";; esac
 grep -q 'Hedef seçilmedi' "$OUT/ui.xml" && echo "after Temizle: HEDEF card cleared: OK" | tee -a "$OUT/temizle.txt" \
   || echo "::warning::Temizle left the HEDEF card" | tee -a "$OUT/temizle.txt"
-# Saved place → offline route.
-for n in 1 2 3; do [ -n "$(find_sub 'Mamak Devlet Hastanesi')" ] && break; sheet_up; done
-xy=$(find_sub "Mamak Devlet Hastanesi"); [ -n "$xy" ] && adb shell input tap $xy || echo "::warning::saved place not found"
-wait_route; sheet_up; shot offline-saved-route
-ui_dump; grep -q ' km"' "$OUT/ui.xml" && echo "offline route from saved place: OK" || echo "::warning::saved place gave no offline route"
 # Map tap → offline route.
+adb shell input tap $((SW*3/4)) $((SH/5)); wait_route; shot offline-maptap-route
+for n in 1 2 3 4; do has_route && break; sheet_up; done
+has_route && echo "offline route from map tap: OK" || echo "::warning::map tap gave no offline route"
+for n in 1 2 3 4 5 6 7 8; do sheet_down; done
 tap0 "Temizle"; sleep 2
-adb shell input tap $((SW*3/4)) $((SH/5)); wait_route; sheet_up; shot offline-maptap-route
-ui_dump; grep -q ' km"' "$OUT/ui.xml" && echo "offline route from map tap: OK" || echo "::warning::map tap gave no offline route"
-# A Google Maps short link with no internet: a clear message, not silence.
-tap0 "Temizle"; sleep 2
-adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://maps.app.goo.gl/9wMHSeJvD6xQZbH7A" -n "$PKG/com.example.wayfindr.MainActivity"
-sleep 8; shot offline-shared-link
-ui_dump; grep -o 'text="[^"]*bağlantı[^"]*"' "$OUT/ui.xml" | tee "$OUT/offline-shared-link.txt"
-# Saved place again, then "Navigasyonu başlat": active navigation; console frame with music.
-tap0 "Temizle"; sleep 2
-for n in 1 2 3; do [ -n "$(find_sub 'Mamak Devlet Hastanesi')" ] && break; sheet_up; done
-xy=$(find_sub "Mamak Devlet Hastanesi"); [ -n "$xy" ] && adb shell input tap $xy
-wait_route
-adb shell input swipe $((SW/2)) $((SH*6/10)) $((SW/2)) $((SH*9/10)) 400; sleep 1
-tap0 "Navigasyonu başlat"; sleep 10; shot nav-started
+# Saved place → offline route, then "Navigasyonu başlat": active navigation.
+sheet_find "Mamak Devlet Hastanesi"; xy=$(find_sub "Mamak Devlet Hastanesi")
+[ -n "$xy" ] && adb shell input tap $xy || echo "::warning::saved place not found"
+wait_route; shot offline-saved-route
+for n in 1 2 3 4; do has_route && break; sheet_up; done
+has_route && echo "offline route from saved place: OK" || echo "::warning::saved place gave no offline route"
+sheet_find "Navigasyonu başlat"; tap0 "Navigasyonu başlat"; sleep 10; shot nav-started
 adb shell input keyevent KEYCODE_BACK; sleep 1   # a Wi-Fi "connect to device" dialog, if any
 BR="adb shell am broadcast -a com.wayfindr.DASH_BUTTON -p $PKG"
-$BR --es np_title "Bir Derdim Var" --es np_artist "mor ve ötesi" --ez fakehud true; sleep 2
+# (extras with spaces must be quoted again for the device shell)
+$BR --es np_title "'Bir Derdim Var'" --es np_artist "'mor ve ötesi'" --ez fakehud true; sleep 2
+$BR --ez snap true --es snapname nav-music; sleep 10   # first frame asks for the offline tiles
+$BR --ez fakehud true; sleep 1
 $BR --ez dump true --ez snap true --es snapname nav-music; sleep 3
+adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1
 $BR --ez toggles true; sleep 3
 adb pull "/sdcard/Android/data/$PKG/files/toggles.txt" "$OUT/toggles.txt" && cat "$OUT/toggles.txt" || echo "::warning::toggles.txt not written"
 # Same frame with "Radar ve hız limiti" off (no sign, no camera pill) and with "Haritada şarkı ve
@@ -277,6 +277,11 @@ $BR --es set_mapmus true --ez np_clear true; sleep 1
 for f in nav-music nav-radar-off nav-music-off; do
   adb pull "/sdcard/Android/data/$PKG/files/diag/$f.png" "$OUT/$f.png" || echo "::warning::$f.png not rendered"
 done
+# A Google Maps short link with no internet: a clear message, not silence. (Last: it opens a
+# second MainActivity, whose view models would also answer the debug broadcasts above.)
+adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://maps.app.goo.gl/9wMHSeJvD6xQZbH7A" -n "$PKG/com.example.wayfindr.MainActivity"
+sleep 8; shot offline-shared-link
+ui_dump; grep -o 'text="[^"]*bağlantı[^"]*"' "$OUT/ui.xml" | tee "$OUT/offline-shared-link.txt"
 kill $GEO 2>/dev/null
 adb shell svc wifi enable; adb shell svc data enable; sleep 10
 
@@ -285,6 +290,12 @@ adb shell svc wifi enable; adb shell svc data enable; sleep 10
 adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.SAFETY_TEST
 for n in $(seq 1 24); do sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/safety.txt" >/dev/null 2>&1 && break; done
 adb pull "/sdcard/Android/data/$PKG/files/safety.txt" "$OUT/safety.txt" && cat "$OUT/safety.txt" || echo "::warning::safety.txt not written"
+# The same Overpass query from the runner itself, for comparison.
+for S in overpass-api.de overpass.private.coffee; do
+  curl -s -m 30 -o "$OUT/overpass-$S.json" -w "runner $S: HTTP %{http_code} %{time_total}s %{size_download} B\n" -A "Wayfindr-CI/1.0" \
+    --data-urlencode 'data=[out:json][timeout:20];(node(around:6000,39.9208,32.8541)["highway"="speed_camera"];way(around:40,39.90795,32.77297)["highway"]["maxspeed"];);out tags 20;' \
+    "https://$S/api/interpreter" | tee -a "$OUT/safety.txt"
+done
 
 adb shell pidof "$PKG" > "$OUT/pid.txt" && echo "process alive: $(cat $OUT/pid.txt)" || echo "process NOT running"
 adb logcat -d > "$OUT/logcat.txt"

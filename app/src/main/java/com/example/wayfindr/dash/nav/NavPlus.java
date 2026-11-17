@@ -767,19 +767,12 @@ public final class NavPlus {
         try {
             Context context = GPlus.ctx;
             if (context != null) {
-                HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, "https://overpass-api.de/api/interpreter?data=".concat(URLEncoder.encode("[out:json][timeout:8];way(around:15," + d + "," + d2 + ")[\"highway\"][\"maxspeed\"];out tags 6;", "UTF-8")));
-                openConnection.setConnectTimeout(6000);
-                openConnection.setReadTimeout(9000);
-                openConnection.setRequestProperty("User-Agent", "Wayfindr-SpeedLimit/1.0");
-                if (openConnection.getResponseCode() != 200) {
-                    openConnection.disconnect();
+                String body = ovFetch("[out:json][timeout:8];way(around:15," + d + "," + d2 + ")[\"highway\"][\"maxspeed\"];out tags 6;", "Wayfindr-SpeedLimit/1.0", 9000);
+                if (body == null) {
                     offlineLimit(d, d2);
                     return;
                 }
-                InputStream inputStream = openConnection.getInputStream();
-                byte[] readBytes = ByteStreamsKt.readBytes(inputStream);
-                inputStream.close();
-                openConnection.disconnect();
+                byte[] readBytes = body.getBytes(StandardCharsets.UTF_8);
                 JSONArray optJSONArray = new JSONObject(new String(readBytes, StandardCharsets.UTF_8)).optJSONArray("elements");
                 int i = 0;
                 if (optJSONArray != null) {
@@ -1877,27 +1870,51 @@ public final class NavPlus {
     }
 
     public static String ovGet(String str) {
-        try {
-            Context context = GPlus.ctx;
-            if (context == null) {
-                return null;
+        return ovFetch(str, "Wayfindr-Radar/1.0", 12000);
+    }
+
+    /** Overpass servers in order: the main one is often busy (429/504), the mirrors carry the same data. */
+    static final String[] OVERPASS = {
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+    };
+    /** Last Overpass attempt per server ("HTTP 200 312 ms" …), for the ride log / CI. */
+    public static volatile String ovLast = "";
+    private static volatile int ovGood = 0;
+
+    /** GET an Overpass query; tries the last server that worked first, then the others. Null if all fail. */
+    public static String ovFetch(String query, String ua, int readTimeout) {
+        Context context = GPlus.ctx;
+        if (context == null) return null;
+        StringBuilder log = new StringBuilder();
+        int n = OVERPASS.length;
+        for (int k = 0; k < n; k++) {
+            int idx = (ovGood + k) % n;
+            long t0 = SystemClock.elapsedRealtime();
+            try {
+                HttpURLConnection c = InternetNetwork.INSTANCE.openConnection(context, OVERPASS[idx] + "?data=" + URLEncoder.encode(query, "UTF-8"));
+                c.setConnectTimeout(6000);
+                c.setReadTimeout(readTimeout);
+                c.setRequestProperty("User-Agent", ua);
+                int code = c.getResponseCode();
+                log.append(OVERPASS[idx].replace("https://", "").replaceAll("/.*", "")).append(" HTTP ").append(code)
+                        .append(' ').append(SystemClock.elapsedRealtime() - t0).append(" ms; ");
+                if (code != 200) { c.disconnect(); continue; }
+                InputStream in = c.getInputStream();
+                byte[] b = ByteStreamsKt.readBytes(in);
+                in.close();
+                c.disconnect();
+                ovGood = idx;
+                ovLast = log.toString();
+                return new String(b, StandardCharsets.UTF_8);
+            } catch (Throwable t) {
+                log.append(OVERPASS[idx].replace("https://", "").replaceAll("/.*", "")).append(' ')
+                        .append(t.getClass().getSimpleName()).append(' ').append(SystemClock.elapsedRealtime() - t0).append(" ms; ");
             }
-            HttpURLConnection openConnection = InternetNetwork.INSTANCE.openConnection(context, "https://overpass-api.de/api/interpreter?data=".concat(URLEncoder.encode(str, "UTF-8")));
-            openConnection.setConnectTimeout(6000);
-            openConnection.setReadTimeout(12000);
-            openConnection.setRequestProperty("User-Agent", "Wayfindr-Radar/1.0");
-            if (openConnection.getResponseCode() != 200) {
-                openConnection.disconnect();
-                return null;
-            }
-            InputStream inputStream = openConnection.getInputStream();
-            byte[] readBytes = ByteStreamsKt.readBytes(inputStream);
-            inputStream.close();
-            openConnection.disconnect();
-            return new String(readBytes, StandardCharsets.UTF_8);
-        } catch (Throwable unused) {
-            return null;
         }
+        ovLast = log.toString();
+        return null;
     }
 
     public static double overlap(Route route, Route route2, double d) {

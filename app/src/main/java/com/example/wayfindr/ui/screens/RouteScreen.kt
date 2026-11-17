@@ -239,7 +239,7 @@ fun RouteScreen(
                     when {
                         routeState.isResolving -> "Bağlantı çözümleniyor…"
                         routeState.fromWayfindr -> "Wayfindr'dan paylaşıldı"
-                        dest == null -> "Rota planla"
+                        dest?.url == null -> "Rota planla"
                         else -> "Google Haritalar'dan paylaşıldı"
                     },
                     tone = if (routeState.isResolving) ChipTone.Gold else ChipTone.Neutral,
@@ -444,7 +444,7 @@ fun RouteScreen(
                         if (index > 0) WayfindrDivider(Modifier.padding(horizontal = 4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp)) {
                             Text(if (index == routeState.waypoints.lastIndex) "Son" else "${index + 1}", color = Gold, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(38.dp))
-                            Text(stop.name, color = TextHi, fontSize = 14.sp, fontFamily = GeistFamily, modifier = Modifier.weight(1f), maxLines = 1)
+                            Text(when (stop.name) { "Dropped pin" -> "Haritadan seçilen konum"; "", "Shared location" -> "Paylaşılan konum"; else -> stop.name }, color = TextHi, fontSize = 14.sp, fontFamily = GeistFamily, modifier = Modifier.weight(1f), maxLines = 1)
                             if (routeState.waypoints.size > 1) {
                                 Icon(WayfindrIcons.MoveUp, "Durağı öne al", tint = if (index > 0) TextMid else TextLo,
                                     modifier = Modifier.size(19.dp).clickable(enabled = index > 0) { routeViewModel.moveWaypoint(index, index - 1) })
