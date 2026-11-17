@@ -139,6 +139,16 @@
             android:exported="false"
             android:label="Çevrimdışı Harita" />
 
+        <!-- Türkiye çevrimdışı paketi: DownloadManager finished a file (dash/offline/OfflinePack).
+             Sent by the system download provider, so exported; it only re-reads download state. -->
+        <receiver
+            android:name=".dash.offline.OfflinePack$DoneReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
         <!-- 10-minute idle alarm: puts the app to sleep (util/IdleSleep). -->
         <receiver
             android:name=".util.IdleSleep$AlarmReceiver"

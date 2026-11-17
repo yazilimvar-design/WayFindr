@@ -70,7 +70,29 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
     /** OSM's rules forbid prefetching, so every prefetch below is skipped. */
     private val liveOsmOnly = true
 
-    private fun keyOf(z: Int, x: Int, y: Int) = "osm/$z/$x/$y"
+    private val appCtx = context.applicationContext
+
+    /**
+     * Offline-map mode: the Türkiye package is installed and there is no internet. Then every tile
+     * comes from the offline vector map ([VectorTiles]) under its own "vec/" keys, so cached OSM and
+     * offline tiles never mix on one screen. Re-checked at most every 3 s (called per tile).
+     */
+    @Volatile private var vecMode = false
+    @Volatile private var vecCheckedAt = 0L
+    private fun vectorMode(): Boolean {
+        val now = System.currentTimeMillis()
+        if (now - vecCheckedAt > 3_000) {
+            vecCheckedAt = now
+            vecMode = forceVector || (VectorTiles.available(appCtx) && internetNetwork() == null)
+        }
+        return vecMode
+    }
+
+    /** Debug/CI: always draw from the offline map. */
+    @Volatile var forceVector = false
+        set(v) { field = v; vecCheckedAt = 0L }
+
+    private fun keyOf(z: Int, x: Int, y: Int) = (if (vectorMode()) "vec/" else "osm/") + "$z/$x/$y"
     // Byte-budgeted (not count-based): adapts to tile size and OEM heap, keeping the current zoom
     // PLUS a neighbouring level resident for the renderer's scaled-tile fallback.
     private val memory = object : LruCache<String, Bitmap>(memoryCacheBytes(context)) {
@@ -92,7 +114,10 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
             scope.launch(Dispatchers.IO) {
                 try {
                     // Standard map tiles (Google-Maps-like look). No per-tile filter — also the cheapest path.
-                    val raw = loadDisk(key) ?: fetch(z, xw, y, key)
+                    val raw = if (key.startsWith("vec/")) VectorTiles.tile(appCtx, z, xw, y)
+                        else loadDisk(key) ?: fetch(z, xw, y, key)
+                            // Network tile unavailable: draw it from the offline map when installed.
+                            ?: VectorTiles.cached(appCtx, z, xw, y) ?: VectorTiles.tile(appCtx, z, xw, y)
                     if (raw != null) memory.put(key, raw)
                     // OSM asks for week-old tiles to be re-checked; the old one shows meanwhile.
                     if (raw != null && key.startsWith("osm/") &&

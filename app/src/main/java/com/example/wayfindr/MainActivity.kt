@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
             }
             ACTION_RENDER_NAV_CARD -> if (BuildConfig.DEBUG) renderNavCardPreview()
             ACTION_FRAME_BENCH -> if (BuildConfig.DEBUG) runFrameBench()
+            ACTION_OFFLINE_TEST -> if (BuildConfig.DEBUG) runOfflineTest(intent)
         }
     }
 
@@ -143,7 +144,63 @@ class MainActivity : ComponentActivity() {
         java.io.File(getExternalFilesDir(null), "framebench.txt").writeText(report.toString())
     }.start()
 
+    /**
+     * Debug only (CI smoke test of the Türkiye çevrimdışı paketi). Expects a map extract and
+     * segment(s) already pushed to files/offline/ (see .github/scripts/smoke.sh): routes Kızılay →
+     * Gölbaşı through [com.example.wayfindr.dash.nav.Router] (no network → built-in BRouter) and
+     * draws console frames from the offline vector map. Writes files/offline-route.txt and
+     * files/offline-console.png.
+     */
+    private fun runOfflineTest(intent: Intent) = Thread {
+        val ctx = applicationContext
+        val report = StringBuilder()
+        intent.getStringExtra("map")?.let {
+            com.example.wayfindr.dash.offline.OfflinePack.debugInstallMap(ctx, it, intent.getStringExtra("date") ?: "20000101")
+        }
+        report.append("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
+        report.append("map: ${com.example.wayfindr.dash.offline.OfflinePack.mapFile(ctx)}\n")
+        val from = GeoPoint(39.9208, 32.8541); val to = GeoPoint(39.7880, 32.8060)
+        val t0 = System.currentTimeMillis()
+        val route = kotlinx.coroutines.runBlocking { com.example.wayfindr.dash.nav.Router.route(ctx, from, to) }
+        report.append("route: ${if (route == null) "FAILED (${com.example.wayfindr.dash.nav.OfflineRouter.lastError})" else
+            "source=${route.source} %.1f km %.0f min, ${route.geometry.size} points, ${route.maneuvers.size} maneuvers".format(
+                route.totalMeters / 1000, route.totalSeconds / 60)} in ${System.currentTimeMillis() - t0} ms\n")
+        route?.maneuvers?.take(12)?.forEach { report.append("  %.0f m: %s (%s)\n".format(it.cumulativeMeters, it.instruction, it.googleManeuver)) }
+        java.io.File(getExternalFilesDir(null), "offline-route.txt").writeText(report.toString())
+
+        val w = DashEncoder.WIDTH; val h = DashEncoder.HEIGHT
+        val tiles = TileProvider(ctx, kotlinx.coroutines.MainScope()).apply { forceVector = intent.getBooleanExtra("force", false) }
+        val renderer = MapRenderer(tiles)
+        val views = listOf(Triple(39.9208, 32.8541, 15), Triple(39.9208, 32.8541, 17), Triple(39.8600, 32.8300, 13))
+        val out = android.graphics.Bitmap.createBitmap(w, h * views.size * 2, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val tr = System.currentTimeMillis()
+        repeat(4) { pass ->   // tiles are rendered in the background; later passes draw them
+            if (pass > 0) Thread.sleep(12_000)
+            var row = 0
+            for (dark in listOf(false, true)) for ((lat, lng, z) in views) {
+                canvas.save(); canvas.translate(0f, (h * row).toFloat()); canvas.clipRect(0, 0, w, h)
+                renderer.draw(canvas, MapRenderer.Frame(
+                    centerLat = lat, centerLng = lng, zoom = z, riderLat = 39.9208, riderLng = 32.8541,
+                    destLat = to.lat, destLng = to.lng, route = route?.geometry ?: emptyList(),
+                    etaPrimary = route?.let { "${(it.totalSeconds / 60).toInt()} dk" }, etaSecondary = "çevrimdışı",
+                    routingBadge = route?.source, attribution = TileProvider.OSM_ATTRIBUTION, dark = dark,
+                ), w, h)
+                canvas.restore(); row++
+            }
+        }
+        java.io.File(getExternalFilesDir(null), "offline-console.png").outputStream().use {
+            out.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        val cache = java.io.File(cacheDir.path).listFiles()?.filter { it.name.startsWith("tiles_vec_") }
+            ?.sumOf { it.listFiles()?.size ?: 0 } ?: 0
+        java.io.File(getExternalFilesDir(null), "offline-route.txt")
+            .appendText("console: ${views.size * 2} frames, $cache offline tiles rendered in ${System.currentTimeMillis() - tr} ms\n")
+        android.util.Log.i("OfflineTest", report.toString())
+    }.start()
+
     companion object {
+        const val ACTION_OFFLINE_TEST = "com.example.wayfindr.OFFLINE_TEST"
         const val ACTION_RENDER_NAV_CARD = "com.example.wayfindr.RENDER_NAV_CARD"
         const val ACTION_FRAME_BENCH = "com.example.wayfindr.FRAME_BENCH"
     }

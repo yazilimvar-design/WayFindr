@@ -118,6 +118,43 @@ tap0 "Diğer"; sleep 4; shot share-chooser
 adb shell "run-as $PKG sh -c 'cat cache/route_qr/*.png'" > "$OUT/share-image.png" 2>/dev/null || true
 adb shell input keyevent KEYCODE_BACK; sleep 1; adb shell input keyevent KEYCODE_BACK; sleep 1
 
+# Fourth pass: Türkiye çevrimdışı paketi with NO network. A small Ankara cut of the published
+# offline map (read straight from the release asset) + the Ankara BRouter segment go into the app's
+# offline folder; then Wi-Fi and mobile data are switched off and the debug OFFLINE_TEST entry routes
+# Kızılay → Gölbaşı (Router → built-in BRouter) and draws console frames from the vector map.
+PMV=1.31.2; ODIR="/sdcard/Android/data/$PKG/files/offline"
+MANIFEST=https://github.com/yazilimvar-design/WayFindr/releases/download/tr-map-latest/manifest.json
+curl -fsSL -o "$OUT/manifest.json" "$MANIFEST" && cat "$OUT/manifest.json"
+MAPURL=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["url"])' "$OUT/manifest.json" 2>/dev/null)
+MAPDATE=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["date"])' "$OUT/manifest.json" 2>/dev/null)
+curl -fsSL -o /tmp/pmtiles.tgz "https://github.com/protomaps/go-pmtiles/releases/download/v$PMV/go-pmtiles_${PMV}_Linux_x86_64.tar.gz" \
+  && tar xzf /tmp/pmtiles.tgz -C /tmp pmtiles
+/tmp/pmtiles extract "${MAPURL:-https://build.protomaps.com/20261117.pmtiles}" /tmp/ank.pmtiles --bbox=32.70,39.74,32.98,40.00 --maxzoom=14 \
+  || echo "::warning::pmtiles extract failed"
+curl -fsSL -o /tmp/E30_N35.rd5 https://brouter.de/brouter/segments4/E30_N35.rd5 || echo "::warning::segment download failed"
+ls -l /tmp/ank.pmtiles /tmp/E30_N35.rd5
+adb shell mkdir -p "$ODIR/map" "$ODIR/segments4"
+adb push /tmp/ank.pmtiles "$ODIR/map/ank.pmtiles"
+adb push /tmp/E30_N35.rd5 "$ODIR/segments4/E30_N35.rd5"
+adb shell svc wifi disable; adb shell svc data disable; sleep 8
+adb shell dumpsys connectivity | grep -m3 -i "active default network\|NetworkAgentInfo" > "$OUT/offline-net.txt" || true
+adb shell rm -f "/sdcard/Android/data/$PKG/files/offline-console.png"
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.OFFLINE_TEST --es map ank.pmtiles --es date "${MAPDATE:-20261117}"
+for n in $(seq 1 30); do
+  sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/offline-console.png" >/dev/null 2>&1 && break
+done
+sleep 2
+adb pull "/sdcard/Android/data/$PKG/files/offline-console.png" "$OUT/offline-console.png" || echo "::warning::offline-console.png not rendered"
+adb pull "/sdcard/Android/data/$PKG/files/offline-route.txt" "$OUT/offline-route.txt" && cat "$OUT/offline-route.txt" || echo "::warning::offline-route.txt not written"
+grep -q "source=BROUTER" "$OUT/offline-route.txt" 2>/dev/null || echo "::warning::offline route did not come from the built-in BRouter"
+adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1; sleep 4
+tap "Konsol"; sleep 4
+for n in 1 2 3 4 5 6; do  # scroll until the card's button is on screen
+  [ -n "$(find_xy 'Wi-Fi ile indirmeniz önerilir' 2>/dev/null)" ] && break; up; sleep 1
+done; sleep 1
+shot offline-card
+adb shell svc wifi enable; adb shell svc data enable; sleep 5
+
 adb shell pidof "$PKG" > "$OUT/pid.txt" && echo "process alive: $(cat $OUT/pid.txt)" || echo "process NOT running"
 adb logcat -d > "$OUT/logcat.txt"
 adb pull "/sdcard/Android/data/$PKG/files/diag" "$OUT/diag" 2>/dev/null || true

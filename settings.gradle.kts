@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "WayfindR"
 include(":app")
+include(":brouter")

@@ -75,6 +75,7 @@ object Router {
      */
     suspend fun route(context: Context, from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? {
         NavPlus.rtPick(context)
+        val online = source != RoutingSource.BROUTER
         return when (source) {
             RoutingSource.GOOGLE ->
                 if (!com.example.wayfindr.dash.GoogleKey.present)
@@ -90,7 +91,17 @@ object Router {
                             "BRouter unavailable (${OfflineRouter.lastError}) — trying the free OSM server")
                         FreeRouter.route(context, from, to, intermediates)?.copy(source = RoutingSource.OSM)
                     }
-        }
+        } ?: if (online) offlineFallback(from, to, intermediates) else null
+    }
+
+    /**
+     * Google and the free server both failed (no signal, server down): route on the phone with the
+     * built-in BRouter when the Türkiye çevrimdışı paketi covers the trip (or the BRouter app is there).
+     */
+    private suspend fun offlineFallback(from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint>): Route? {
+        if (!OfflineRouter.canRoute(listOf(from) + intermediates + to)) return null
+        com.example.wayfindr.data.RideDiagnostics.log("route", "online routing failed — offline BRouter")
+        return OfflineRouter.route(from, to, intermediates)?.copy(source = RoutingSource.BROUTER)
     }
 
     /**
@@ -106,6 +117,7 @@ object Router {
         val routes: List<Route> =
             if (source == RoutingSource.OSM)
                 FreeRouter.alternatives(context, from, to, intermediates).map { it.copy(source = RoutingSource.OSM) }
+                    .ifEmpty { listOfNotNull(offlineFallback(from, to, intermediates)) }
             else NavPlus.googleChoices(route(context, from, to, NavPlus.altMarker(intermediates) as List<GeoPoint>)) as List<Route>
         // Google often returns a single route (always with stops); top up the picker with the free OSM
         // alternatives so the rider still gets up to 3 choices. Costs nothing extra.

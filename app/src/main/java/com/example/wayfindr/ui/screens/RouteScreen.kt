@@ -545,12 +545,13 @@ fun RouteScreen(
             // ── Routing + map theme (moved here from Settings) ──
             val routingSource by dashConfig.routingSource.collectAsState()
             val mapTheme by dashConfig.mapTheme.collectAsState()
-            val brouterInstalled = remember { OfflineRouter.isInstalled(ctx) }
+            val packReady = remember { com.example.wayfindr.dash.offline.OfflinePack.routingReady(ctx) }
+            val brouterInstalled = remember { packReady || OfflineRouter.isInstalled(ctx) }
             ChoiceHeader("Rota sağlayıcısı", when (routingSource) {
                 RoutingSource.GOOGLE -> "Motosiklet · canlı trafik"
                 RoutingSource.OSM -> "Ücretsiz sunucu · internet gerekir"
                 RoutingSource.BROUTER ->
-                    if (brouterInstalled) "Telefonda · internet gerekmez" else "BRouter uygulaması yüklü değil"
+                    if (brouterInstalled) "Telefonda · internet gerekmez" else "Türkiye çevrimdışı paketi kurulu değil (Konsol sekmesi)"
             })
             WayfindrSegmented(
                 options = RoutingSource.available.map { it.label },

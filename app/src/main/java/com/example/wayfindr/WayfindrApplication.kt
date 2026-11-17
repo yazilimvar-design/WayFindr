@@ -13,6 +13,8 @@ class WayfindrApplication : Application() {
         com.example.wayfindr.dash.DashConfig.get(this)
         com.example.wayfindr.dash.nav.OfflineRouter.init(this)
         com.example.wayfindr.dash.nav.OfflineRouter.registerDebugProbe(this)
+        // Türkiye çevrimdışı paketi: finish a download that completed while the app was closed.
+        com.example.wayfindr.dash.offline.OfflinePack.init(this)
         // Hash the installed APK off-thread so the build identity is ready to stamp into ride logs.
         BuildId.warm(this)
         // Uncaught exceptions are written to a local diag/crash-*.log before the process dies.

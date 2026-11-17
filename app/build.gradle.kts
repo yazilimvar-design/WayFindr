@@ -196,6 +196,8 @@ dependencies {
     implementation(libs.navigation.sdk)
     coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
     implementation(libs.maplibre)
+    // BRouter routing engine, vendored (brouter/, MIT): offline routing from the Türkiye package.
+    implementation(project(":brouter"))
     implementation(libs.maplibre.annotation)
     // QR codes for shared routes (util/RouteQr) - pure Java, works offline.
     implementation(libs.zxing.core)

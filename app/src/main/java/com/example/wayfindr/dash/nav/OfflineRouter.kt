@@ -48,9 +48,16 @@ object OfflineRouter {
 
     suspend fun route(from: GeoPoint, to: GeoPoint, intermediates: List<GeoPoint> = emptyList()): Route? {
         val ctx = appContext ?: return fail("not initialised")
-        if (!isInstalled(ctx)) return fail("BRouter app is not installed")
-        NavPlus.brWantFor(intermediates)   // alternatives wanted? (route picker asks with NavPlus.ALT_MARK)
         val points = listOf(from) + intermediates + to
+        // Türkiye çevrimdışı paketi: BRouter inside the app, from the downloaded segments.
+        if (BRouterEngine.covers(ctx, points)) {
+            NavPlus.brWantFor(intermediates)
+            return routeEmbedded(ctx, points)
+        }
+        if (!isInstalled(ctx)) return fail(
+            if (com.example.wayfindr.dash.offline.OfflinePack.routingReady(ctx)) "route is outside the offline package (Türkiye)"
+            else "offline package not installed and BRouter app is not installed")
+        NavPlus.brWantFor(intermediates)   // alternatives wanted? (route picker asks with NavPlus.ALT_MARK)
         var text = withContext(Dispatchers.IO) { callService(ctx, points) } ?: return null
         com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.OFFLINE_ROUTES)
         if (!text.trimStart().startsWith("{")) {
@@ -67,6 +74,63 @@ object OfflineRouter {
         if (!text.trimStart().startsWith("{")) return fail("BRouter: ${text.take(200)}")
         return runCatching { parse(text, points.drop(1)) }.getOrElse { fail("unreadable BRouter result (${it.message})") }
             ?.also { NavPlus.brAttach(it); lastError = null }
+    }
+
+    /** True when [route] can work right now: the offline package covers the points, or the BRouter app is there. */
+    fun canRoute(points: List<GeoPoint>): Boolean {
+        val ctx = appContext ?: return false
+        return BRouterEngine.covers(ctx, points) || isInstalled(ctx)
+    }
+
+    /** Same request and fallback as the BRouter app path, run by [BRouterEngine] in this process. */
+    private suspend fun routeEmbedded(ctx: Context, points: List<GeoPoint>): Route? = withContext(Dispatchers.IO) {
+        val t0 = System.currentTimeMillis()
+        var params = mapOf("profile" to PROFILE, "timode" to "3", "maxRunningTime" to "180")
+        var text = BRouterEngine.route(ctx, points, params)
+        com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.OFFLINE_ROUTES)
+        if (!text.trimStart().startsWith("{")) {
+            Log.i(TAG, "car-fast failed (${text.take(120)}) — retrying with $FALLBACK_PROFILE")
+            params = params + ("profile" to FALLBACK_PROFILE)
+            text = BRouterEngine.route(ctx, points, params)
+            com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.OFFLINE_ROUTES)
+        }
+        mapWarnShim(text)
+        val msg = "offline route (built-in BRouter ${params["profile"]}, ${points.size} points) in " +
+            "${System.currentTimeMillis() - t0} ms: " + if (text.startsWith("{")) "${text.length} chars" else text.take(120)
+        Log.i(TAG, msg)
+        com.example.wayfindr.data.RideDiagnostics.log("route", msg)
+        if (!text.trimStart().startsWith("{")) return@withContext fail("BRouter: ${text.take(200)}")
+        embeddedAlts(ctx, params, points, text)
+        runCatching { parse(text, points.drop(1)) }.getOrElse { fail("unreadable BRouter result (${it.message})") }
+            ?.also { NavPlus.brAttach(it); lastError = null }
+    }
+
+    /** [navAlts] for the built-in engine: alternatives 1 and 2 in parallel, 5 s limit. */
+    private fun embeddedAlts(ctx: Context, params: Map<String, String>, points: List<GeoPoint>, result: String) {
+        try {
+            NavPlus.brPending = null
+            if (!NavPlus.brWant) return
+            NavPlus.brWant = false
+            val stops = points.drop(1)
+            val main = parse(result, stops) ?: return
+            val deadline = SystemClock.elapsedRealtime() + 5_000
+            val res = arrayOfNulls<Route>(2)
+            val threads = (1..2).map { idx ->
+                Thread({
+                    res[idx - 1] = runCatching {
+                        BRouterEngine.route(ctx, points, params + mapOf("alternativeidx" to "$idx", "maxRunningTime" to "5"))
+                            .takeIf { it.trim().startsWith("{") }?.let { parse(it, stops) }?.let { NavPlus.asBRouter(it) }
+                    }.getOrNull()
+                }, "BRouterAlt$idx").apply { isDaemon = true; start() }
+            }
+            threads.forEach { NavPlus.joinUntil(it, deadline) }
+            val alternatives = ArrayList<Route>()
+            val seen = arrayListOf(main)
+            for (alt in res) if (alt != null && NavPlus.brDistinct(alt, seen)) { alternatives.add(alt); seen.add(alt) }
+            if (alternatives.isNotEmpty()) NavPlus.brPending = alternatives
+            NavPlus.rlog("built-in BRouter alternatives: ${alternatives.size}")
+        } catch (_: Throwable) {
+        }
     }
 
     /**

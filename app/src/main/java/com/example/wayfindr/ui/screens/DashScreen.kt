@@ -529,6 +529,8 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
         AlertToggleRow(WayfindrIcons.Drop, "Yağmur uyarısı", "Rotada yağış beklenirse bildirir", rainWarning) { dashConfig.setRainWarning(it) }
         Spacer(Modifier.height(10.dp))
         AlertToggleRow(WayfindrIcons.Gauge, "Radar ve hız limiti (çevrimdışı)", "Rota boyunca kaydedilir; internet yokken kullanılır", offlineSafety) { dashConfig.setOfflineSafety(it) }
+        Spacer(Modifier.height(10.dp))
+        OfflinePackCard()
 
         Spacer(Modifier.height(16.dp))
 
