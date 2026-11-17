@@ -69,7 +69,8 @@ class MediaInfoProvider(private val context: Context) {
 
     /** Bind to the top active session (the one currently driving playback). */
     private fun bind(list: List<MediaController>?) {
-        val top = list?.firstOrNull()
+        // The one actually playing first: a paused app (e.g. a video left open) can be listed above it.
+        val top = list?.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING } ?: list?.firstOrNull()
         if (top?.sessionToken == controller?.sessionToken) { publish(); return }
         controller?.unregisterCallback(controllerCb)
         controller = top

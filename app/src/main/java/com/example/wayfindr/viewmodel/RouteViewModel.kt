@@ -181,6 +181,27 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
         ))
         if (loc.lat != null && loc.lng != null) {
             computeRoute(listOf(loc))
+        } else if (loc.url != null && !online()) {
+            // No internet: a maps.app.goo.gl short link can't be opened. The place name Google puts
+            // in the shared text (if any) is looked up in the saved places and the offline index.
+            viewModelScope.launch {
+                val name = loc.name.takeIf { it.isNotBlank() && it != "Loading…" && it != "Shared location" }
+                val hit = name?.let { n ->
+                    savedByName(n)?.let { (la, lo) -> com.example.wayfindr.dash.nav.PlaceSearch.Hit(n, la, lo, "saved place") }
+                        ?: withContext(Dispatchers.IO) {
+                            com.example.wayfindr.dash.offline.OfflineSearch.best(getApplication(), n, _state.value.currentLocation)
+                        }
+                }
+                if (hit != null) {
+                    val resolved = loc.copy(name = name, lat = hit.lat, lng = hit.lng, needsExpansion = false)
+                    _state.value = _state.value.copy(destination = resolved, waypoints = listOf(resolved), isResolving = false)
+                    computeRoute(listOf(resolved))
+                } else {
+                    _state.value = _state.value.copy(isResolving = false, waypoints = emptyList(),
+                        destination = loc.copy(needsExpansion = false), searchNote = SHARED_LINK_OFFLINE)
+                    com.example.wayfindr.data.RideDiagnostics.log("route", "shared link offline, not resolvable: ${loc.url}")
+                }
+            }
         } else if (loc.url != null) {
             viewModelScope.launch {
                 // Short maps.app.goo.gl links often expand into a directions URL only after
@@ -209,8 +230,8 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     // Keep the name on screen but no stop without coordinates.
                     _state.value = _state.value.copy(destination = resolved, waypoints = emptyList(), isResolving = false,
-                        searchNote = "Google Haritalar bağlantısı açılamadı (internet yok olabilir). " +
-                            "Kayıtlı bir yer arayın veya haritaya dokunun.")
+                        searchNote = if (online()) "Google Haritalar bağlantısı açılamadı. " +
+                            "Yeri arama kutusuna yazın veya haritaya dokunun." else SHARED_LINK_OFFLINE)
                     Log.w(TAG, "No coords for '$name' (url+geocode+saved all empty)")
                 }
             }
@@ -231,6 +252,11 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     /** Geocode an address/place name to coordinates via the device's geocoder backend. */
     @Suppress("DEPRECATION")
     private suspend fun geocode(query: String): Pair<Double, Double>? = withContext(Dispatchers.IO) {
+        if (!online()) {
+            // No internet: the offline index of the Türkiye package instead of the geocoder.
+            return@withContext com.example.wayfindr.dash.offline.OfflineSearch
+                .best(getApplication(), query, _state.value.currentLocation)?.let { it.lat to it.lng }
+        }
         try {
             if (!Geocoder.isPresent()) {
                 Log.w(TAG, "No geocoder backend present")
@@ -299,8 +325,11 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
                 searchNote = null,
             ) else _state.value.copy(
                 route = null, routeAlternatives = emptyList(), selectedRouteIndex = 0, routing = false,
-                searchNote = "Rota bulunamadı. İnternet bağlantınızı ve varış noktasını kontrol edin.",
+                searchNote = routeFailedNote(),
             )
+            com.example.wayfindr.data.RideDiagnostics.log("route", "Rota tab: no route (online=${online()}, " +
+                "pack=${com.example.wayfindr.dash.offline.OfflinePack.routingReady(getApplication())}, " +
+                "BRouter=${com.example.wayfindr.dash.nav.OfflineRouter.lastError})")
             if (requestId == routeRequestGeneration) routeRequestJob = null
         }
     }
@@ -359,9 +388,19 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
             ?.let { com.example.wayfindr.dash.nav.PlaceSearch.savedMatch(it, _saved.value) }
             ?.let { it.lat to it.lng }
 
-    /** Clear the loaded itinerary without dropping the live location shown on the map. */
+    /**
+     * "Temizle": drop the itinerary, the target (also a "Paylaşılan konum" without coordinates),
+     * the route and any note, without dropping the live location shown on the map. The screen
+     * empties the search box itself.
+     */
     fun clearDestinations() {
+        routeRequestGeneration++
+        routeRequestJob?.cancel()
+        routeRequestJob = null
         _state.value = _state.value.copy(
+            isResolving = false,
+            searchNote = null,
+            fromWayfindr = false,
             destination = null,
             waypoints = emptyList(),
             pendingNavigate = false,
@@ -381,7 +420,7 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
         if (query.isBlank()) return
         _state.value = _state.value.copy(isResolving = true, routing = false, searchNote = null)
         viewModelScope.launch {
-            val source = Router.source
+            val source = Router.effectiveSource()
             val hit = com.example.wayfindr.dash.nav.PlaceSearch.search(
                 getApplication(), query, source, _state.value.currentLocation, _saved.value)
             if (hit != null) {
@@ -403,7 +442,8 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     fun selectLocation(lat: Double, lng: Double) {
         addWaypoint(SharedLocation(name = "Dropped pin", lat = lat, lng = lng), resolving = true)
         viewModelScope.launch {
-            val name = reverseGeocode(lat, lng) ?: "Dropped pin"
+            // Offline the geocoder can only hang or fail: route at once with the plain pin name.
+            val name = (if (online()) reverseGeocode(lat, lng) else null) ?: "Dropped pin"
             val stops = _state.value.waypoints.map {
                 if (it.lat == lat && it.lng == lng) it.copy(name = name) else it
             }
@@ -497,5 +537,22 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     private fun fmtEta(sec: Double): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(System.currentTimeMillis() + (sec * 1000).toLong()))
 
-    private companion object { const val MAX_STOPS = 26 }
+    private fun online() = com.example.wayfindr.util.InternetNetwork.validated(getApplication()) != null
+
+    /** Why no route came back, in words the rider can act on. */
+    private fun routeFailedNote(): String {
+        val ctx = getApplication<Application>()
+        return when {
+            online() -> "Rota bulunamadı. Varış noktasını kontrol edip tekrar deneyin."
+            com.example.wayfindr.dash.offline.OfflinePack.routingReady(ctx) ->
+                "Rota bulunamadı (çevrimdışı). Hedef Türkiye dışında ya da yol ağına uzak olabilir."
+            else -> "İnternet yok. Çevrimdışı rota için Ayarlar → Çevrimdışı harita'dan Türkiye paketini indirin."
+        }
+    }
+
+    private companion object {
+        const val MAX_STOPS = 26
+        const val SHARED_LINK_OFFLINE = "Google Haritalar kısa bağlantısı internet olmadan açılamıyor. " +
+            "Yeri arama kutusuna yazın (çevrimdışı arama) ya da haritaya dokunun."
+    }
 }

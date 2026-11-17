@@ -1199,6 +1199,53 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      *  blocked the rider's double-tap mid-route on 2026-10-16.) */
     private fun canOpenPicker() = session.state.value == DashState.STREAMING || debugInjecting
 
+    /** "Viraj uyarısı": the spoken sharp-curve warning, or null when off / no curve ahead. */
+    private fun curveAlert(w: com.example.wayfindr.dash.nav.CurveWarner, r: Route, progressM: Double, speedMps: Double): String? =
+        if (dashConfig.curveWarning.value) w.tick(r, progressM, speedMps) else null
+
+    /**
+     * Debug/CI: switches each alert setting off and on and checks that its feature follows
+     * (Viraj on a synthetic hairpin, Yağmur through NavPlus' weather alert, Radar ve hız limiti
+     * through the speed-limit / camera ticks and the map overlay). Returns one line per check.
+     */
+    private fun debugToggleCheck(): String {
+        val out = StringBuilder()
+        val cfg = dashConfig
+        val saved = Triple(cfg.curveWarning.value, cfg.rainWarning.value, cfg.offlineSafety.value)
+        // Viraj: straight 400 m north, then a hairpin back south.
+        val pts = ArrayList<GeoPoint>()
+        for (i in 0..40) pts += GeoPoint(39.90 + i * 0.00009, 32.85)
+        for (i in 1..20) { val a = Math.PI * i / 20; pts += GeoPoint(39.90 + 40 * 0.00009 + Math.sin(a) * 0.00027, 32.85 + (1 - Math.cos(a)) * 0.00035) }
+        for (i in 1..40) pts += GeoPoint(39.90 + 40 * 0.00009 - i * 0.00009, 32.85 + 0.0007)
+        val cum = DoubleArray(pts.size).also { c -> for (i in 1 until pts.size) c[i] = c[i - 1] + GeoPoint.distMeters(pts[i - 1], pts[i]) }
+        val hairpin = Route(pts, emptyList(), cum.last(), 120.0, cum)
+        for (on in listOf(false, true)) {
+            cfg.setCurveWarning(on)
+            val a = curveAlert(com.example.wayfindr.dash.nav.CurveWarner(), hairpin, 250.0, 15.0)
+            out.append("Viraj uyarısı ${if (on) "açık" else "kapalı"} → ${a ?: "uyarı yok"} : ${if ((a != null) == on) "OK" else "HATA"}\n")
+        }
+        for (on in listOf(false, true)) {
+            cfg.setRainWarning(on)
+            val a = NavPlus.debugRainCheck()
+            out.append("Yağmur uyarısı ${if (on) "açık" else "kapalı"} → ${a ?: "uyarı yok"} : ${if ((a != null) == on) "OK" else "HATA"}\n")
+        }
+        for (on in listOf(false, true)) {
+            cfg.setOfflineSafety(on)
+            NavPlus.spdLimit = 0; NavPlus.rdAheadM = -1
+            NavPlus.spdNextAt = Long.MAX_VALUE   // no network fetch in this check
+            NavPlus.spdLimit = 50; NavPlus.spdAt = android.os.SystemClock.elapsedRealtime()
+            NavPlus.spdTick0(20f, 39.92, 32.85)
+            NavPlus.rdNextAt = Long.MAX_VALUE; NavPlus.rdAheadM = 300; NavPlus.rdAheadAt = android.os.SystemClock.elapsedRealtime()
+            NavPlus.rdTick(20f, 39.92, 32.85)
+            val shown = NavPlus.safetyOn() && NavPlus.spdLimit > 0
+            out.append("Radar ve hız limiti ${if (on) "açık" else "kapalı"} → limit=${NavPlus.spdLimit} radarPill=${NavPlus.rdAheadM} " +
+                "çizim=${if (NavPlus.safetyOn()) "var" else "yok"} : ${if (shown == on) "OK" else "HATA"}\n")
+        }
+        cfg.setCurveWarning(saved.first); cfg.setRainWarning(saved.second); cfg.setOfflineSafety(saved.third)
+        NavPlus.spdNextAt = 0L; NavPlus.rdNextAt = 0L; NavPlus.spdLimit = 0; NavPlus.rdAheadM = -1; NavPlus.pend1 = null; NavPlus.pend2 = null
+        return out.toString()
+    }
+
     /** True while a debug-build adb broadcast is feeding a joystick code (see [debugButtonRx]). */
     @Volatile private var debugInjecting = false
 
@@ -1217,14 +1264,55 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     debugInjecting = true
                     try { session.onButton?.invoke(code.toByte()) } finally { debugInjecting = false }
                 }
+                // Fake now-playing (CI: the music card on the console): --es np_title … --es np_artist …
+                intent.getStringExtra("np_title")?.let { t ->
+                    val art = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888).also { b ->
+                        val c = Canvas(b)
+                        c.drawColor(android.graphics.Color.rgb(200, 60, 40))
+                        c.drawCircle(48f, 48f, 30f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.rgb(250, 200, 60) })
+                    }
+                    NavPlus.npNow = com.example.wayfindr.media.NowPlaying(t, "Albüm", intent.getStringExtra("np_artist").orEmpty(), art, true)
+                }
+                if (intent.getBooleanExtra("np_clear", false)) NavPlus.npNow = null
+                intent.getStringExtra("set_safety")?.let { dashConfig.setOfflineSafety(it == "true") }
+                intent.getStringExtra("set_mapmus")?.let { NavPlus.phSet(c, "map_mus", it == "true") }
+                // Fake weather/fuel pill and speed sign / camera pill for layout frames.
+                if (intent.getBooleanExtra("fakehud", false)) {
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    NavPlus.wxAt = now; NavPlus.wxStartAt = now; NavPlus.wxTemp = 14f; NavPlus.wxCode = 3; NavPlus.wxDay = 1; NavPlus.fuBest = 2300f
+                    NavPlus.wxNextAt = Long.MAX_VALUE; NavPlus.fuNextAt = Long.MAX_VALUE
+                    NavPlus.spdLimit = 50; NavPlus.spdAt = now; NavPlus.spdShowUntil = now + 60_000
+                    NavPlus.rdAheadM = 320; NavPlus.rdAheadAt = now + 60_000
+                }
+                if (intent.getBooleanExtra("toggles", false)) {
+                    val report = debugToggleCheck()
+                    android.util.Log.i("DashViewModel", "DEBUG toggles:\n$report")
+                    com.example.wayfindr.data.RideDiagnostics.log("debug", "toggles: $report")
+                    getApplication<android.app.Application>().getExternalFilesDir(null)?.let { java.io.File(it, "toggles.txt").writeText(report) }
+                }
                 if (intent.getBooleanExtra("snap", false)) {
-                    // Draw one dash frame at the last fix and save it as diag/snap.png (no dash needed).
+                    // Draw one dash frame at the last fix and save it as diag/<snapname>.png (no dash needed).
                     val loc = location.lastKnown()
                     if (frameBitmap == null) frameBitmap = newFrameBitmap()
-                    if (loc != null) redrawFrame(loc.latitude, loc.longitude, 0f, 0f, null)
+                    val r = route
+                    if (r != null && turnCard == null && NavPlus.navCard) {
+                        // Not streaming, so tick() made no turn card: the route's next turn stands in.
+                        val m = r.maneuvers.firstOrNull { it.cumulativeMeters > progressM + 1 }
+                        if (m != null) turnCard = MapRenderer.TurnCard(m.dashCode, m.cumulativeMeters - progressM, m.instruction, null)
+                        if (displayedEtaMin == null) {
+                            displayedEtaMin = (r.totalSeconds / 60).toInt()
+                            etaArrivalMs = System.currentTimeMillis() + (r.totalSeconds * 1000).toLong()
+                        }
+                    }
+                    if (loc != null) {
+                        frameRiderLat = loc.latitude; frameRiderLng = loc.longitude
+                        val hdg = r?.geometry?.let { g -> if (g.size >= 2) GeoPoint.bearing(g[0], g[1]).toFloat() else 0f } ?: 0f
+                        redrawFrame(loc.latitude, loc.longitude, hdg, hdg, r?.let { it.totalMeters - progressM })
+                    }
                     val dir = getApplication<android.app.Application>().getExternalFilesDir("diag")
+                    val name = intent.getStringExtra("snapname") ?: "snap"
                     frameBitmap?.let { bmp ->
-                        java.io.File(dir, "snap.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                        java.io.File(dir, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                     }
                     android.util.Log.i("DashViewModel", "DEBUG snap saved (fix=${loc != null})")
                 }
@@ -1754,7 +1842,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // Voice output must never be allowed to cancel the navigation ticker. TTS providers
             // can throw during initialization or audio-route changes while the map must continue.
             if (streaming) runCatching {
-                if (dashConfig.curveWarning.value) curveWarner.tick(r, ns.progressM, loc.speed.toDouble())?.let { voice.alert(it) }
+                curveAlert(curveWarner, r, ns.progressM, loc.speed.toDouble())?.let { voice.alert(it) }
                 if (dashConfig.rainWarning.value) routeWeather.tick(r, ns.progressM)?.let { voice.alert("$it, dikkatli sürüşler"); NavPlus.pend1 = "Yağmur olabilir"; NavPlus.pend2 = it.removePrefix("Yaklaşık ") }
                 voice.maybeAnnounce(ns.nextManeuver, ns.nextTurnM, ns.remainingM)
             }.onFailure {
@@ -2299,7 +2387,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Draw in LOGICAL 526×300 coordinates at any render scale, so layout is identical.
         canvas.scale(scale.toFloat(), scale.toFloat())
         mapRenderer.draw(canvas, frame, DashEncoder.WIDTH, DashEncoder.HEIGHT)
-        NavPlus.hudDraw(canvas, DashEncoder.WIDTH, DashEncoder.HEIGHT)   // console HUD on top of the map
+        // The console HUD (weather/fuel pill) is drawn by MapRenderer, stacked above the music card.
         // The dash shows ONLY our video frame while projecting — it won't overlay its native
         // now-playing/call cards (confirmed: 05 0d/05 22 are sent fine but never displayed mid-map).
         // So we draw them INTO the frame ourselves, as the CLAUDE.md design always intended.

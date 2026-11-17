@@ -74,7 +74,7 @@ fun HomeScreen(
     ) {
         ScreenHeader(
             wordmark = true,
-            trailing = { WayfindrIconBtn(WayfindrIcons.Gear, onClick = { onNavigate("settings") }) },
+            trailing = { WayfindrIconBtn(WayfindrIcons.Gear, onClick = { onNavigate("settings") }, contentDescription = "Ayarlar") },
         )
 
         // Connection hero card

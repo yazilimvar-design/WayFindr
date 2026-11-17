@@ -79,7 +79,8 @@ object PlaceSearch {
                 } else null)
                 ?: run { lastError = if (offlineIndex) "no match" else "no internet"; null }
         } else when (source) {
-            RoutingSource.GOOGLE -> google(ctx, q)
+            // Google's geocoder can fail or find nothing: the free OSM search next.
+            RoutingSource.GOOGLE -> google(ctx, q) ?: osm(ctx, q, near)
             RoutingSource.OSM -> osm(ctx, q, near)
             RoutingSource.BROUTER -> savedMatch(q, saved) ?: osm(ctx, q, near)
         } ?: (if (offlineIndex) withContext(Dispatchers.IO) {

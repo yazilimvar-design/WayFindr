@@ -122,7 +122,8 @@ public final class NavPlus {
     public static volatile boolean onRoute = false;
     public static volatile String pend1 = null;
     public static volatile String pend2 = null;
-    public static volatile boolean phAlb = false;
+    public static volatile boolean phAlb = false;   // "Arka planda albüm kapağı" removed (V57): always off
+    public static volatile boolean mapMus = true;   // "Haritada şarkı ve sanatçı": music card on the map
     public static volatile Bitmap phBmp = null;
     public static volatile boolean phCfgOk = false;
     public static volatile boolean phMus = false;
@@ -762,6 +763,7 @@ public final class NavPlus {
     public static void fetchLimit(double d, double d2) {
         JSONObject optJSONObject;
         int parseLimit;
+        if (!safetyOn()) return;   // "Radar ve hız limiti" off: no fetching
         try {
             Context context = GPlus.ctx;
             if (context != null) {
@@ -1102,12 +1104,20 @@ public final class NavPlus {
     }
 
     public static void hudDraw(Canvas canvas, int i, int i2) {
+        hudDrawAt(canvas, i, i2, i2 * 0.14f);
+    }
+
+    /**
+     * Weather/fuel pill centred at [top]; returns its bottom edge, or -1 when nothing was drawn.
+     * MapRenderer stacks it at the top: GPS pill, this pill, then the music card below it.
+     */
+    public static float hudDrawAt(Canvas canvas, int i, int i2, float top0) {
         try {
-            if (!hudOn) return;
+            if (!hudOn) return -1f;
             long now = SystemClock.elapsedRealtime();
             boolean wx = wxAt != 0 && now - wxAt < 3600000L;   // icon + temperature, stays on screen
             String fuel = fuBest >= 0.0f ? fuelText() : null;
-            if (!wx && fuel == null) return;
+            if (!wx && fuel == null) return -1f;
             Paint paint = hudTx;
             if (paint == null) {
                 paint = new Paint(1);
@@ -1127,7 +1137,7 @@ public final class NavPlus {
             if (wx) w += icon + ts * 0.3f + paint.measureText(temp);
             w += paint.measureText(sep);
             if (fuel != null) w += paint.measureText(fuel);
-            float top = i2 * 0.14f;
+            float top = top0;
             float bh = ts * 1.6f;
             float cx = i * 0.5f;
             float half = (w + ts) * 0.5f;
@@ -1143,7 +1153,9 @@ public final class NavPlus {
             }
             if (sep.length() != 0) { canvas.drawText(sep, x, base, paint); x += paint.measureText(sep); }
             if (fuel != null) canvas.drawText(fuel, x, base, paint);
+            return top + bh;
         } catch (Throwable unused) {
+            return -1f;
         }
     }
 
@@ -2093,7 +2105,8 @@ public final class NavPlus {
                 SharedPreferences sharedPreferences = context.getSharedPreferences("navplus_ui", 0);
                 phOn = sharedPreferences.getBoolean("ph_on", true);
                 phMus = sharedPreferences.getBoolean("ph_mus", true);
-                phAlb = sharedPreferences.getBoolean("ph_alb", false);
+                phAlb = false;
+                mapMus = sharedPreferences.getBoolean("map_mus", true);
                 phZ = sharedPreferences.getFloat("ph_z", 1.0f);
                 phX = sharedPreferences.getFloat("ph_x", 0.5f);
                 phY = sharedPreferences.getFloat("ph_y", 0.5f);
@@ -2961,6 +2974,7 @@ public final class NavPlus {
 
     public static void rdFetch(double d, double d2) {
         JSONArray optJSONArray;
+        if (!safetyOn()) return;   // "Radar ve hız limiti" off: no fetching
         try {
             String ovGet = ovGet("[out:json][timeout:10];(node(around:6000," + d + "," + d2 + ")[\"highway\"=\"speed_camera\"];node(around:6000," + d + "," + d2 + ")[\"traffic_calming\"];);out 400;");
             if (ovGet == null) {
@@ -3566,6 +3580,25 @@ public final class NavPlus {
             return c == null || DashConfig.Companion.get(c).getOfflineSafety().getValue().booleanValue();
         } catch (Throwable unused) {
             return true;
+        }
+    }
+
+    /**
+     * Debug/CI: a fresh 80 % rain forecast through [exTick]'s weather alert, with fetching held off.
+     * Returns the alert it raised ("Yağmur olabilir · …") or null; leaves no alert pending.
+     */
+    public static String debugRainCheck() {
+        long now = SystemClock.elapsedRealtime();
+        long wn = wxNextAt, fn = fuNextAt;
+        try {
+            wxNextAt = Long.MAX_VALUE; fuNextAt = Long.MAX_VALUE;
+            wxRain = 80; wxAt = now; wxStartAt = now; wxWarnAt = now - 3600000L; pend1 = null; pend2 = null;
+            exTick(15.0f, 39.92d, 32.85d);
+            String r = pend1 == null ? null : pend1 + " · " + pend2;
+            pend1 = null; pend2 = null; wxRain = 0;
+            return r;
+        } finally {
+            wxNextAt = wn; fuNextAt = fn;
         }
     }
 

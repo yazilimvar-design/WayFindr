@@ -54,7 +54,7 @@ fun RouteScreen(
     val routeState by routeViewModel.state.collectAsState()
     val dest       = routeState.destination
     val sourceDestName = dest?.name
-    val destName   = when (val name = dest?.name?.ifBlank { "" } ?: "") {
+    val destName   = if (dest == null) "Hedef seçilmedi" else when (val name = dest.name.ifBlank { "" }) {
         "", "Shared location" -> "Paylaşılan konum"
         "Dropped pin"         -> "Haritadan seçilen konum"
         else                  -> name
@@ -63,6 +63,7 @@ fun RouteScreen(
         dest?.lat != null && dest.lng != null ->
             "%.5f, %.5f".format(dest.lat, dest.lng)
         dest?.url != null -> "Harita bağlantısı"
+        dest == null      -> "Yer arayın, kayıtlı bir hedef seçin veya haritaya dokunun"
         else              -> ""
     }
 
@@ -88,6 +89,7 @@ fun RouteScreen(
     var suggestionsStatus by remember { mutableStateOf<String?>(null) }
     /** True right after the query was filled in for the rider (picked hit, new destination): no lookup. */
     var suggestionsSuppressed by remember { mutableStateOf(false) }
+    var suggestionsOffline by remember { mutableStateOf(false) }
 
     // Sync search query with destination name when it changes (except when resolving)
     LaunchedEffect(destName) {
@@ -112,11 +114,13 @@ fun RouteScreen(
         val found = PlaceSearch.suggestions(ctx, query, routeState.currentLocation)
         if (!suggestionsSuppressed && searchQuery.trim() == query) {
             suggestions = found
+            // Answers from the Türkiye package's offline index: a small hint instead of an error.
+            suggestionsOffline = PlaceSearch.lastOffline
             if (found.isEmpty()) {
                 suggestionsStatus = if (PlaceSearch.lastError == "no match") {
-                    "Eşleşme bulunamadı."
+                    if (PlaceSearch.lastOffline) "Çevrimdışı dizinde eşleşme bulunamadı." else "Eşleşme bulunamadı."
                 } else if ((PlaceSearch.lastError ?: "").contains("no internet", ignoreCase = true)) {
-                    "İnternet bağlantısı yok; yer önerileri alınamadı."
+                    "İnternet yok; çevrimdışı arama için Ayarlar → Çevrimdışı harita'dan Türkiye paketini indirin."
                 } else {
                     "Yer arama hizmetine ulaşılamadı. Lütfen daha sonra tekrar deneyin."
                 }
@@ -235,6 +239,7 @@ fun RouteScreen(
                     when {
                         routeState.isResolving -> "Bağlantı çözümleniyor…"
                         routeState.fromWayfindr -> "Wayfindr'dan paylaşıldı"
+                        dest == null -> "Rota planla"
                         else -> "Google Haritalar'dan paylaşıldı"
                     },
                     tone = if (routeState.isResolving) ChipTone.Gold else ChipTone.Neutral,
@@ -294,8 +299,7 @@ fun RouteScreen(
                             suggestionsStatus = null
                         },
                         placeholder = {
-                            Text((if (routeState.waypoints.isEmpty()) "Yer ara" else "Durak ekle") +
-                                " · OpenStreetMap", color = TextLo,
+                            Text(if (routeState.waypoints.isEmpty()) "Yer ara" else "Durak ekle", color = TextLo,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -335,9 +339,13 @@ fun RouteScreen(
                     if (suggestionsLoading || suggestions.isNotEmpty() || suggestionsStatus != null) {
                         Box(Modifier.fillMaxWidth().height(1.dp).background(Line))
                         if (suggestionsLoading) {
-                            Text("OpenStreetMap'te aranıyor…", color = TextLo, fontSize = 12.sp,
+                            Text("Aranıyor…", color = TextLo, fontSize = 12.sp,
                                 fontFamily = GeistFamily,
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp))
+                        }
+                        if (suggestionsOffline && suggestions.isNotEmpty() && !suggestionsLoading) {
+                            Text("çevrimdışı · Türkiye paketi", color = Gold, fontSize = 11.sp, fontFamily = GeistFamily,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp))
                         }
                         suggestionsStatus?.let { status ->
                             Text(status, color = TextLo, fontSize = 12.sp, fontFamily = GeistFamily,
@@ -371,7 +379,10 @@ fun RouteScreen(
                 Text(
                     when {
                         note.contains("no match", ignoreCase = true) -> "Eşleşme bulunamadı."
-                        note.contains("no internet", ignoreCase = true) -> "İnternet bağlantısı yok; arama yapılamadı."
+                        note.contains("no internet", ignoreCase = true) ->
+                            "İnternet yok; çevrimdışı arama için Ayarlar → Çevrimdışı harita'dan Türkiye paketini indirin."
+                        // Notes written in Turkish for the rider (route failed, shared link offline…).
+                        note.any { it in "çğıöşüÇĞİÖŞÜ" } -> note
                         else -> "Arama hizmetine ulaşılamadı. Lütfen bağlantınızı kontrol edip tekrar deneyin."
                     },
                     color = TextLo, fontSize = 12.sp, modifier = Modifier.padding(start = 6.dp, bottom = 12.dp),
@@ -403,22 +414,32 @@ fun RouteScreen(
             }
 
             // No destination yet → tell the rider exactly how to start one.
-            if (routeState.waypoints.isNotEmpty()) {
+            if (routeState.waypoints.isNotEmpty() || dest != null) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                 ) {
-                    Eyebrow("Rota durakları · ${routeState.waypoints.size}")
+                    Eyebrow(if (routeState.waypoints.isEmpty()) "Hedef" else "Rota durakları · ${routeState.waypoints.size}")
                     WayfindrBtn(
                         label = "Temizle",
-                        onClick = routeViewModel::clearDestinations,
+                        // Route, stops, target (also "Paylaşılan konum") and the search text.
+                        onClick = {
+                            searchQuery = ""
+                            suggestions = emptyList()
+                            suggestionsStatus = null
+                            suggestionsLoading = false
+                            suggestionsOffline = false
+                            suggestionsSuppressed = true
+                            showSavedDestinations = true
+                            routeViewModel.clearDestinations()
+                        },
                         icon = WayfindrIcons.X,
                         variant = BtnVariant.Ghost,
                         size = BtnSize.Sm,
                     )
                 }
-                WayfindrCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), padding = 6.dp) {
+                if (routeState.waypoints.isNotEmpty()) WayfindrCard(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), padding = 6.dp) {
                     routeState.waypoints.forEachIndexed { index, stop ->
                         if (index > 0) WayfindrDivider(Modifier.padding(horizontal = 4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 9.dp)) {
@@ -467,7 +488,7 @@ fun RouteScreen(
             // ── Route alternatives (when the router offered more than one) ──
             if (routeState.routeAlternatives.size > 1) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Eyebrow("OSM rotaları · ${routeState.routeAlternatives.size} seçenek", Modifier.padding(bottom = 2.dp))
+                    Eyebrow("Rotalar · ${routeState.routeAlternatives.size} seçenek", Modifier.padding(bottom = 2.dp))
                     routeState.routeAlternatives.forEachIndexed { index, route ->
                         val selected = index == routeState.selectedRouteIndex
                         Row(
@@ -540,28 +561,23 @@ fun RouteScreen(
                 }
             }
 
+            // Read-only hint of who made the route (no picker: routing is automatic).
+            routeState.route?.source?.takeIf { !routing }?.let { src ->
+                Text(
+                    when (src) {
+                        RoutingSource.GOOGLE -> "Google · canlı trafik"
+                        RoutingSource.OSM -> "OSM · ücretsiz sunucu"
+                        RoutingSource.BROUTER -> "BR · çevrimdışı rota (telefonda)"
+                    },
+                    color = TextLo, fontSize = 11.sp, fontFamily = GeistMonoFamily,
+                    modifier = Modifier.padding(top = 8.dp, start = 4.dp),
+                )
+            }
+
             Spacer(Modifier.height(20.dp))
 
-            // ── Routing + map theme (moved here from Settings) ──
-            val routingSource by dashConfig.routingSource.collectAsState()
+            // ── Map theme + scenic (routing itself is automatic: Google → OSM → çevrimdışı BRouter) ──
             val mapTheme by dashConfig.mapTheme.collectAsState()
-            val packReady = remember { com.example.wayfindr.dash.offline.OfflinePack.routingReady(ctx) }
-            val brouterInstalled = remember { packReady || OfflineRouter.isInstalled(ctx) }
-            ChoiceHeader("Rota sağlayıcısı", when (routingSource) {
-                RoutingSource.GOOGLE -> "Motosiklet · canlı trafik"
-                RoutingSource.OSM -> "Ücretsiz sunucu · internet gerekir"
-                RoutingSource.BROUTER ->
-                    if (brouterInstalled) "Telefonda · internet gerekmez" else "Türkiye çevrimdışı paketi kurulu değil (Konsol sekmesi)"
-            })
-            WayfindrSegmented(
-                options = RoutingSource.available.map { it.label },
-                selected = routingSource.label,
-                onSelect = { label ->
-                    val src = RoutingSource.values().first { it.label == label }
-                    if (src != routingSource) { dashConfig.setRoutingSource(src); routeViewModel.recomputeRoute() }
-                },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            )
             val scenic by dashConfig.scenicRoute.collectAsState()
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -571,7 +587,7 @@ fun RouteScreen(
                 Column(Modifier.weight(1f)) {
                     Text("Manzaralı rota (otoyol yok)", color = TextHi, fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
-                    Text("Otoyol ve ücretli yollardan kaçınır · Google ve OSM; BRouter'da etkisiz",
+                    Text("Otoyol ve ücretli yollardan kaçınır · çevrimdışı rotada etkisiz",
                         color = TextLo, fontSize = 11.5.sp, fontFamily = GeistFamily)
                 }
                 androidx.compose.material3.Switch(checked = scenic, onCheckedChange = {

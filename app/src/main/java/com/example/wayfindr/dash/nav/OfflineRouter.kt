@@ -52,7 +52,10 @@ object OfflineRouter {
         // Türkiye çevrimdışı paketi: BRouter inside the app, from the downloaded segments.
         if (BRouterEngine.covers(ctx, points)) {
             NavPlus.brWantFor(intermediates)
-            return routeEmbedded(ctx, points)
+            routeEmbedded(ctx, points)?.let { return it }
+            // Built-in engine failed: the BRouter app (if installed) is the last resort.
+            if (!isInstalled(ctx)) return null
+            Log.i(TAG, "built-in BRouter failed (${lastError}) — trying the BRouter app")
         }
         if (!isInstalled(ctx)) return fail(
             if (com.example.wayfindr.dash.offline.OfflinePack.routingReady(ctx)) "route is outside the offline package (Türkiye)"

@@ -169,7 +169,7 @@ class MapRenderer(private val tiles: TileProvider) {
     /** [w]×[h] is the LOGICAL frame size; the canvas may be pre-scaled (2× "sharper map"). */
     fun draw(canvas: Canvas, f: Frame, w: Int = canvas.width, h: Int = canvas.height) {
         // Wallpaper / music-card frame (NavPlus) replaces the map entirely when it draws.
-        if (NavPlus.phDraw(canvas, f, w, h)) return
+        if (NavPlus.phDraw(canvas, f, w, h)) { NavPlus.hudDraw(canvas, w, h); return }
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         GoogleTheme.dark = f.dark
         // Google tiles come pre-styled in the chosen theme (night → "Gece"), so no inversion for them.
@@ -385,16 +385,6 @@ class MapRenderer(private val tiles: TileProvider) {
 
         }
 
-        // ── Now playing on the map: small card near the top (album art, title, artist) while music
-        //    plays; hidden while the dash menu is open. ▼ then ▶/◀ changes the track. ──
-        overlay("now playing") {
-            if (f.pickerRows == null) com.example.wayfindr.dash.nav.NavPlus.phNow()?.let { np ->
-                // Same look as the wallpaper-screen strip, but at the top: lower down it would sit
-                // on the rider arrow and the right-hand chips.
-                drawMusicPill(canvas, np.title, np.artist, np.art, w, h)
-            }
-        }
-
         // ── "▼ again: destinations": a lone DOWN is waiting for its second press (3 s) ──
         overlay("down hint") {
             f.downHint?.let { hint ->
@@ -497,7 +487,8 @@ class MapRenderer(private val tiles: TileProvider) {
         }
 
         // ── Speed-limit sign (red ring) and, above it, a yellow speed-camera pill "📷 320 m" ──
-        overlay("speed limit") {
+        // "Radar ve hız limiti" off: no sign, no camera pill (NavPlus also stops fetching).
+        if (com.example.wayfindr.dash.nav.NavPlus.safetyOn()) overlay("speed limit") {
             val now = android.os.SystemClock.elapsedRealtime()
             val lim = com.example.wayfindr.dash.nav.NavPlus.spdLimit
             // Google Nav SDK says we're over the limit: the sign blinks (red fill every other half second).
@@ -548,6 +539,7 @@ class MapRenderer(private val tiles: TileProvider) {
 
         // ── GPS-health pill (top-centre safe zone) — only when degraded, so the rider knows the
         // marker is imprecise/held rather than wondering why the map stopped tracking ──
+        var topEdge = 14f   // the top-centre stack: GPS pill, weather/fuel pill, music card
         if (f.gpsLost || f.gpsWeak) {
             val label = if (f.gpsLost) "GPS SİNYALİ YOK" else "GPS SİNYALİ ZAYIF"
             gpsPillText.color = if (f.gpsLost) googleRed else Color.rgb(251, 188, 5)
@@ -563,6 +555,25 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.drawRoundRect(pillRect, r, r, etaBgPaint)
             canvas.drawRoundRect(pillRect, r, r, etaBorderPaint)
             canvas.drawText(label, cxp, top + padV - fm.ascent, gpsPillText)
+            topEdge = bottom + 4f
+        }
+
+        // ── Weather/fuel pill (NavPlus HUD), then the now-playing card below it. They used to share
+        //    the same spot (pill at 0.14 H drawn over the card at 0.15 H, after the map), so while
+        //    navigating the song and artist were hidden under the weather pill. ──
+        overlay("weather pill") {
+            if (f.pickerRows == null) {
+                val b = NavPlus.hudDrawAt(canvas, w, h, topEdge)
+                if (b > 0f) topEdge = b + 4f
+            }
+        }
+        // ── Now playing on the map: small card at the top (album art, title, artist) while music
+        //    plays ("Haritada şarkı ve sanatçı"); hidden while the dash menu is open. ▼ then ▶/◀
+        //    changes the track. ──
+        overlay("now playing") {
+            if (f.pickerRows == null && NavPlus.mapMus) NavPlus.phNow()?.let { np ->
+                drawMusicPill(canvas, np.title, np.artist, np.art, w, h, maxOf(topEdge, h * 0.15f))
+            }
         }
 
         f.notice?.let { lines -> drawNotice(canvas, w, h, lines) }
@@ -671,12 +682,13 @@ class MapRenderer(private val tiles: TileProvider) {
     }
 
     /** Compact music card at the top of the map: art left, bold title, grey artist (same look as the turn card). */
-    private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int) {
+    private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int, top: Float = h * 0.15f) {
         if (title.isBlank()) return
         val ch = h * 0.16f
-        val cw = w * 0.74f                  // round display: the top is narrower than the 5–95 % strip
+        // Round display: narrower near the top; at most as wide as the space left of the right-hand
+        // stack (speed sign, radar pill) so they never overlap.
+        val cw = w * 0.66f
         val left = (w - cw) / 2f
-        val top = h * 0.15f
         cardRect.set(left, top, left + cw, top + ch)
         canvas.drawRoundRect(cardRect, ch * 0.24f, ch * 0.24f, cardPaint)
         val pad = ch * 0.13f

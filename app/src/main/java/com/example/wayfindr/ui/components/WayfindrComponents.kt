@@ -125,6 +125,7 @@ fun WayfindrIconBtn(
     size: Dp = 44.dp,
     active: Boolean = false,
     tint: Color? = null,
+    contentDescription: String? = null,
 ) {
     val bg = if (active) GoldTint else Surf2
     val bd = if (active) GoldTint2 else Line2
@@ -139,7 +140,7 @@ fun WayfindrIconBtn(
             .border(1.dp, bd, IconBtnShape)
             .clickable(onClick = onClick),
     ) {
-        Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
+        Icon(icon, contentDescription = contentDescription, tint = iconTint, modifier = Modifier.size(20.dp))
     }
 }
 

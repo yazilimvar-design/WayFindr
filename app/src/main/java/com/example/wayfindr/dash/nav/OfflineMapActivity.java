@@ -107,7 +107,6 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
 
     private void buildWall(LinearLayout linearLayout) {
         linearLayout.addView(Ui2.toggle(this, "Fotoğrafımı konsolda göster", "Rota yokken ve motor dururken haritanın yerine fotoğrafın görünür; yola çıkınca harita geri gelir.", 10, NavPlus.phOn, this));
-        linearLayout.addView(Ui2.toggle(this, "Arka planda albüm kapağı", "Rota yokken müzik çalarken fotoğraf yerine albüm kapağı görünür. Müzik durunca fotoğrafın veya harita geri gelir.", 11, NavPlus.phAlb, this));
         linearLayout.addView(Ui2.section(this, "FOTOĞRAFIN"));
         LinearLayout card = Ui2.card(this);
         card.setGravity(1);
@@ -127,6 +126,7 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
         linearLayout.addView(Ui2.btn(this, "Kırpmayı sıfırla", 6, this, -14407894, -1));
         linearLayout.addView(Ui2.btn(this, "Kaldır", 5, this, 0, -1754835));
         linearLayout.addView(Ui2.toggle(this, "Müziği fotoğrafın üstünde göster", "Bir şey çalarken fotoğrafın altındaki şerit albüm kapağını, şarkıyı ve sanatçıyı gösterir. Bildirim erişimi gerekir.", 12, NavPlus.phMus, this));
+        linearLayout.addView(Ui2.toggle(this, "Haritada şarkı ve sanatçı", "Navigasyonda üstte küçük kart: albüm kapağı, şarkı adı, sanatçı. ▼ sonra ▶/◀ ile şarkı değiştir.", 16, NavPlus.mapMus, this));
         linearLayout.addView(Ui2.toggle(this, "Hava durumu ve benzinlik konsolda", "Konsolun üstünde küçük şerit: sıcaklık, hava ve gittiğin yöndeki en yakın benzinliğe uzaklık. Yağmur bekleniyorsa uyarı da çıkar. İnternet gerekir.", 14, NavPlus.hudOn, this));
         linearLayout.addView(Ui2.toggle(this, "Dönüş kartı (yuvarlak top yerine)", "Navigasyonda sol alttaki yuvarlak dönüş topu yerine, müzik kartı gibi koyu bir kart: dönüş oku, dönüşe kalan mesafe ve sokak. Kapatırsan konsolun kendi topu geri gelir.", 15, NavPlus.navCard, this));
         LinearLayout card2 = Ui2.card(this);
@@ -204,6 +204,9 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
             }
             if (id == 15) {
                 str = "nav_card";
+            }
+            if (id == 16) {
+                str = "map_mus";
             }
             NavPlus.phSet(getApplicationContext(), str, z);
             refresh();

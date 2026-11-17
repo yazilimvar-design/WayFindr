@@ -56,6 +56,7 @@ class MainActivity : ComponentActivity() {
             ACTION_RENDER_NAV_CARD -> if (BuildConfig.DEBUG) renderNavCardPreview()
             ACTION_FRAME_BENCH -> if (BuildConfig.DEBUG) runFrameBench()
             ACTION_OFFLINE_TEST -> if (BuildConfig.DEBUG) runOfflineTest(intent)
+            ACTION_SAFETY_TEST -> if (BuildConfig.DEBUG) runSafetyTest()
         }
     }
 
@@ -157,7 +158,15 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra("map")?.let {
             com.example.wayfindr.dash.offline.OfflinePack.debugInstallMap(ctx, it, intent.getStringExtra("date") ?: "20000101")
         }
+        intent.getStringExtra("search")?.let {
+            com.example.wayfindr.dash.offline.OfflinePack.debugInstallSearch(ctx, it, intent.getStringExtra("date") ?: "20000101")
+        }
         report.append("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
+        report.append("search: ${com.example.wayfindr.dash.offline.OfflinePack.searchFile(ctx)}\n")
+        for (q in listOf("mamak devlet hastanesi", "kizilay", "1866 sokak", "ISTANBUL", "Çankaya")) {
+            val hits = com.example.wayfindr.dash.offline.OfflineSearch.search(ctx, q, 39.9208 to 32.8541, 3)
+            report.append("  ara '$q': " + hits.joinToString(" | ") { "${it.name} · ${it.subtitle}" }.ifEmpty { "-" } + "\n")
+        }
         report.append("map: ${com.example.wayfindr.dash.offline.OfflinePack.mapFile(ctx)}\n")
         val from = GeoPoint(39.9208, 32.8541); val to = GeoPoint(39.7880, 32.8060)
         val t0 = System.currentTimeMillis()
@@ -199,7 +208,57 @@ class MainActivity : ComponentActivity() {
         android.util.Log.i("OfflineTest", report.toString())
     }.start()
 
+    /**
+     * Debug only (CI, needs internet): the live radar / speed-limit fetch exactly as on the road —
+     * NavPlus.fetchLimit (Overpass maxspeed around a point) on known Ankara roads and NavPlus.rdFetch
+     * (speed cameras + traffic calming within 6 km of Kızılay) — with "Radar ve hız limiti" on, then
+     * once with it off (must fetch nothing). Writes files/safety.txt.
+     */
+    private fun runSafetyTest() = Thread {
+        val ctx = applicationContext
+        val cfg = com.example.wayfindr.dash.DashConfig.get(ctx)
+        val was = cfg.offlineSafety.value
+        val report = StringBuilder("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
+        cfg.setOfflineSafety(true)
+        val roads = listOf(
+            "Eskişehir Yolu (ODTÜ)" to (39.90795 to 32.77297),
+            "İstanbul Yolu (Batıkent)" to (39.95560 to 32.71520),
+            "Konya Yolu (Gölbaşı)" to (39.82690 to 32.81330),
+            "Atatürk Bulvarı (Kızılay)" to (39.92310 to 32.85395),
+            "Mamak Cd. (Mamak)" to (39.92280 to 32.91120),
+            "Esenboğa Yolu" to (40.06200 to 32.89300),
+        )
+        var anyLimit = false
+        for ((name, p) in roads) {
+            com.example.wayfindr.dash.nav.NavPlus.spdLimit = 0
+            val t0 = System.currentTimeMillis()
+            com.example.wayfindr.dash.nav.NavPlus.fetchLimit(p.first, p.second)
+            if (com.example.wayfindr.dash.nav.NavPlus.spdLimit > 0) anyLimit = true
+            report.append("hız limiti $name ${p.first},${p.second}: ${com.example.wayfindr.dash.nav.NavPlus.spdLimit} km/s (${System.currentTimeMillis() - t0} ms)\n")
+            Thread.sleep(1500)   // be gentle with the public Overpass server
+        }
+        com.example.wayfindr.dash.nav.NavPlus.rdData = null; com.example.wayfindr.dash.nav.NavPlus.rdN = 0
+        var t0 = System.currentTimeMillis()
+        com.example.wayfindr.dash.nav.NavPlus.rdFetch(39.9208, 32.8541)
+        val kinds = (com.example.wayfindr.dash.nav.NavPlus.rdData as? Array<*>)?.getOrNull(2) as? IntArray
+        val cams = kinds?.take(com.example.wayfindr.dash.nav.NavPlus.rdN)?.count { it == 1 } ?: 0
+        report.append("radar Kızılay 6 km: ${com.example.wayfindr.dash.nav.NavPlus.rdN} nokta, $cams hız kamerası, ${com.example.wayfindr.dash.nav.NavPlus.rdN - cams} kasis/yavaşlatma (${System.currentTimeMillis() - t0} ms)\n")
+        report.append("SONUÇ açık: limit=${if (anyLimit) "OK" else "YOK"} radar=${if (com.example.wayfindr.dash.nav.NavPlus.rdN > 0) "OK" else "YOK"}\n")
+        cfg.setOfflineSafety(false)
+        com.example.wayfindr.dash.nav.NavPlus.spdLimit = 0; com.example.wayfindr.dash.nav.NavPlus.rdData = null; com.example.wayfindr.dash.nav.NavPlus.rdN = 0
+        t0 = System.currentTimeMillis()
+        com.example.wayfindr.dash.nav.NavPlus.fetchLimit(roads[0].second.first, roads[0].second.second)
+        com.example.wayfindr.dash.nav.NavPlus.rdFetch(39.9208, 32.8541)
+        report.append("SONUÇ kapalı: limit=${com.example.wayfindr.dash.nav.NavPlus.spdLimit} radar=${com.example.wayfindr.dash.nav.NavPlus.rdN} (${System.currentTimeMillis() - t0} ms) : " +
+            "${if (com.example.wayfindr.dash.nav.NavPlus.spdLimit == 0 && com.example.wayfindr.dash.nav.NavPlus.rdN == 0) "OK (hiç sorgu yok)" else "HATA"}\n")
+        cfg.setOfflineSafety(was)
+        com.example.wayfindr.dash.nav.NavPlus.spdLimit = 0
+        android.util.Log.i("SafetyTest", report.toString())
+        java.io.File(getExternalFilesDir(null), "safety.txt").writeText(report.toString())
+    }.start()
+
     companion object {
+        const val ACTION_SAFETY_TEST = "com.example.wayfindr.SAFETY_TEST"
         const val ACTION_OFFLINE_TEST = "com.example.wayfindr.OFFLINE_TEST"
         const val ACTION_RENDER_NAV_CARD = "com.example.wayfindr.RENDER_NAV_CARD"
         const val ACTION_FRAME_BENCH = "com.example.wayfindr.FRAME_BENCH"
