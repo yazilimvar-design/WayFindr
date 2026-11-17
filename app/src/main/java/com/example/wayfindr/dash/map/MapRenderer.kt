@@ -92,11 +92,11 @@ class MapRenderer(private val tiles: TileProvider) {
     private val darkTileFilter = ColorMatrixColorFilter(nightTileMatrix())
     private val routeCasing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE; style = Paint.Style.STROKE
-        strokeWidth = 15f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 11f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = routeBlue; style = Paint.Style.STROKE
-        strokeWidth = 9.5f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 7f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val dotPaint     = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 22f; isFakeBoldText = true }
@@ -140,7 +140,7 @@ class MapRenderer(private val tiles: TileProvider) {
     private val routePath = Path()
     private val riderPath = Path()
     private val riderOutline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = 4f; strokeJoin = Paint.Join.ROUND
+        style = Paint.Style.STROKE; strokeWidth = 3f; strokeJoin = Paint.Join.ROUND
     }
     private val tmpRect = RectF()
     private val pillRect = RectF()
@@ -283,7 +283,7 @@ class MapRenderer(private val tiles: TileProvider) {
             }
             val haloColor = Color.argb(60, Color.red(markerColor), Color.green(markerColor), Color.blue(markerColor))
             dotPaint.color = haloColor
-            canvas.drawCircle(rx, ry, 22f, dotPaint)
+            canvas.drawCircle(rx, ry, 16f, dotPaint)
 
             val relativeHeading = if (f.headingUp) {
                 normalizeHeading(f.riderHeading - displayHeading)
@@ -296,10 +296,10 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.rotate(relativeHeading)
 
             riderPath.reset()
-            riderPath.moveTo(0f, -17f)
-            riderPath.lineTo(12f, 13f)
-            riderPath.lineTo(0f, 6f)
-            riderPath.lineTo(-12f, 13f)
+            riderPath.moveTo(0f, -12f)
+            riderPath.lineTo(8.5f, 9f)
+            riderPath.lineTo(0f, 4f)
+            riderPath.lineTo(-8.5f, 9f)
             riderPath.close()
 
             riderOutline.color = Color.WHITE
