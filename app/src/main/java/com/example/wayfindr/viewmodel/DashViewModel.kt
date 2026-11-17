@@ -2128,17 +2128,17 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Off-route / rerouting: tell the rider the ETA is being recomputed instead of showing a
         // frozen or wildly-swinging number.
         val etaPrimary = when {
-            recalculating && route != null -> "Recalculating"
+            recalculating && route != null -> "Hesaplanıyor"
             mins != null && etaArrivalMs > 0L -> when {
-                arriving   -> "Arriving"
-                mins >= 60 -> "${mins / 60}h ${mins % 60}m"
-                else       -> "$mins min"
+                arriving   -> "Varış"
+                mins >= 60 -> "${mins / 60} sa ${mins % 60} dk"
+                else       -> "$mins dk"
             }
             else -> null
         }
-        // 12-hour arrival clock; hidden once arriving or while recalculating.
+        // 24-hour arrival clock (Turkish); hidden once arriving or while recalculating.
         val etaSecondary = if (etaPrimary != null && !arriving && !recalculating)
-            java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(java.util.Date(etaArrivalMs))
+            java.text.SimpleDateFormat("HH:mm", java.util.Locale("tr", "TR")).format(java.util.Date(etaArrivalMs))
         else null
         // Only the part of the route still ahead of the rider (NavPlus trims the ridden part).
         val progress = progressM
