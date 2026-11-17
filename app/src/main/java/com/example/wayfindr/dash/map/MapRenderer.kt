@@ -81,7 +81,7 @@ class MapRenderer(private val tiles: TileProvider) {
 
     private val lightBg   = Color.rgb(229, 227, 223) // Google Maps land colour, behind missing tiles
     private val darkBg    = Color.rgb(22, 28, 36)
-    private val routeBlue = Color.rgb(66, 133, 244)  // Google Maps directions blue (#4285F4)
+    private val routeBlue = Color.rgb(26, 115, 232)  // strong directions blue (#1A73E8), reads on light Google tiles
     private val trafficAmber = Color.rgb(251, 188, 5)
     private val trafficRed = Color.rgb(234, 67, 53)
     private val googleRed = Color.rgb(234, 67, 53)   // Google destination pin red (#EA4335)
@@ -92,11 +92,11 @@ class MapRenderer(private val tiles: TileProvider) {
     private val darkTileFilter = ColorMatrixColorFilter(nightTileMatrix())
     private val routeCasing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE; style = Paint.Style.STROKE
-        strokeWidth = 11f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 20f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = routeBlue; style = Paint.Style.STROKE
-        strokeWidth = 6f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 13f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val dotPaint     = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 22f; isFakeBoldText = true }
@@ -139,6 +139,9 @@ class MapRenderer(private val tiles: TileProvider) {
     // Reused across frames
     private val routePath = Path()
     private val riderPath = Path()
+    private val riderOutline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE; strokeWidth = 4f; strokeJoin = Paint.Join.ROUND
+    }
     private val tmpRect = RectF()
     private val pillRect = RectF()
     // Saved-destination picker (centred panel inside the round safe zone)
@@ -164,7 +167,7 @@ class MapRenderer(private val tiles: TileProvider) {
         if (NavPlus.phDraw(canvas, f, w, h)) return
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         tilePaint.colorFilter = if (f.dark) darkTileFilter else lightTileFilter
-        routeCasing.color = if (f.dark) Color.rgb(18, 22, 28) else Color.WHITE
+        routeCasing.color = if (f.dark) Color.rgb(18, 22, 28) else Color.rgb(13, 60, 140) // dark-blue edge on light tiles
         standbyPaint.color = if (f.dark) Color.rgb(186, 192, 200) else Color.rgb(60, 64, 67)
 
         val rotate = f.headingUp
@@ -276,7 +279,7 @@ class MapRenderer(private val tiles: TileProvider) {
             val markerColor = when {
                 f.gpsLost -> Color.rgb(150, 154, 160)
                 f.gpsWeak -> Color.rgb(251, 188, 5)
-                else -> routeBlue
+                else -> Color.rgb(229, 57, 53) // red arrow like the reference
             }
             val haloColor = Color.argb(60, Color.red(markerColor), Color.green(markerColor), Color.blue(markerColor))
             dotPaint.color = haloColor
@@ -292,16 +295,15 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.translate(rx, ry)
             canvas.rotate(relativeHeading)
 
-            dotPaint.color = Color.WHITE
-            canvas.drawCircle(0f, 0f, 10f, dotPaint)
-
             riderPath.reset()
-            riderPath.moveTo(0f, -8f)
-            riderPath.lineTo(6.5f, 7f)
-            riderPath.lineTo(0f, 3.5f)
-            riderPath.lineTo(-6.5f, 7f)
+            riderPath.moveTo(0f, -17f)
+            riderPath.lineTo(12f, 13f)
+            riderPath.lineTo(0f, 6f)
+            riderPath.lineTo(-12f, 13f)
             riderPath.close()
 
+            riderOutline.color = Color.WHITE
+            canvas.drawPath(riderPath, riderOutline)   // white edge so the red arrow reads on any tile
             dotPaint.color = markerColor
             canvas.drawPath(riderPath, dotPaint)
             canvas.restore()
@@ -357,7 +359,7 @@ class MapRenderer(private val tiles: TileProvider) {
         // ── Next-turn card, bottom-left where the dash's round turn widget sat (that one is hidden
         //    by sending no glyph, see DashViewModel). Sits above the map credit, clear of the rider. ──
         overlay("turn card") {
-            f.turnCard?.let { drawTurnCard(canvas, it, ETA_MARGIN_RIGHT, bottomEdge, w, h) }
+            f.turnCard?.let { drawTurnCard(canvas, it, f.etaSecondary, ETA_MARGIN_RIGHT, bottomEdge, w, h) }
         }
 
         // ── Recent joystick presses ("DDRR"), small box at the bottom centre (the DOWN hint
@@ -605,7 +607,7 @@ class MapRenderer(private val tiles: TileProvider) {
     }
 
     /** Dark rounded card like the music card: turn arrow left, big distance, grey instruction below. */
-    private fun drawTurnCard(canvas: Canvas, c: TurnCard, left: Float, bottom: Float, w: Int, h: Int) {
+    private fun drawTurnCard(canvas: Canvas, c: TurnCard, eta: String?, left: Float, bottom: Float, w: Int, h: Int) {
         val ch = h * 0.22f                       // music card height (0.68H..0.90H)
         val top = bottom - ch
         val right = left + w * 0.40f             // stops short of the rider marker on the centre line
@@ -626,11 +628,16 @@ class MapRenderer(private val tiles: TileProvider) {
             cardSubPaint.textAlign = Paint.Align.LEFT
             distRight = right - pad - s - 3f - cardSubPaint.measureText("sonra") - 4f
         }
-        cardDistPaint.textSize = ch * 0.38f
-        canvas.drawText(ellipsize(turnDistance(c.meters), cardDistPaint, distRight - x), x, top + ch * 0.50f, cardDistPaint)
+        val hasEta = !eta.isNullOrBlank()
+        cardDistPaint.textSize = ch * 0.36f
+        canvas.drawText(ellipsize(turnDistance(c.meters), cardDistPaint, distRight - x), x, top + ch * (if (hasEta) 0.42f else 0.50f), cardDistPaint)
         c.instruction?.takeIf { it.isNotBlank() }?.let { text ->
-            cardSubPaint.textSize = ch * 0.25f
-            canvas.drawText(ellipsize(text.replace('\n', ' '), cardSubPaint, right - pad - x), x, top + ch * 0.82f, cardSubPaint)
+            cardSubPaint.textSize = ch * (if (hasEta) 0.22f else 0.25f)
+            canvas.drawText(ellipsize(text.replace('\n', ' '), cardSubPaint, right - pad - x), x, top + ch * (if (hasEta) 0.66f else 0.82f), cardSubPaint)
+        }
+        if (hasEta) { // "13:32 · 18 km" — arrival and what's left, small, like the reference card
+            cardSubPaint.textSize = ch * 0.19f
+            canvas.drawText(ellipsize(eta!!, cardSubPaint, right - pad - x), x, top + ch * 0.88f, cardSubPaint)
         }
     }
 
