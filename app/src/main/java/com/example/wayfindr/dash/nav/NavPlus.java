@@ -143,6 +143,8 @@ public final class NavPlus {
     public static volatile double rdCLat;
     public static volatile double rdCLng;
     public static volatile Object rdData;
+    public static volatile int rdAheadM = -1;   // nearest approaching speed camera (m), for the on-map pill
+    public static volatile long rdAheadAt;
     public static volatile int rdN;
     public static volatile long rdNextAt;
     public static volatile boolean roadBusy;
@@ -2936,21 +2938,28 @@ public final class NavPlus {
                 double[] dArr3 = (double[]) objArr[3];
                 long[] jArr = (long[]) objArr[4];
                 int length = iArr.length;
+                int ahead = -1;
                 for (int i = 0; i < length; i++) {
                     int i2 = iArr[i];
                     if (i2 != 0) {
                         double stDist = LocPlus.stDist(d, d2, dArr[i], dArr2[i]);
                         double d3 = dArr3[i];
                         dArr3[i] = stDist;
+                        if (i2 == 1 && stDist <= 1000.0d && d3 > 0.0d && stDist < d3 && (ahead < 0 || stDist < ahead)) {
+                            ahead = (int) stDist;
+                        }
                         if (stDist <= (i2 != 1 ? 150.0d : 500.0d) && d3 > 0.0d && stDist < d3 && f >= 4.0f && elapsedRealtime - jArr[i] >= 120000 && pend1 == null) {
                             jArr[i] = elapsedRealtime;
                             String str = i2 == 1 ? "Hız kamerası" : "Kasis";
                             pend2 = ((int) stDist) + " m ileride";
                             pend1 = str;
+                            if (i2 == 1) { rdAheadM = (int) stDist; rdAheadAt = elapsedRealtime; }
                             return;
                         }
                     }
                 }
+                if (ahead >= 0) { rdAheadM = ahead; rdAheadAt = elapsedRealtime; }
+                else if (elapsedRealtime - rdAheadAt > 4000) rdAheadM = -1;
             }
         } catch (Throwable unused) {
         }

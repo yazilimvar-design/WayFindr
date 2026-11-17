@@ -92,11 +92,11 @@ class MapRenderer(private val tiles: TileProvider) {
     private val darkTileFilter = ColorMatrixColorFilter(nightTileMatrix())
     private val routeCasing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE; style = Paint.Style.STROKE
-        strokeWidth = 11f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 8.5f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = routeBlue; style = Paint.Style.STROKE
-        strokeWidth = 7f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        strokeWidth = 5.5f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
     }
     private val dotPaint     = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; textSize = 22f; isFakeBoldText = true }
@@ -144,6 +144,9 @@ class MapRenderer(private val tiles: TileProvider) {
         style = Paint.Style.STROKE; strokeWidth = 3f; strokeJoin = Paint.Join.ROUND
     }
     private val tmpRect = RectF()
+    private val limitPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val limitText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.BLACK; typeface = android.graphics.Typeface.DEFAULT_BOLD; textAlign = Paint.Align.CENTER }
+    private val radarText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(20, 22, 26); typeface = android.graphics.Typeface.DEFAULT_BOLD }
     private val pillRect = RectF()
     // Saved-destination picker (centred panel inside the round safe zone)
     private val pickerBgPaint   = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(238, 20, 22, 26) }
@@ -168,7 +171,7 @@ class MapRenderer(private val tiles: TileProvider) {
         if (NavPlus.phDraw(canvas, f, w, h)) return
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         tilePaint.colorFilter = if (f.dark) darkTileFilter else lightTileFilter
-        routeCasing.color = if (f.dark) Color.rgb(18, 22, 28) else Color.rgb(13, 60, 140) // dark-blue edge on light tiles
+        routeCasing.color = if (f.dark) Color.rgb(150, 196, 255) else Color.rgb(13, 60, 140) // light-blue rim on dark tiles, like the reference // dark-blue edge on light tiles
         standbyPaint.color = if (f.dark) Color.rgb(186, 192, 200) else Color.rgb(60, 64, 67)
 
         val rotate = f.headingUp
@@ -282,10 +285,6 @@ class MapRenderer(private val tiles: TileProvider) {
                 f.gpsWeak -> Color.rgb(251, 188, 5)
                 else -> Color.rgb(229, 57, 53) // red arrow like the reference
             }
-            val haloColor = Color.argb(60, Color.red(markerColor), Color.green(markerColor), Color.blue(markerColor))
-            dotPaint.color = haloColor
-            canvas.drawCircle(rx, ry, 16f, dotPaint)
-
             val relativeHeading = if (f.headingUp) {
                 normalizeHeading(f.riderHeading - displayHeading)
             } else {
@@ -296,17 +295,18 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.translate(rx, ry)
             canvas.rotate(relativeHeading)
 
+            // Navigation chevron like the reference: lit left half, shaded right half, thin dark rim.
             riderPath.reset()
-            riderPath.moveTo(0f, -12f)
-            riderPath.lineTo(8.5f, 9f)
-            riderPath.lineTo(0f, 4f)
-            riderPath.lineTo(-8.5f, 9f)
-            riderPath.close()
-
-            riderOutline.color = Color.WHITE
-            canvas.drawPath(riderPath, riderOutline)   // white edge so the red arrow reads on any tile
+            riderPath.moveTo(0f, -13f); riderPath.lineTo(9f, 10f); riderPath.lineTo(0f, 5f); riderPath.lineTo(-9f, 10f); riderPath.close()
+            riderOutline.color = Color.argb(200, 40, 0, 0)
+            riderOutline.strokeWidth = 1.5f
+            canvas.drawPath(riderPath, riderOutline)
             dotPaint.color = markerColor
             canvas.drawPath(riderPath, dotPaint)
+            arrowPath.reset()
+            arrowPath.moveTo(0f, -13f); arrowPath.lineTo(9f, 10f); arrowPath.lineTo(0f, 5f); arrowPath.close()
+            dotPaint.color = Color.argb(90, 0, 0, 0)
+            canvas.drawPath(arrowPath, dotPaint)
             canvas.restore()
         }
 
@@ -489,6 +489,47 @@ class MapRenderer(private val tiles: TileProvider) {
                 etaSmallPaint.color = Color.WHITE; etaSmallPaint.isFakeBoldText = true
                 canvas.drawText(label, pillRect.centerX(), pillRect.top + padV - fm.ascent, etaSmallPaint)
                 etaSmallPaint.color = oldColor; etaSmallPaint.isFakeBoldText = oldBold
+                stackTop = pillRect.top
+            }
+        }
+
+        // ── Speed-limit sign (red ring) and, above it, a yellow speed-camera pill "📷 320 m" ──
+        overlay("speed limit") {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val lim = com.example.wayfindr.dash.nav.NavPlus.spdLimit
+            if (f.pickerRows == null && lim > 0 && now - com.example.wayfindr.dash.nav.NavPlus.spdAt < 120_000) {
+                val r = 19f
+                val cx = w - ETA_MARGIN_RIGHT - r
+                val cy = stackTop - 8f - r
+                limitPaint.style = Paint.Style.FILL; limitPaint.color = Color.WHITE
+                canvas.drawCircle(cx, cy, r, limitPaint)
+                limitPaint.style = Paint.Style.STROKE; limitPaint.strokeWidth = 4.5f; limitPaint.color = googleRed
+                canvas.drawCircle(cx, cy, r - 2.25f, limitPaint)
+                limitText.textSize = if (lim >= 100) 15f else 18f
+                val fm = limitText.fontMetrics
+                canvas.drawText(lim.toString(), cx, cy - (fm.ascent + fm.descent) / 2f, limitText)
+                stackTop = cy - r
+            }
+            val cam = com.example.wayfindr.dash.nav.NavPlus.rdAheadM
+            if (f.pickerRows == null && cam >= 0 && now - com.example.wayfindr.dash.nav.NavPlus.rdAheadAt < 5_000) {
+                val label = "$cam m"
+                radarText.textSize = 15f
+                val fm = radarText.fontMetrics
+                val bh = fm.descent - fm.ascent + 8f
+                val icon = bh - 8f
+                val bw = radarText.measureText(label) + icon + 22f
+                val bottom = stackTop - 6f
+                pillRect.set(w - ETA_MARGIN_RIGHT - bw, bottom - bh, w - ETA_MARGIN_RIGHT, bottom)
+                limitPaint.style = Paint.Style.FILL; limitPaint.color = batteryYellow
+                canvas.drawRoundRect(pillRect, bh / 2f, bh / 2f, limitPaint)
+                // camera glyph: dark rounded body with a yellow lens
+                val il = pillRect.left + 8f; val itp = pillRect.top + 4f
+                tmpRect.set(il, itp + icon * 0.2f, il + icon, itp + icon * 0.9f)
+                limitPaint.color = Color.rgb(20, 40, 70)
+                canvas.drawRoundRect(tmpRect, 3f, 3f, limitPaint)
+                limitPaint.color = batteryYellow
+                canvas.drawCircle(tmpRect.centerX(), tmpRect.centerY(), icon * 0.18f, limitPaint)
+                canvas.drawText(label, il + icon + 5f, pillRect.top + 4f - fm.ascent, radarText)
                 stackTop = pillRect.top
             }
         }
