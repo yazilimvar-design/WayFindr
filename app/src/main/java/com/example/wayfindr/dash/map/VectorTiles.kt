@@ -119,7 +119,8 @@ object VectorTiles {
         val cx = bx + BLOCK / 2.0; val cy = by + BLOCK / 2.0
         val lng = cx / n * 360.0 - 180.0
         val lat = Math.toDegrees(atan(kotlin.math.sinh(PI - 2.0 * PI * cy / n)))
-        val bmp = snapshot(ctx, mapFile, px, lat, lng, z - 1.0) ?: return@withLock
+        val style = withContext(Dispatchers.IO) { styleJson(ctx, mapFile) }   // glyph copy off the main thread
+        val bmp = snapshot(ctx, mapFile, style, px, lat, lng, z - 1.0) ?: return@withLock
         withContext(Dispatchers.IO) {
             val tileBmp = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
             val c = Canvas(tileBmp)
@@ -140,7 +141,7 @@ object VectorTiles {
         }
     }
 
-    private suspend fun snapshot(ctx: Context, mapFile: File, px: Int, lat: Double, lng: Double, zoom: Double): Bitmap? =
+    private suspend fun snapshot(ctx: Context, mapFile: File, style: String, px: Int, lat: Double, lng: Double, zoom: Double): Bitmap? =
         withTimeoutOrNull(20_000) {
             withContext(Dispatchers.Main) {   // MapSnapshotter lives on the main looper
                 suspendCancellableCoroutine { cont ->
@@ -153,7 +154,7 @@ object VectorTiles {
                             MapLibre.getInstance(ctx)
                             runCatching { existing?.cancel() }
                             MapSnapshotter(ctx, MapSnapshotter.Options(px, px)
-                                .withStyleBuilder(Style.Builder().fromJson(styleJson(ctx, mapFile)))
+                                .withStyleBuilder(Style.Builder().fromJson(style))
                                 .withCameraPosition(cam)
                                 .withPixelRatio(1f)
                                 .withLogo(false)).also { snapshotter = it; snapFile = mapFile.absolutePath }
@@ -175,6 +176,26 @@ object VectorTiles {
         val t = styleTemplate ?: ctx.assets.open("offline/style.json").use { it.readBytes().toString(Charsets.UTF_8) }
             .also { styleTemplate = it }
         return t.replace("{PMTILES}", "pmtiles://file://" + mapFile.absolutePath)
+            .replace("asset://glyphs/", "file://" + glyphDir(ctx).absolutePath + "/")
+    }
+
+    /**
+     * Glyph PBFs copied from assets/glyphs to app storage once per install: MapLibre reads them as
+     * file:// like the map itself (asset:// glyph URLs left the labels out in the snapshots).
+     */
+    private fun glyphDir(ctx: Context): File {
+        val dir = File(ctx.filesDir, "glyphs")
+        val stamp = File(dir, ".version")
+        val want = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).lastUpdateTime }.getOrDefault(0L).toString()
+        if (!stamp.exists() || stamp.readText() != want) synchronized(this) {
+            for (font in ctx.assets.list("glyphs").orEmpty()) {
+                val fd = File(dir, font).apply { mkdirs() }
+                for (r in ctx.assets.list("glyphs/$font").orEmpty())
+                    ctx.assets.open("glyphs/$font/$r").use { i -> File(fd, r).outputStream().use { i.copyTo(it) } }
+            }
+            stamp.writeText(want)
+        }
+        return dir
     }
 
     /** Keeps the rendered-tile cache under [CACHE_LIMIT] (oldest first); drops caches of older maps. */

@@ -74,6 +74,8 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
+          # Room for the full Türkiye offline package (~1.1 GB) downloaded in smoke.sh.
+          disk-size: 6000M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash .github/scripts/smoke.sh "$(find apk -name '*.apk' | head -1)"
 
