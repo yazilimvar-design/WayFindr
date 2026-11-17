@@ -47,6 +47,9 @@ object Router {
 
     @Volatile private var currentSource = RoutingSource.GOOGLE
 
+    /** "Manzaralı rota": no highways/tolls for Google and OSM (BRouter has no such switch here). Set from DashConfig. */
+    @Volatile var scenic = false
+
     /**
      * Which router to use ("Routing" setting). Set from DashConfig; a user choice also ends any
      * offline override [NavPlus.rtPick] made.
@@ -211,8 +214,9 @@ object Router {
 
             put("travelMode", "DRIVE")
 
-            // Request traffic-aware routing (no traffic-on-polyline extra computation).
-            put("routingPreference", "TRAFFIC_AWARE")
+            // Best live-traffic ETA/route (TRAFFIC_AWARE_OPTIMAL). Scenic keeps plain TRAFFIC_AWARE:
+            // shortcut: unverified that OPTIMAL accepts avoid modifiers; upgrade once checked.
+            put("routingPreference", if (scenic) "TRAFFIC_AWARE" else "TRAFFIC_AWARE_OPTIMAL")
 
             put("computeAlternativeRoutes", false)
             NavPlus.googleAlts(this, intermediates)   // alternatives for the route picker
@@ -220,8 +224,8 @@ object Router {
             put(
                 "routeModifiers",
                 JSONObject().apply {
-                    put("avoidTolls", false)
-                    put("avoidHighways", false)
+                    put("avoidTolls", scenic)
+                    put("avoidHighways", scenic)
                     put("avoidFerries", false)
                 }
             )
