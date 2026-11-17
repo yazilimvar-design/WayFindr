@@ -204,13 +204,19 @@ class MainActivity : ComponentActivity() {
     private fun labelProbe(ctx: android.content.Context) {
         val VT = com.example.wayfindr.dash.map.VectorTiles
         val glyphFile = "file://" + VT.debugGlyphRoot(ctx).absolutePath + "/{fontstack}/{range}.pbf"
-        fun simple(glyphs: String) = """{"version":8,"glyphs":"$glyphs","sources":{"p":{"type":"geojson","data":
+        org.maplibre.android.log.Logger.setVerbosity(org.maplibre.android.log.Logger.VERBOSE)
+        fun simple(glyphs: String, extra: String = "", circle: Boolean = false) = """{"version":8,"glyphs":"$glyphs","sources":{"p":{"type":"geojson","data":
             {"type":"Feature","geometry":{"type":"Point","coordinates":[32.8541,39.9208]},"properties":{"name":"Kızılay Şişli Ğ"}}}},
-            "layers":[{"id":"bg","type":"background","paint":{"background-color":"#ffffff"}},
-            {"id":"t","type":"symbol","source":"p","layout":{"text-field":["get","name"],"text-font":["NotoSansMedium"],"text-size":32},
+            "layers":[{"id":"bg","type":"background","paint":{"background-color":"#ffffff"}},""" +
+            (if (circle) """{"id":"c","type":"circle","source":"p","paint":{"circle-radius":20,"circle-color":"#ff0000"}},""" else "") +
+            """{"id":"t","type":"symbol","source":"p","layout":{"text-field":["get","name"],"text-font":["NotoSansMedium"],"text-size":32$extra},
             "paint":{"text-color":"#000000"}}]}"""
-        val probes = listOf("label-file" to simple(glyphFile), "label-asset" to simple("asset://glyphs/{fontstack}/{range}.pbf")) +
-            listOfNotNull(VT.debugStyle(ctx)?.let { "label-style" to it })
+        val overlap = ""","text-allow-overlap":true,"text-ignore-placement":true"""
+        val probes = listOf(
+            "label-file" to simple(glyphFile, circle = true),
+            "label-asset" to simple("asset://glyphs/{fontstack}/{range}.pbf"),
+            "label-overlap" to simple(glyphFile, overlap, circle = true),
+        ) + listOfNotNull(VT.debugStyle(ctx)?.let { "label-style" to it })
         for ((name, style) in probes) {
             val bmp = kotlinx.coroutines.runBlocking { VT.debugSnapshot(ctx, style, 39.9208, 32.8541, 14.0, 512) }
             android.util.Log.i("OfflineTest", "$name: ${bmp?.let { "${it.width}x${it.height}" } ?: "failed"}")
