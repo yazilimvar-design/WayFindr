@@ -166,6 +166,8 @@ public final class NavPlus {
     public static volatile long spdAt;
     public static volatile boolean spdBusy;
     public static volatile int spdLimit;
+    public static volatile long spdShowUntil;   // sign shows 10 s after the limit changes
+    public static volatile long spdOverAt;      // last time our speed was above the limit
     public static volatile long spdNextAt;
     public static volatile long spdWarnAt;
     public static volatile float turn;
@@ -786,6 +788,7 @@ public final class NavPlus {
                         }
                     }
                 }
+                if (i != spdLimit) spdShowUntil = SystemClock.elapsedRealtime() + 10000L;
                 spdLimit = i;
                 spdAt = SystemClock.elapsedRealtime();
             }
@@ -798,6 +801,7 @@ public final class NavPlus {
     private static void offlineLimit(double d, double d2) {
         int l = OfflineSafetyCache.INSTANCE.limitAt(d, d2);
         if (l > 0) {
+            if (l != spdLimit) spdShowUntil = SystemClock.elapsedRealtime() + 10000L;
             spdLimit = l;
             spdAt = SystemClock.elapsedRealtime();
         }
@@ -3571,6 +3575,7 @@ public final class NavPlus {
                     thread.start();
                 }
                 int i = spdLimit;
+                if (i > 0 && f2 > i + 2) spdOverAt = elapsedRealtime;
                 if (i <= 0 || elapsedRealtime - spdAt > 120000 || f2 <= Math.max(i / 10, 6) + i || elapsedRealtime - spdWarnAt < 25000) {
                     return;
                 }

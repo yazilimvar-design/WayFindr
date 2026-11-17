@@ -500,7 +500,10 @@ class MapRenderer(private val tiles: TileProvider) {
             // Google Nav SDK says we're over the limit: the sign blinks (red fill every other half second).
             val over = com.example.wayfindr.dash.nav.NavPlus.gSpeeding && now - com.example.wayfindr.dash.nav.NavPlus.gSpeedingAt < 10_000
             val hasLim = lim > 0 && now - com.example.wayfindr.dash.nav.NavPlus.spdAt < 120_000
-            if (f.pickerRows == null && (hasLim || over)) {
+            // Not permanent: only for 10 s after the limit changes, or while we're over it.
+            val show = over || (hasLim && (now < com.example.wayfindr.dash.nav.NavPlus.spdShowUntil ||
+                now - com.example.wayfindr.dash.nav.NavPlus.spdOverAt < 3_000))
+            if (f.pickerRows == null && show) {
                 val blink = over && (now / 500) % 2 == 0L
                 val r = 19f
                 val cx = w - ETA_MARGIN_RIGHT - r
