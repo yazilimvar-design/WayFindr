@@ -519,6 +519,17 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
             WayfindrToggle(on = ui.mapDark, onChange = { vm.setMapDark(it) })
         }
 
+        // Ride alerts: same switches as on the dash menu ("Rota ve uyarılar").
+        val curveWarning by dashConfig.curveWarning.collectAsState()
+        val rainWarning by dashConfig.rainWarning.collectAsState()
+        val offlineSafety by dashConfig.offlineSafety.collectAsState()
+        Spacer(Modifier.height(10.dp))
+        AlertToggleRow(WayfindrIcons.Road, "Viraj uyarısı", "Keskin virajlardan önce sesli uyarı", curveWarning) { dashConfig.setCurveWarning(it) }
+        Spacer(Modifier.height(10.dp))
+        AlertToggleRow(WayfindrIcons.Drop, "Yağmur uyarısı", "Rotada yağış beklenirse bildirir", rainWarning) { dashConfig.setRainWarning(it) }
+        Spacer(Modifier.height(10.dp))
+        AlertToggleRow(WayfindrIcons.Gauge, "Radar ve hız limiti (çevrimdışı)", "Rota boyunca kaydedilir; internet yokken kullanılır", offlineSafety) { dashConfig.setOfflineSafety(it) }
+
         Spacer(Modifier.height(16.dp))
 
         // Controls: joystick + zoom (drive the actual dash map)
@@ -612,3 +623,29 @@ private fun turkishManeuver(instruction: String): String {
 private fun turkishConnectionError(error: String): String =
     if (error == "Turn on Wi‑Fi to connect to the dash") "Konsol ekranına bağlanmak için Wi‑Fi'yi açın"
     else "Bağlantı sırasında bir sorun oluştu. Yeniden deneyin."
+
+
+/** One switch row in the Konsol tab's style (icon, title, grey subtitle, toggle). */
+@Composable
+private fun AlertToggleRow(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, subtitle: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Surf1)
+            .border(1.dp, Line, RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+            Icon(icon, null, tint = if (on) Gold else TextMid, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(11.dp))
+            Column {
+                Text(title, color = TextHi, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = GeistFamily)
+                Text(subtitle, color = TextLo, fontSize = 11.5.sp, modifier = Modifier.padding(top = 1.dp))
+            }
+        }
+        WayfindrToggle(on = on, onChange = onChange)
+    }
+}
