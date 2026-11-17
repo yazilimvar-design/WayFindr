@@ -1,0 +1,94 @@
+# Türkiye offline vector map for the Himalayan 450 app's "Türkiye çevrimdışı paketi".
+#
+# Cuts Turkey (bbox 25.6,35.8,44.9,42.2, zoom 0-14) out of the newest daily Protomaps basemap
+# build (https://build.protomaps.com, ODbL OpenStreetMap data) with `pmtiles extract`, and
+# publishes it as a release asset:
+#   - release tr-map-YYYYMMDD : tr-YYYYMMDD.pmtiles + manifest.json
+#   - release tr-map-latest   : manifest.json only, pointing at the newest dated file
+# The app reads
+#   https://github.com/<repo>/releases/download/tr-map-latest/manifest.json
+# to find the newest map, its date and size. No secrets are used: only the job's GITHUB_TOKEN.
+name: Türkiye çevrimdışı harita
+
+on:
+  schedule:
+    - cron: "17 3 3 * *"   # monthly, 3rd day 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tr-map
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      BBOX: "25.6,35.8,44.9,42.2"
+      MAXZOOM: "14"
+      PMTILES_VERSION: "1.31.2"
+    steps:
+      - name: pmtiles CLI
+        run: |
+          if curl -fsSL -o pmtiles.tgz "https://github.com/protomaps/go-pmtiles/releases/download/v${PMTILES_VERSION}/go-pmtiles_${PMTILES_VERSION}_Linux_x86_64.tar.gz"; then
+            tar xzf pmtiles.tgz pmtiles
+          else
+            GOBIN="$PWD" go install "github.com/protomaps/go-pmtiles@v${PMTILES_VERSION}" && mv go-pmtiles pmtiles
+          fi
+          ./pmtiles version
+
+      - name: Newest Protomaps build
+        id: src
+        run: |
+          KEY=$(curl -fsSL https://build-metadata.protomaps.dev/builds.json | jq -r '[.[] | select(.key | test("^[0-9]{8}\\.pmtiles$"))] | sort_by(.key) | last | .key')
+          DATE=${KEY%.pmtiles}
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "Source: https://build.protomaps.com/$KEY"
+          if gh release view "tr-map-$DATE" -R "$REPO" >/dev/null 2>&1; then
+            echo "tr-map-$DATE already published"; echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract Türkiye
+        if: steps.src.outputs.skip != '1'
+        run: |
+          ./pmtiles extract "https://build.protomaps.com/${{ steps.src.outputs.key }}" "tr-${{ steps.src.outputs.date }}.pmtiles" \
+            --bbox="$BBOX" --maxzoom="$MAXZOOM" --download-threads=8
+          ./pmtiles show "tr-${{ steps.src.outputs.date }}.pmtiles"
+          ls -l tr-*.pmtiles
+
+      - name: Publish release
+        if: steps.src.outputs.skip != '1'
+        run: |
+          DATE=${{ steps.src.outputs.date }}
+          FILE="tr-$DATE.pmtiles"
+          TAG="tr-map-$DATE"
+          SIZE=$(stat -c %s "$FILE")
+          SHA=$(sha256sum "$FILE" | cut -d' ' -f1)
+          URL="https://github.com/$REPO/releases/download/$TAG/$FILE"
+          jq -n --arg date "$DATE" --arg file "$FILE" --arg url "$URL" --arg sha "$SHA" \
+                --arg bbox "$BBOX" --argjson size "$SIZE" --argjson maxzoom "$MAXZOOM" \
+                --arg source "https://build.protomaps.com/${{ steps.src.outputs.key }}" \
+            '{version:1, date:$date, file:$file, url:$url, size:$size, sha256:$sha, bbox:$bbox, maxzoom:$maxzoom, source:$source,
+              attribution:"© OpenStreetMap contributors, Protomaps"}' > manifest.json
+          cat manifest.json
+          NOTES="Türkiye çevrimdışı vektör harita (Protomaps basemap $DATE, zoom 0-$MAXZOOM, bbox $BBOX). Veri: © OpenStreetMap katkıcıları (ODbL)."
+          gh release create "$TAG" "$FILE" manifest.json -R "$REPO" --title "Türkiye haritası $DATE" --notes "$NOTES" --latest=false
+          # Stable pointer: tr-map-latest carries only the manifest of the newest file.
+          if ! gh release view tr-map-latest -R "$REPO" >/dev/null 2>&1; then
+            gh release create tr-map-latest -R "$REPO" --title "Türkiye haritası (en yeni)" \
+              --notes "manifest.json en yeni tr-map-YYYYMMDD sürümünü gösterir." --latest=false
+          fi
+          gh release upload tr-map-latest manifest.json -R "$REPO" --clobber
+
+      - name: Keep the 3 newest dated maps
+        if: steps.src.outputs.skip != '1'
+        run: |
+          gh release list -R "$REPO" --limit 100 --json tagName --jq '.[].tagName' \
+            | grep -E '^tr-map-[0-9]{8}$' | sort -r | tail -n +4 \
+            | while read -r t; do gh release delete "$t" -R "$REPO" --yes --cleanup-tag; done
