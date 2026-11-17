@@ -159,6 +159,9 @@ if [ "$FULL" != 1 ]; then
   adb push /tmp/E30_N35.rd5 "$ODIR/segments4/E30_N35.rd5"
   EXTRA="--es map ank.pmtiles --es date 20261117"
 fi
+# Label rendering probe with network (online glyphs too) → label-*.png, overwritten offline below except label-online.
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.OFFLINE_TEST --ez labelsOnly true; sleep 20
+adb pull "/sdcard/Android/data/$PKG/files/label-online.png" "$OUT/label-online.png" || true
 adb shell svc wifi disable; adb shell svc data disable; sleep 8
 adb shell dumpsys connectivity | grep -m3 -i "active default network" > "$OUT/offline-net.txt" || true
 adb shell rm -f "/sdcard/Android/data/$PKG/files/offline-console.png"

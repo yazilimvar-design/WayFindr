@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun runOfflineTest(intent: Intent) = Thread {
         val ctx = applicationContext
+        if (intent.getBooleanExtra("labelsOnly", false)) { labelProbe(ctx); return@Thread }
         val report = StringBuilder()
         intent.getStringExtra("map")?.let {
             com.example.wayfindr.dash.offline.OfflinePack.debugInstallMap(ctx, it, intent.getStringExtra("date") ?: "20000101")
@@ -216,6 +217,8 @@ class MainActivity : ComponentActivity() {
             "label-file" to simple(glyphFile, circle = true),
             "label-asset" to simple("asset://glyphs/{fontstack}/{range}.pbf"),
             "label-overlap" to simple(glyphFile, overlap, circle = true),
+            "label-online" to simple("https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf", circle = true)
+                .replace("NotoSansMedium", "Noto Sans Medium"),
         ) + listOfNotNull(VT.debugStyle(ctx)?.let { "label-style" to it })
         for ((name, style) in probes) {
             val bmp = kotlinx.coroutines.runBlocking { VT.debugSnapshot(ctx, style, 39.9208, 32.8541, 14.0, 512) }
