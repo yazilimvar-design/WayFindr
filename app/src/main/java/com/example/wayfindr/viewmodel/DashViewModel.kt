@@ -2077,7 +2077,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 if (requestId != routeRequestGeneration || activeStopIndex != stopIndexSnapshot) return@launch
                 val current = route
                 val best = alternatives.minByOrNull { it.totalSeconds }
-                val leftS = current?.let { TrafficSwitch.remainingSeconds(it.totalSeconds, it.totalMeters, progressM) } ?: 0.0
+                // Time left on the current roads: prefer the fresh same-road result (it carries today's
+                // traffic, so a new jam on our road counts); else scale the old estimate.
+                val leftS = planned?.totalSeconds?.takeIf { it > 0.0 }
+                    ?: current?.let { TrafficSwitch.remainingSeconds(it.totalSeconds, it.totalMeters, progressM) } ?: 0.0
                 val gainS = if (best != null && best !== planned) leftS - best.totalSeconds else 0.0
                 val switchNow = best != null && TrafficSwitch.worthSwitching(
                     leftS, best.totalSeconds, System.currentTimeMillis(), lastTrafficSwitchAt) && best !== planned
