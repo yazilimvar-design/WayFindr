@@ -82,10 +82,15 @@ public final class GPlus {
                 if (offCmd != 0) {
                     return offCmd;
                 }
+                // Matches the original bytecode: "google sil" clears the key (→ OSM, 2); a pasted key
+                // saves it (→ Google, 1); ANY other text is a normal search and must not touch the key.
                 if (trim.equalsIgnoreCase("google sil") || trim.equalsIgnoreCase("googlesil")) {
                     trim = "";
+                    i = 2;
+                } else if (looksLikeKey(trim)) {
+                    i = 1;
                 } else {
-                    i = looksLikeKey(trim) ? 1 : 2;
+                    return 0;
                 }
                 try {
                     init(context);
