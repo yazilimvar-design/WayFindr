@@ -1105,8 +1105,8 @@ public final class NavPlus {
             if (!hudOn) return;
             long now = SystemClock.elapsedRealtime();
             boolean wx = wxAt != 0 && now < wxShowUntil;
+            if (!wx) return;   // whole pill (weather + fuel) closes 10 s after it appears
             String fuel = fuBest >= 0.0f ? fuelText() : null;
-            if (!wx && fuel == null) return;
             Paint paint = hudTx;
             if (paint == null) {
                 paint = new Paint(1);
