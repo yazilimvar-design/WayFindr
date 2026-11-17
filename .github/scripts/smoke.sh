@@ -15,6 +15,11 @@ adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wa
 sleep 15
 adb pull "/sdcard/Android/data/$PKG/files/navcard.png" "$OUT/navcard.png" || echo "::warning::navcard.png not rendered"
 
+# Dash frame path benchmark (debug-only entry): achieved fps + render/encode ms, old 4 fps vs now.
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.FRAME_BENCH
+sleep 32
+adb pull "/sdcard/Android/data/$PKG/files/framebench.txt" "$OUT/framebench.txt" && cat "$OUT/framebench.txt" || echo "::warning::framebench.txt not written"
+
 find_xy() {  # print the centre of the node whose text or content-desc is $1
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
   adb exec-out cat /sdcard/ui.xml > "$OUT/ui.xml"

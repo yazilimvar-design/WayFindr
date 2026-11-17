@@ -37,7 +37,7 @@ class DashEncoder(private val onEncodedData: (ByteArray, Boolean) -> Unit) {
         const val HEIGHT  = 300
         // Encoder frame-rate HINT only (actual rate = how fast the loop feeds the surface). the dash'shigh
         // profile is 4 fps; we configure to match. The loop paces 4 fps (active) / 2 fps (idle).
-        const val FPS     = 4
+        const val FPS     = 10   // matches DashViewModel.FRAME_MS_ACTIVE (100 ms)
         // ~200 kbps = the dash'shigh-profile bitrate (the q2g profile = 204800). The loop drops this to
         // ~100 kbps (CR low profile, q2g = 102400) via requestBitrate() when the map is static.
         // Far under the old 1.2 Mbps that risked overrunning the dash decoder.
