@@ -240,7 +240,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @JvmField @Volatile var route: Route? = null  // read by NavPlus.pickPlanned
     @Volatile private var panX = 0f
     @Volatile private var panY = 0f
-    @Volatile private var zoom = 19          // nav-level zoom on the dash (street-level default)
+    @Volatile private var zoom = START_ZOOM  // dash map always opens at z16
     @Volatile private var headingUp = true
     @JvmField @Volatile var mapDark = false  // read by NavPlus (dash menu)
     @Volatile private var followMode = true
@@ -450,6 +450,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val DASH_MIN_ZOOM = 11
         /** Number of NavPlus quick-action rows (music, zoom, dark map, fuel) on the menu ROOT. */
         private const val JM_ROW_COUNT = 7
+        private const val START_ZOOM = 16
         private const val DASH_MAX_ZOOM = 20
         /** How long a dash notice ("Skipped …") stays up. */
         private const val NOTICE_MS = 4_000L
@@ -768,6 +769,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     fun connect() {
         userWantsConnection = true
         hasStreamedThisConnection = false
+        zoom = START_ZOOM   // every ride starts at z16, whatever was zoomed last time
         authAttempts = 0
         _ui.update { it.copy(errorMessage = null, retryAttempt = 0, needsWifiOn = false) }
 
