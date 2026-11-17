@@ -65,40 +65,6 @@ fun HomeScreen(
             trailing = { WayfindrIconBtn(WayfindrIcons.Gear, onClick = { onNavigate("settings") }) },
         )
 
-        // Prominent build identity (debug/test only) — the same sha12 checksum that pull-diag and
-        // the "New test build" prompt use, so there's never any doubt which build is installed.
-        if (BuildConfig.DEBUG) {
-            val ctx = LocalContext.current
-            val buildSha = remember { BuildId.sha12(ctx) }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 14.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Gold.copy(alpha = 0.10f))
-                    .border(1.dp, Gold.copy(alpha = 0.40f), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    "TEST SÜRÜMÜ",
-                    color = Gold, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                    fontFamily = GeistMonoFamily, letterSpacing = 0.1.sp,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    buildSha,
-                    color = TextHi, fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                    fontFamily = GeistMonoFamily,
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                    color = TextLo, fontSize = 11.sp, fontFamily = GeistMonoFamily,
-                )
-            }
-        }
-
         // Connection hero card
         WayfindrCard(
             glow = conn == ConnectionState.Connected,
@@ -139,11 +105,6 @@ fun HomeScreen(
 
                     Text(statusSub, color = TextMid, fontSize = 13.sp)
 
-                    Spacer(Modifier.height(12.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        WayfindrChip("Mt.Fuji 450", ChipTone.Gold, icon = WayfindrIcons.Motor)
-                    }
                 }
             }
         }
@@ -181,7 +142,7 @@ fun HomeScreen(
                     if (i > 0) WayfindrDivider(Modifier.padding(horizontal = 4.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         WayfindrRow(
-                            loc.name, icon = WayfindrIcons.LocationPin,
+                            loc.name, icon = placeIcon(loc.name),
                             sub = loc.note.ifBlank { "%.4f, %.4f".format(loc.lat, loc.lng) },
                             trailingIcon = true,
                             onClick = { routeViewModel.selectSaved(loc); onNavigate("route") },
@@ -197,5 +158,35 @@ fun HomeScreen(
                 }
             }
         }
+
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "Product owner · Beraat Tezcan",
+            color = TextLo, fontSize = 11.sp, fontFamily = GeistMonoFamily,
+            modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}
+
+
+/** Icon for a saved place from words in its name (Turkish): home, hospital, gym, shop, public office… */
+private fun placeIcon(name: String): androidx.compose.ui.graphics.vector.ImageVector {
+    val n = name.lowercase(java.util.Locale("tr", "TR"))
+    val words = n.split(Regex("[^\\p{L}\\p{N}]+")).filter { it.isNotEmpty() }.toSet()
+    fun has(vararg keys: String) = keys.any { k -> if (k.length <= 3) k in words else n.contains(k) }
+    val I = androidx.compose.material.icons.Icons.Outlined
+    return when {
+        has("ev", "evim", "home", "1866") -> I.Home
+        has("hastane", "sağlık", "hospital", "klinik", "tıp", "acil") -> I.LocalHospital
+        has("eczane") -> I.LocalPharmacy
+        has("fitness", "spor", "gym", "salon", "xfit") -> I.FitnessCenter
+        has("sanayi", "organize", "osb", "fabrika", "atölye", "oto") -> I.Factory
+        has("bakanlık", "belediye", "müdürlük", "valilik", "kaymakamlık", "kamu", "adliye", "vergi", "nüfus", "emniyet") -> I.AccountBalance
+        has("benzin", "akaryakıt", "petrol", "opet", "shell", "total") -> I.LocalGasStation
+        has("kafe", "cafe", "kahve", "restoran", "lokanta", "kebap", "döner") -> I.Restaurant
+        has("okul", "üniversite", "lise", "kolej") -> I.School
+        has("dükkan", "dükkân", "market", "mağaza", "avm", "shop", "bakkal") -> I.Storefront
+        has("iş", "ofis", "şirket", "büro") -> I.Work
+        else -> WayfindrIcons.LocationPin
     }
 }

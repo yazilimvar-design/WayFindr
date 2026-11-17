@@ -378,7 +378,7 @@ fun ScreenHeader(
             if (wordmark) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "Himalayan450",
+                        "Himalayan 450",
                         color = TextHi, fontFamily = GeistMonoFamily,
                         fontWeight = FontWeight.Bold, fontSize = 21.sp,
                         letterSpacing = 0.14.sp,
