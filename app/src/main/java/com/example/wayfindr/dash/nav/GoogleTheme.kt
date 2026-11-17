@@ -49,14 +49,9 @@ object GoogleTheme {
         s("road", "geometry.fill", "color" to t.roads)
         s("road", "geometry.stroke", "color" to t.roadCasing)
         s("road.highway", "geometry.fill", "color" to t.roads)
-        s("transit", "geometry", "visibility" to "off")
         s("administrative", "geometry.stroke", "color" to t.roadCasing, "weight" to 0.6)
         s("all", "labels.text.fill", "color" to text)
         s("all", "labels.text.stroke", "color" to halo)
-        s("poi", "labels", "visibility" to "off")
-        s("poi.park", "labels", "visibility" to "on")
-        s("transit", "labels", "visibility" to "off")
-        s("all", "labels.icon", "visibility" to "off")
         return a
     }
 
