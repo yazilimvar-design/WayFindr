@@ -153,7 +153,6 @@ class MainActivity : ComponentActivity() {
      */
     private fun runOfflineTest(intent: Intent) = Thread {
         val ctx = applicationContext
-        if (intent.getBooleanExtra("labelsOnly", false)) { labelProbe(ctx); return@Thread }
         val report = StringBuilder()
         intent.getStringExtra("map")?.let {
             com.example.wayfindr.dash.offline.OfflinePack.debugInstallMap(ctx, it, intent.getStringExtra("date") ?: "20000101")
@@ -169,7 +168,6 @@ class MainActivity : ComponentActivity() {
         route?.maneuvers?.take(12)?.forEach { report.append("  %.0f m: %s (%s)\n".format(it.cumulativeMeters, it.instruction, it.googleManeuver)) }
         java.io.File(getExternalFilesDir(null), "offline-route.txt").writeText(report.toString())
 
-        labelProbe(ctx)
         val w = DashEncoder.WIDTH; val h = DashEncoder.HEIGHT
         val tiles = TileProvider(ctx, kotlinx.coroutines.MainScope()).apply { forceVector = intent.getBooleanExtra("force", false) }
         val renderer = MapRenderer(tiles)
@@ -200,32 +198,6 @@ class MainActivity : ComponentActivity() {
             .appendText("console: ${views.size * 2} frames, $cache offline tiles rendered in ${System.currentTimeMillis() - tr} ms\n")
         android.util.Log.i("OfflineTest", report.toString())
     }.start()
-
-    /** Debug: label rendering checks → files/label-*.png (GeoJSON point text; full offline style at z15). */
-    private fun labelProbe(ctx: android.content.Context) {
-        val VT = com.example.wayfindr.dash.map.VectorTiles
-        val glyphFile = "file://" + VT.debugGlyphRoot(ctx).absolutePath + "/{fontstack}/{range}.pbf"
-        org.maplibre.android.log.Logger.setVerbosity(org.maplibre.android.log.Logger.VERBOSE)
-        fun simple(glyphs: String, extra: String = "", circle: Boolean = false) = """{"version":8,"glyphs":"$glyphs","sources":{"p":{"type":"geojson","data":
-            {"type":"Feature","geometry":{"type":"Point","coordinates":[32.8541,39.9208]},"properties":{"name":"Kızılay Şişli Ğ"}}}},
-            "layers":[{"id":"bg","type":"background","paint":{"background-color":"#ffffff"}},""" +
-            (if (circle) """{"id":"c","type":"circle","source":"p","paint":{"circle-radius":20,"circle-color":"#ff0000"}},""" else "") +
-            """{"id":"t","type":"symbol","source":"p","layout":{"text-field":["get","name"],"text-font":["NotoSansMedium"],"text-size":32$extra},
-            "paint":{"text-color":"#000000"}}]}"""
-        val overlap = ""","text-allow-overlap":true,"text-ignore-placement":true"""
-        val probes = listOf(
-            "label-file" to simple(glyphFile, circle = true),
-            "label-asset" to simple("asset://glyphs/{fontstack}/{range}.pbf"),
-            "label-overlap" to simple(glyphFile, overlap, circle = true),
-            "label-online" to simple("https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf", circle = true)
-                .replace("NotoSansMedium", "Noto Sans Medium"),
-        ) + listOfNotNull(VT.debugStyle(ctx)?.let { "label-style" to it })
-        for ((name, style) in probes) {
-            val bmp = kotlinx.coroutines.runBlocking { VT.debugSnapshot(ctx, style, 39.9208, 32.8541, 14.0, 512) }
-            android.util.Log.i("OfflineTest", "$name: ${bmp?.let { "${it.width}x${it.height}" } ?: "failed"}")
-            bmp?.let { b -> java.io.File(getExternalFilesDir(null), "$name.png").outputStream().use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } }
-        }
-    }
 
     companion object {
         const val ACTION_OFFLINE_TEST = "com.example.wayfindr.OFFLINE_TEST"

@@ -170,26 +170,6 @@ object VectorTiles {
             }
         }
 
-    /** Debug/CI: one snapshot with [style] (own snapshotter), for label/glyph checks. */
-    suspend fun debugSnapshot(ctx: Context, style: String, lat: Double, lng: Double, zoom: Double, px: Int): Bitmap? =
-        withTimeoutOrNull(30_000) {
-            withContext(Dispatchers.Main) {
-                suspendCancellableCoroutine { cont ->
-                    MapLibre.getInstance(ctx)
-                    val s = MapSnapshotter(ctx, MapSnapshotter.Options(px, px)
-                        .withStyleBuilder(Style.Builder().fromJson(style))
-                        .withCameraPosition(CameraPosition.Builder().target(LatLng(lat, lng)).zoom(zoom).build())
-                        .withPixelRatio(1f).withLogo(false))
-                    s.start({ if (cont.isActive) cont.resume(it.bitmap) }) { e -> Log.w(TAG, "debug snapshot failed: $e"); if (cont.isActive) cont.resume(null) }
-                }
-            }
-        }
-
-    /** Style with this map file and file:// glyphs (debug). */
-    fun debugStyle(ctx: Context): String? = OfflinePack.mapFile(ctx)?.let { styleJson(ctx, it) }
-
-    fun debugGlyphRoot(ctx: Context): File = glyphDir(ctx)
-
     @Volatile private var styleTemplate: String? = null
 
     fun styleJson(ctx: Context, mapFile: File): String {
@@ -201,7 +181,9 @@ object VectorTiles {
 
     /**
      * Glyph PBFs copied from assets/glyphs to app storage once per install: MapLibre reads them as
-     * file:// like the map itself (asset:// glyph URLs left the labels out in the snapshots).
+     * file:// like the map itself.
+     * Note: on the CI emulator (SwiftShader) MapLibre 11.8 snapshots draw no text at all, with any
+     * glyph source (file://, asset://, https) — label rendering is verified on real phones only.
      */
     private fun glyphDir(ctx: Context): File {
         val dir = File(ctx.filesDir, "glyphs")
