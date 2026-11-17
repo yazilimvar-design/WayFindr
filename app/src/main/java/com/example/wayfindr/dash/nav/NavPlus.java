@@ -767,7 +767,7 @@ public final class NavPlus {
         try {
             Context context = GPlus.ctx;
             if (context != null) {
-                String body = ovFetch("[out:json][timeout:8];way(around:15," + d + "," + d2 + ")[\"highway\"][\"maxspeed\"];out tags 6;", "Wayfindr-SpeedLimit/1.0", 9000);
+                String body = ovFetch("[out:json][timeout:8];way(around:15," + d + "," + d2 + ")[\"highway\"][\"maxspeed\"];out tags 6;", "Wayfindr-SpeedLimit/1.0", 20000);
                 if (body == null) {
                     offlineLimit(d, d2);
                     return;
@@ -1870,7 +1870,7 @@ public final class NavPlus {
     }
 
     public static String ovGet(String str) {
-        return ovFetch(str, "Wayfindr-Radar/1.0", 12000);
+        return ovFetch(str, "Wayfindr-Radar/1.0", 35000);   // background, once per 2.5 km: a busy Overpass answers in ~30 s
     }
 
     /** Overpass servers in order: the main one is often busy (429/504), the mirrors carry the same data. */
@@ -2072,6 +2072,11 @@ public final class NavPlus {
 
     public static int parseLimit(String str) {
         int i = 0;
+        // Turkish zone values (cars): urban 50, rural 90, divided road 110, motorway 120.
+        if ("TR:urban".equals(str)) return 50;
+        if ("TR:rural".equals(str)) return 90;
+        if ("TR:trunk".equals(str)) return 110;
+        if ("TR:motorway".equals(str)) return 120;
         if (str != null) {
             int length = str.length();
             for (int i2 = 0; i2 < length; i2++) {

@@ -221,7 +221,7 @@ class MainActivity : ComponentActivity() {
         val report = StringBuilder("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
         cfg.setOfflineSafety(true)
         // Parser check with Overpass-style answers (the app's own parseLimit).
-        for (v in listOf("50", "90 mph", "TR:urban", "TR:rural", "none", "signals"))
+        for (v in listOf("50", "90 mph", "TR:urban", "TR:rural", "TR:motorway", "none"))
             report.append("parseLimit('$v') = ${com.example.wayfindr.dash.nav.NavPlus.parseLimit(v)}\n")
         val roads = listOf(
             "Eskişehir Yolu (ODTÜ)" to (39.90795 to 32.77297),
