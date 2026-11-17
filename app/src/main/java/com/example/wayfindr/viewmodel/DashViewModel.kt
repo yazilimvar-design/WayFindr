@@ -101,6 +101,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private val wifiManager = DashWifiManager(app, viewModelScope)
     private val dashConfig  = com.example.wayfindr.dash.DashConfig.get(app)
     private val voice        = com.example.wayfindr.dash.nav.VoiceManager.get(app)
+    private val curveWarner  = com.example.wayfindr.dash.nav.CurveWarner()
+    private val routeWeather = com.example.wayfindr.dash.nav.RouteWeather()
+    private var alertsRoute: Route? = null
     private val repo         = com.example.wayfindr.data.SyncRepository.get(app)
     private val recorder     = com.example.wayfindr.data.RideRecorder()
     private var recordJob: Job? = null
@@ -986,6 +989,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         progressM = 0.0
         smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null   // fresh ETA for the new route
         voice.resetTrip()   // fresh announcements for the new route
+        routeWeather.newTrip()
         session.updateRouteCard(name)
         location.snappedFeed = false
         if (lat != null && lng != null) googleNav.start(validStops) else googleNav.stop()
@@ -1555,6 +1559,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val r = route
         val dLat = destLat; val dLng = destLng
 
+        if (r !== alertsRoute) {   // new/rerouted route: refresh the offline corridor + rain check
+            alertsRoute = r; curveWarner.reset(); routeWeather.reset()
+            if (r != null) com.example.wayfindr.dash.nav.OfflineSafetyCache.prepare(getApplication<android.app.Application>(), r)
+        }
+
         val accuracy = loc?.takeIf { it.hasAccuracy() }?.accuracy?.toDouble()
         // GPS bearing is trusted only while moving AND with a reasonably precise fix.
         val headingKnown = loc != null && loc.hasBearing() && loc.speed >= BEARING_MIN_SPEED &&
@@ -1687,6 +1696,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // Voice output must never be allowed to cancel the navigation ticker. TTS providers
             // can throw during initialization or audio-route changes while the map must continue.
             if (streaming) runCatching {
+                if (dashConfig.curveWarning.value) curveWarner.tick(r, ns.progressM, loc.speed.toDouble())?.let { voice.alert(it) }
+                if (dashConfig.rainWarning.value) routeWeather.tick(r, ns.progressM)?.let { voice.alert(it); NavPlus.pend1 = it }
                 voice.maybeAnnounce(ns.nextManeuver, ns.nextTurnM, ns.remainingM)
             }.onFailure {
                 android.util.Log.w("DashViewModel", "Voice guidance failed: ${it.message}")

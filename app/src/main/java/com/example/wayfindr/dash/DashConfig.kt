@@ -95,6 +95,16 @@ class DashConfig private constructor(context: Context) {
     /** Phone battery % (+ charging bolt) above the ETA box on the dash. */
     val showPhoneBattery: StateFlow<Boolean> = _showPhoneBattery.asStateFlow()
 
+    private val _curveWarning = MutableStateFlow(prefs.getBoolean(KEY_CURVE_WARNING, true))
+    /** Spoken warning before sharp curves on the route ahead. */
+    val curveWarning: StateFlow<Boolean> = _curveWarning.asStateFlow()
+    private val _rainWarning = MutableStateFlow(prefs.getBoolean(KEY_RAIN_WARNING, true))
+    /** Spoken + console notice when rain is forecast along the route. */
+    val rainWarning: StateFlow<Boolean> = _rainWarning.asStateFlow()
+    private val _offlineSafety = MutableStateFlow(prefs.getBoolean(KEY_OFFLINE_SAFETY, true))
+    /** Cache speed cameras + speed limits along the route and use them when the live lookup fails. */
+    val offlineSafety: StateFlow<Boolean> = _offlineSafety.asStateFlow()
+
     /** Broadest match across Console variants; rider-overridable. */
     var ssidPrefix: String
         get() = prefs.getString(KEY_PREFIX, DEFAULT_PREFIX) ?: DEFAULT_PREFIX
@@ -172,7 +182,25 @@ class DashConfig private constructor(context: Context) {
         _showPhoneBattery.value = on
     }
 
+    fun setCurveWarning(on: Boolean) {
+        prefs.edit().putBoolean(KEY_CURVE_WARNING, on).apply()
+        _curveWarning.value = on
+    }
+
+    fun setRainWarning(on: Boolean) {
+        prefs.edit().putBoolean(KEY_RAIN_WARNING, on).apply()
+        _rainWarning.value = on
+    }
+
+    fun setOfflineSafety(on: Boolean) {
+        prefs.edit().putBoolean(KEY_OFFLINE_SAFETY, on).apply()
+        _offlineSafety.value = on
+    }
+
     companion object {
+        private const val KEY_CURVE_WARNING = "curve_warning"
+        private const val KEY_RAIN_WARNING = "rain_warning"
+        private const val KEY_OFFLINE_SAFETY = "offline_safety"
         private const val KEY_PREFIX   = "ssid_prefix"
         private const val KEY_SSID     = "ssid"
         private const val KEY_PASSWORD = "password"
