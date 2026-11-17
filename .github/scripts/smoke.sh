@@ -168,6 +168,7 @@ for n in $(seq 1 30); do
 done
 sleep 2
 adb pull "/sdcard/Android/data/$PKG/files/offline-console.png" "$OUT/offline-console.png" || echo "::warning::offline-console.png not rendered"
+for f in label-file label-asset label-style; do adb pull "/sdcard/Android/data/$PKG/files/$f.png" "$OUT/$f.png" || true; done
 adb pull "/sdcard/Android/data/$PKG/files/offline-route.txt" "$OUT/offline-route.txt" && cat "$OUT/offline-route.txt" || echo "::warning::offline-route.txt not written"
 grep -q "source=BROUTER" "$OUT/offline-route.txt" 2>/dev/null || echo "::warning::offline route did not come from the built-in BRouter"
 adb shell svc wifi enable; adb shell svc data enable; sleep 5

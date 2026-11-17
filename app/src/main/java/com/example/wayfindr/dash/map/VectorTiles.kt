@@ -170,6 +170,26 @@ object VectorTiles {
             }
         }
 
+    /** Debug/CI: one snapshot with [style] (own snapshotter), for label/glyph checks. */
+    suspend fun debugSnapshot(ctx: Context, style: String, lat: Double, lng: Double, zoom: Double, px: Int): Bitmap? =
+        withTimeoutOrNull(30_000) {
+            withContext(Dispatchers.Main) {
+                suspendCancellableCoroutine { cont ->
+                    MapLibre.getInstance(ctx)
+                    val s = MapSnapshotter(ctx, MapSnapshotter.Options(px, px)
+                        .withStyleBuilder(Style.Builder().fromJson(style))
+                        .withCameraPosition(CameraPosition.Builder().target(LatLng(lat, lng)).zoom(zoom).build())
+                        .withPixelRatio(1f).withLogo(false))
+                    s.start({ if (cont.isActive) cont.resume(it.bitmap) }) { e -> Log.w(TAG, "debug snapshot failed: $e"); if (cont.isActive) cont.resume(null) }
+                }
+            }
+        }
+
+    /** Style with this map file and file:// glyphs (debug). */
+    fun debugStyle(ctx: Context): String? = OfflinePack.mapFile(ctx)?.let { styleJson(ctx, it) }
+
+    fun debugGlyphRoot(ctx: Context): File = glyphDir(ctx)
+
     @Volatile private var styleTemplate: String? = null
 
     fun styleJson(ctx: Context, mapFile: File): String {

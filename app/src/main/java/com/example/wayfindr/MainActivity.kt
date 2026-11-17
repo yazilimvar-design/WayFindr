@@ -168,6 +168,7 @@ class MainActivity : ComponentActivity() {
         route?.maneuvers?.take(12)?.forEach { report.append("  %.0f m: %s (%s)\n".format(it.cumulativeMeters, it.instruction, it.googleManeuver)) }
         java.io.File(getExternalFilesDir(null), "offline-route.txt").writeText(report.toString())
 
+        labelProbe(ctx)
         val w = DashEncoder.WIDTH; val h = DashEncoder.HEIGHT
         val tiles = TileProvider(ctx, kotlinx.coroutines.MainScope()).apply { forceVector = intent.getBooleanExtra("force", false) }
         val renderer = MapRenderer(tiles)
@@ -198,6 +199,24 @@ class MainActivity : ComponentActivity() {
             .appendText("console: ${views.size * 2} frames, $cache offline tiles rendered in ${System.currentTimeMillis() - tr} ms\n")
         android.util.Log.i("OfflineTest", report.toString())
     }.start()
+
+    /** Debug: label rendering checks → files/label-*.png (GeoJSON point text; full offline style at z15). */
+    private fun labelProbe(ctx: android.content.Context) {
+        val VT = com.example.wayfindr.dash.map.VectorTiles
+        val glyphFile = "file://" + VT.debugGlyphRoot(ctx).absolutePath + "/{fontstack}/{range}.pbf"
+        fun simple(glyphs: String) = """{"version":8,"glyphs":"$glyphs","sources":{"p":{"type":"geojson","data":
+            {"type":"Feature","geometry":{"type":"Point","coordinates":[32.8541,39.9208]},"properties":{"name":"Kızılay Şişli Ğ"}}}},
+            "layers":[{"id":"bg","type":"background","paint":{"background-color":"#ffffff"}},
+            {"id":"t","type":"symbol","source":"p","layout":{"text-field":["get","name"],"text-font":["NotoSansMedium"],"text-size":32},
+            "paint":{"text-color":"#000000"}}]}"""
+        val probes = listOf("label-file" to simple(glyphFile), "label-asset" to simple("asset://glyphs/{fontstack}/{range}.pbf")) +
+            listOfNotNull(VT.debugStyle(ctx)?.let { "label-style" to it })
+        for ((name, style) in probes) {
+            val bmp = kotlinx.coroutines.runBlocking { VT.debugSnapshot(ctx, style, 39.9208, 32.8541, 14.0, 512) }
+            android.util.Log.i("OfflineTest", "$name: ${bmp?.let { "${it.width}x${it.height}" } ?: "failed"}")
+            bmp?.let { b -> java.io.File(getExternalFilesDir(null), "$name.png").outputStream().use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } }
+        }
+    }
 
     companion object {
         const val ACTION_OFFLINE_TEST = "com.example.wayfindr.OFFLINE_TEST"
