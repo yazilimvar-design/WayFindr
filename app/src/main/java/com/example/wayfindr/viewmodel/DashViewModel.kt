@@ -2308,7 +2308,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         frameRiderLat = if (rider != null) camLat else null
         frameRiderLng = if (rider != null) camLng else null
 
-        // Tiles 3 s and 6 s ahead into memory (Google / offline map only), twice a second, so they
+        // Tiles 3 s and 6 s ahead into memory (Google tiles only), twice a second, so they
         // are decoded before they scroll in at speed.
         val nowWarm = System.currentTimeMillis()
         if (followMode && mode == 1 && fixSpeed > 5f && nowWarm - lastWarmMs > 500) {

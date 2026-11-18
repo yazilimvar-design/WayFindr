@@ -153,11 +153,12 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
 
     /**
      * Load the 3×3 tiles around a point the rider reaches in a few seconds into the memory cache,
-     * so they are ready before they scroll in. Google / offline-map tiles only: OpenStreetMap's
-     * tile policy allows live viewing, no prefetching (see [liveOsmOnly]).
+     * so they are ready before they scroll in. Google tiles only: OpenStreetMap's tile policy
+     * allows live viewing, no prefetching (see [liveOsmOnly]), and the offline map renders one
+     * block at a time on the main looper ([VectorTiles]), where tiles on screen must come first.
      */
     fun warmAhead(lat: Double, lng: Double, z: Int) {
-        if (!(GPlus.tilesOn || vectorMode())) return
+        if (!GPlus.tilesOn || vectorMode()) return
         val cx = Mercator.lngToTileX(lng, z).toInt()
         val cy = Mercator.latToTileY(lat, z).toInt()
         for (dx in -1..1) for (dy in -1..1) get(z, cx + dx, cy + dy)

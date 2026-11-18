@@ -33,8 +33,14 @@ object RouteProgressMatcher {
         fun search(lo: Double, hi: Double, global: Boolean): RouteProgressMatch? {
             var bestScore = Double.POSITIVE_INFINITY
             var best: RouteProgressMatch? = null
-            for (index in 0 until geometry.lastIndex) {
-                if (cumulativeMeters[index + 1] < lo || cumulativeMeters[index] > hi) continue
+            // Start at the first segment that can reach [lo] (cumulative is ascending) and stop past
+            // [hi]: same segments as a full scan, without walking a 20 000-point route every tick.
+            var first = java.util.Arrays.binarySearch(cumulativeMeters, lo)
+            if (first < 0) first = -first - 1
+            while (first > 0 && cumulativeMeters[first] >= lo) first--   // duplicate vertices
+            for (index in first until geometry.lastIndex) {
+                if (cumulativeMeters[index] > hi) break
+                if (cumulativeMeters[index + 1] < lo) continue
                 val start = geometry[index]
                 val end = geometry[index + 1]
                 val (projection, fraction) = GeoPoint.projectOnSegment(position, start, end)

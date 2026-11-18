@@ -32,7 +32,7 @@ adb pull "/sdcard/Android/data/$PKG/files/framebench-frames.png" "$OUT/framebenc
 for v in once sonra; do
   adb pull "/sdcard/Android/data/$PKG/files/bench90-$v.h264" "$OUT/bench90-$v.h264" || continue
   # The exact H.264 stream the dash would get (10 fps); mp4 + gif for viewing when ffmpeg is there.
-  if command -v ffmpeg >/dev/null 2>&1 || (timeout 240 sh -c "sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg" >/dev/null 2>&1); then
+  if command -v ffmpeg >/dev/null 2>&1; then   # installed by the workflow
     ffmpeg -loglevel error -y -r 10 -i "$OUT/bench90-$v.h264" -c copy "$OUT/bench90-$v.mp4" || true
     ffmpeg -loglevel error -y -r 10 -i "$OUT/bench90-$v.h264" -vf "fps=10,scale=526:-1" "$OUT/bench90-$v.gif" || true
   fi
