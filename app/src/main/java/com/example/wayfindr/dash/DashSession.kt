@@ -40,6 +40,9 @@ class DashSession(private val scope: CoroutineScope) {
         // socket error, so without this watchdog the app streams into the void showing "connected".
         private const val RX_WATCHDOG_MS = 6_000L
         private const val HOSTNAME       = "Himalayan450"
+        /** No frame-decoded ack for this long while other packets arrive → re-enter nav mode. */
+        private const val DECODE_STALL_MS = 5_000L
+        private const val NAV_REKICK_GAP_MS = 15_000L
     }
 
     private val _state = MutableStateFlow(DashState.IDLE)
@@ -59,6 +62,18 @@ class DashSession(private val scope: CoroutineScope) {
     @Volatile private var loggedFirstAck = false
 
     var onButton: ((Byte) -> Unit)? = null
+    /**
+     * Every incoming TLV that is not auth, a frame-decoded ack or 0C/0F telemetry (joystick 09 00
+     * included): type, sub, value. Runs on the main thread. For the "Joystick testi" readout.
+     */
+    var onEvent: ((Int, Int, ByteArray) -> Unit)? = null
+    /** "Joystick testi" on: every received packet except frame acks goes to the ride log in full, unthrottled. */
+    @Volatile var rawInputLog = false
+    /** What the app is doing, for the joystick-test log lines (set by the view model). */
+    @Volatile var stateLabel: (() -> String)? = null
+    // Last 09 06/09 04 frame-decoded ack, and the last nav-mode re-entry (see launchStatusHeartbeat).
+    @Volatile private var lastAckMs = 0L
+    @Volatile private var lastNavKickMs = 0L
     var onError:  ((String) -> Unit)? = null
 
     @Volatile var destinationName: String = "Himalayan450"
@@ -77,6 +92,8 @@ class DashSession(private val scope: CoroutineScope) {
     @Volatile private var npAlbum = ""
     @Volatile private var npArtist = ""
     @Volatile private var npPlaying = false
+    /** Send the real play state in 05 19 (DashConfig.mediaPlayState) instead of always "paused". */
+    @Volatile var sendPlayState = false
     @Volatile private var lastJoyRxMs = 0L
 
     // ── Dash data capture (for mapping odometer/trip/fuel/speed/temp fields) ──
@@ -253,6 +270,7 @@ class DashSession(private val scope: CoroutineScope) {
             authConfirmed = false
             authRetries = 0
             loggedFirstAck = false
+            lastAckMs = 0L
             lastRxMs = 0L
 
             // RX loop MUST be running before the burst (early pubkey + no ICMP).
@@ -342,6 +360,12 @@ class DashSession(private val scope: CoroutineScope) {
                 it.value.firstOrNull()?.toInt() == 0x55
         }
         if (!onlyAcks) Dbg.i(TAG) { "RX RAW (${pkt.size}B): ${pkt.toHexFull()}" }
+        // Joystick test: the whole packet, before any parsing can drop it (a packet with no TLVs,
+        // a short one, or a value the per-field throttle would skip as "same").
+        if (rawInputLog && !onlyAcks) {
+            com.example.wayfindr.data.RideDiagnostics.log("joytest raw", "%dB %s | state=%s %s".format(
+                pkt.size, pkt.toHexFull(), _state.value, runCatching { stateLabel?.invoke() }.getOrNull() ?: ""))
+        }
         for (tlv in tlvs) {
             // ── Auth (07 xx) ──
             if (tlv.type == 0x07) {
@@ -372,6 +396,7 @@ class DashSession(private val scope: CoroutineScope) {
                     com.example.wayfindr.data.RideDiagnostics.log("dash", "dash DECODED first IDR (09 06 55) — video accepted ✓")
                 }
                 framesDecoded++
+                lastAckMs = System.currentTimeMillis()
                 sock.send(DashCommands.frameDecodedIdr())
                 continue
             }
@@ -380,6 +405,7 @@ class DashSession(private val scope: CoroutineScope) {
                 tlv.value.firstOrNull()?.toInt() == 0x55
             ) {
                 framesDecoded++
+                lastAckMs = System.currentTimeMillis()
                 sock.send(DashCommands.frameDecodedP())
                 continue
             }
@@ -400,6 +426,8 @@ class DashSession(private val scope: CoroutineScope) {
                         "compass opened (gpsFix=$gpsFix, heading=$compassHeading°)")
                 }
                 scope.launch(Dispatchers.Main) { onButton?.invoke(btn) }
+                val v = tlv.value
+                scope.launch(Dispatchers.Main) { onEvent?.invoke(tlv.type, tlv.sub, v) }
                 continue
             }
             // ── 0F: vehicle-secure telemetry (AES-256-CBC under the session key,
@@ -431,6 +459,9 @@ class DashSession(private val scope: CoroutineScope) {
             Log.i(TAG, "DASH EVENT type=0x%02X sub=0x%02X (%dB) val=%s"
                 .format(tlv.type, tlv.sub, tlv.value.size, tlv.value.toHexFull()))
             logDashData(tlv.type, tlv.sub, "val=${tlv.value.toHexFull()}")
+            // Never acted on (e.g. the dash's own "Exit navigation" Accept/Decline): only shown/logged.
+            val ev = tlv
+            scope.launch(Dispatchers.Main) { onEvent?.invoke(ev.type, ev.sub, ev.value) }
             // Anything else arriving within 3 s of a joystick event might be its release/hold
             // signal — capture it in the ride log too (time-boxed so idle chatter can't flood it).
             if (System.currentTimeMillis() - lastJoyRxMs < 3_000) {
@@ -496,6 +527,19 @@ class DashSession(private val scope: CoroutineScope) {
                     fail("Dash stopped responding — connection lost")
                     break
                 }
+                // The dash still talks but stopped decoding our video: its own "Exit navigation"
+                // dialog (joystick UP, Accept) may have left projection. The rider wants that dialog
+                // to change nothing, so re-enter nav mode (same kick as at connect) and keep going.
+                val nowMs = System.currentTimeMillis()
+                if (_state.value == DashState.STREAMING && loggedFirstAck && lastAckMs > 0L &&
+                    nowMs - lastAckMs > DECODE_STALL_MS && nowMs - lastRxMs < 2_000 &&
+                    nowMs - lastNavKickMs > NAV_REKICK_GAP_MS
+                ) {
+                    lastNavKickMs = nowMs
+                    com.example.wayfindr.data.RideDiagnostics.log("dash",
+                        "no frame acks for ${(nowMs - lastAckMs) / 1000}s while the dash is alive (exit-navigation dialog?) → re-entering nav mode")
+                    runCatching { enterNavMode(sock) }
+                }
                 delay(1_000)
             }
         }
@@ -555,6 +599,7 @@ class DashSession(private val scope: CoroutineScope) {
             var prevCaller: String? = null
             var prevTitle: String? = null
             var prevPlaying: Boolean? = null
+            var prevSend = false
             var loggedNp = false
             var loggedCall = false
             while (isActive && _state.value == DashState.STREAMING) {
@@ -572,11 +617,13 @@ class DashSession(private val scope: CoroutineScope) {
                 // (05 19) whenever the track or state changes; switch it off once nothing plays.
                 val title = npTitle
                 val playing = npPlaying
-                if (title != null && (title != prevTitle || playing != prevPlaying)) {
+                if (title != null && (title != prevTitle || playing != prevPlaying || sendPlayState != prevSend)) {
+                    prevSend = sendPlayState
                     // Himican: the dash's own round music bubble stays off; the phone draws its own card.
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
-                    runCatching { socket?.send(DashCommands.musicPlaying(false)) }
-                    com.example.wayfindr.data.RideDiagnostics.log("media", "TX music on 05 17 + playing=$playing 05 19")
+                    // 05 19 = play state; the real one only when "Konsol müzik ekranında çal/duraklat" is on.
+                    runCatching { socket?.send(DashCommands.musicPlaying(sendPlayState && playing)) }
+                    com.example.wayfindr.data.RideDiagnostics.log("media", "TX music 05 17=off, 05 19 playing=${sendPlayState && playing} (player playing=$playing)")
                 } else if (title == null && prevTitle != null) {
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
                     loggedNp = false

@@ -71,8 +71,16 @@ class LocationTracker(context: Context) {
         NavPlus.onFix(fix)
     }
 
-    private val listener = LocationListener { loc ->
-        if (snappedFeed) return@LocationListener
+    /** Debug/CI only (TestHooks): real fixes are ignored while a simulation feeds [debugFix]. */
+    @Volatile var debugFeed = false
+
+    /** Debug/CI only: one simulated fix through the same acceptance rules as a real one. */
+    fun debugFix(loc: Location) { if (debugFeed) onFix(loc) }
+
+    private val listener = LocationListener { loc -> if (!debugFeed) onFix(loc) }
+
+    private fun onFix(loc: Location) {
+        if (snappedFeed) return
         val cur = _location.value
         if (acceptFix(cur, loc)) {
             _location.value = loc
@@ -80,6 +88,7 @@ class LocationTracker(context: Context) {
             Dbg.d(TAG) { "fix ${loc.provider} acc=${loc.accuracy} (${loc.latitude},${loc.longitude})" }
         } else {
             Log.d(TAG, "REJECT ${loc.provider} acc=${loc.accuracy} dt=${if (cur != null) elapsedDeltaSeconds(cur, loc) else 0.0}s")
+            if (debugFeed) com.example.wayfindr.data.RideDiagnostics.log("gps", "sim fix REJECTED ${loc.provider} acc=${loc.accuracy}")
         }
     }
 

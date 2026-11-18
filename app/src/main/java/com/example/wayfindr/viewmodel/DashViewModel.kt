@@ -17,6 +17,7 @@ import com.example.wayfindr.dash.map.MapRenderer
 import com.example.wayfindr.dash.map.Mercator
 import com.example.wayfindr.dash.map.TileProvider
 import com.example.wayfindr.dash.map.OffRouteConfirmation
+import com.example.wayfindr.dash.map.WeakGps
 import com.example.wayfindr.dash.nav.GeoPoint
 import com.example.wayfindr.dash.nav.NavPlus
 import com.example.wayfindr.dash.nav.Route
@@ -132,7 +133,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             val r = Route(points, emptyList(), meters.takeIf { it > 0.0 } ?: cumulative.last(), seconds, cumulative, source = com.example.wayfindr.dash.RoutingSource.GOOGLE)
             val prev = route; val prevProgress = progressM
             route = r
-            progressM = 0.0
+            progressM = 0.0; progressFixNs = 0L
             routeLegOffset = activeStopIndex
             navSdkRouteVersion++
             voice.resetTrip()
@@ -340,6 +341,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var recalcHoldUntil = 0L
     // Last lateral distance from the route (m) — logged so flyover/off-route thresholds are tunable.
     @Volatile private var lastSnapDist = -1.0
+    // Weak GPS (WeakGps): speed to dead-reckon along the route with, the fix the route progress was
+    // last committed from (token + measurement time) and whether this tick ran on dead reckoning.
+    private var drSpeedMps = 0.0
+    private var progressFixToken = 0L
+    private var progressFixNs = 0L
+    @Volatile private var deadReckoning = false
+    private var drLoggedAt = 0L
     // Rolling average of actual moving speed (m/s), held through stops — drives a STEADY ETA
     // instead of one that swings with instantaneous speed at every brake/light.
     private var smoothSpeedMps = 0.0
@@ -449,6 +457,15 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         /** Map-mode joystick UP (unconfirmed, see BTN_JOY_DOWN): with no call ringing, UP or this
          *  opens the navigation prompt ("◀ Duraklat · Bitir ▶"). */
         private const val BTN_JOY_UP = 0x12
+        /**
+         * Codes that open the "◀ Duraklat · Bitir ▶" prompt (no call ringing). V60 on the bike: UP in map
+         * mode reaches the FIRMWARE (its own English "Exit navigation" dialog), so neither of these is
+         * likely to arrive there; 0x12 is even noted as BACK in TODO.md. Once "Joystick testi" shows
+         * which code a usable gesture sends, put it here — this one line is the whole change.
+         */
+        private val NAV_PROMPT_CODES = intArrayOf(BTN_ANSWER, BTN_JOY_UP)
+        /** Joystick test overlay stays this long after each received code. */
+        private const val JOY_TEST_SHOW_MS = 3_000L
         /** Joystick CENTRE (IN) click: inside the ▼ music window it plays / pauses. */
         private const val BTN_JOY_CENTRE = 0x18
         /** The UP prompt closes itself ("Vazgeçildi") after this long without input. */
@@ -521,19 +538,19 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      * snapped to the road.
      */
     @Suppress("UNCHECKED_CAST")
-    private fun navplusPredict(arc: Pair<*, *>?, dist: Double): Pair<Double, Double>? {
+    private fun navplusPredict(arc: Pair<*, *>?, dist: Double, routeDist: Double = dist): Pair<Double, Double>? {
         try {
             val r = route
-            if (lastSnapDist <= WAYPOINT_ARRIVE_M && r != null) {
+            if (lastSnapDist <= WeakGps.snapBand(fixAccuracy.toDouble()) && r != null) {
                 val geometry = r.geometry
                 val cumulative = r.cumulative
                 val progress = progressM
                 val here = NavPlus.pointAt(geometry, cumulative, progress)
                 if (here != null && GeoPoint.distMeters(here, GeoPoint(fixLat, fixLng)) <= 12.0) {
-                    val ahead = NavPlus.pointAt(geometry, cumulative, progress + dist)
+                    val ahead = NavPlus.pointAt(geometry, cumulative, progress + routeDist)
                     if (ahead != null) {
                         NavPlus.onRoute = true
-                        predProgressM = progress + dist
+                        predProgressM = progress + routeDist
                         return ahead.lat to ahead.lng
                     }
                 }
@@ -741,6 +758,27 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // separate HOME button is intentionally untouched — it does the dash's native exit; its code
         // just falls through to the logged-else branch. Codes verified fw 11.63: IN=0x18, RIGHT=0x09,
         // LEFT=0x0A, DOWN=0x07. Every unmatched code is shown in ui.lastButton so we can retune.
+        // "Joystick testi": every event the dash sends (09 00 codes and anything else) shown big on the
+        // console for 3 s and logged with what the app was doing. Only shown/logged, never acted on here.
+        session.stateLabel = { joyStateLabel() }
+        session.onEvent = { type, sub, value ->
+            if (dashConfig.joystickTestActive()) {
+                val now = System.currentTimeMillis()
+                val code = value.lastOrNull()?.toInt()?.and(0xFF)
+                val hex = value.joinToString(" ") { "%02X".format(it) }
+                joyTestLines = if (type == 0x09 && sub == 0x00 && code != null)
+                    listOf("Son tuş: 0x%02X".format(code), joyCodeName(code), "${joyStateShort()}")
+                else listOf("Olay: %02X %02X".format(type, sub), hex.take(30).ifBlank { "(boş)" }, "${joyStateShort()}")
+                joyTestUntilMs = now + JOY_TEST_SHOW_MS
+                val line = "%02X %02X val=[%s] %s | %s".format(
+                    type, sub, hex, if (type == 0x09 && sub == 0x00 && code != null) joyCodeName(code) else "olay", joyStateLabel())
+                com.example.wayfindr.data.RideDiagnostics.log("joytest", line)
+                android.util.Log.i("DashViewModel", "JOYTEST $line")
+                lastSignature = ""; wakeFrameLoop()
+            }
+        }
+        viewModelScope.launch { dashConfig.joystickTest.collect { session.rawInputLog = it; if (!it) joyTestLines = null } }
+        viewModelScope.launch { dashConfig.mediaPlayState.collect { session.sendPlayState = it } }
         session.onButton = { btn ->
             val code = btn.toInt() and 0xFF
             when (code) {   // physical directions: 0x15 down, 0x13 right, 0x14 left
@@ -839,7 +877,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         tickerJob?.cancel()
         tickerJob = viewModelScope.launch(Dispatchers.Default) {
             while (isActive && session.state.value != DashState.STREAMING) {
-                tick()
+                if (!debugSim) tick()   // the weak-GPS simulation runs tick() itself
                 delay(250)
             }
         }
@@ -1114,7 +1152,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             frameBitmap = newFrameBitmap()
         }
         lastSignature = ""
-        progressM = 0.0
+        progressM = 0.0; progressFixNs = 0L
         smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null   // fresh ETA for the new route
         voice.resetTrip()   // fresh announcements for the new route
         routeWeather.newTrip()
@@ -1153,7 +1191,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         activeStopIndex = 0
         routeLegOffset = 0
         route = null
-        progressM = 0.0
+        progressM = 0.0; progressFixNs = 0L
         offRouteSince = 0L
         offRouteConfirmation.reset()
         panX = 0f; panY = 0f; followMode = true
@@ -1330,7 +1368,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun handleNavPrompt(code: Int): String? {
         if (!navPromptOpen) {
-            if ((code == BTN_ANSWER || code == BTN_JOY_UP) && pickerItems == null && hasDestination()) {
+            if (code in NAV_PROMPT_CODES && pickerItems == null && hasDestination()) {
                 navPromptOpen = true
                 downHintUntilMs = 0L; musicHintUntilMs = 0L
                 navPromptJob?.cancel()
@@ -1361,6 +1399,40 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             else -> "Prompt: ignored 0x%02X".format(code)
         }
     }
+
+    @Volatile private var joyTestLines: List<String>? = null
+    @Volatile private var joyTestUntilMs = 0L
+
+    /** What each joystick code is known to be (ride logs, TODO.md:31-33), "?" when unknown. */
+    private fun joyCodeName(code: Int): String = when (code) {
+        0x06 -> "YUKARI (arama/medya modu)"
+        0x07 -> "AŞAĞI (arama/medya modu)"
+        0x09 -> "SAĞ (medya modu)"
+        0x0A -> "SOL (medya modu)"
+        0x12 -> "GERİ? / YUKARI? (doğrulanmadı)"
+        0x13 -> "SAĞ (harita)"
+        0x14 -> "SOL (harita)"
+        0x15 -> "AŞAĞI (harita)"
+        0x18 -> "ORTA / IN"
+        0x22 -> "Pusula açıldı"
+        else -> "? (bilinmeyen)"
+    }
+
+    private fun joyStateShort(): String = when {
+        com.example.wayfindr.media.CallInfoProvider.incomingCall.value != null -> "arama"
+        pickerItems != null -> "menü"
+        navPromptOpen -> "istem"
+        navPaused -> "duraklatıldı"
+        hasDestination() -> "navigasyon"
+        else -> "serbest"
+    }
+
+    private fun joyStateLabel(): String =
+        "dash=${session.state.value} mode=${joyStateShort()} route=${hasDestination()} paused=$navPaused " +
+            "prompt=$navPromptOpen menu=${if (pickerItems == null) "closed" else "$menuPage@$pickerIndex"} " +
+            "musicHint=${System.currentTimeMillis() < musicHintUntilMs} " +
+            "call=${com.example.wayfindr.media.CallInfoProvider.incomingCall.value?.let { if (it.incoming) "ringing" else "active" } ?: "-"} " +
+            "music=${(NavPlus.npNow as? com.example.wayfindr.media.NowPlaying)?.let { if (it.playing) "playing" else "paused" } ?: "-"}"
 
     /** "duraklat" while the track plays, "devam" while it's paused (music hint). */
     private fun musicToggleWord(): String =
@@ -1505,6 +1577,102 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         return out.toString()
     }
 
+    /** Debug/CI: the weak-GPS simulation drives tick() as if streaming to the dash. */
+    @Volatile private var debugSim = false
+
+    /**
+     * Debug/CI (TestHooks): rides the current route at 45 km/h with simulated fixes — good, then GPS
+     * whose accuracy degrades 50 → 150 m, then coarse network fixes every 3 s with no speed, then
+     * 20 s with no fix at all, then good GPS again — through the real fix filter and tick(). Writes
+     * per-second figures and the no-freeze checks to files/weakgps.txt, frames to diag/weakgps-*.png.
+     */
+    private fun runWeakGpsSim(c: android.content.Context) {
+        val r = route
+        val outFile = java.io.File(c.getExternalFilesDir(null), "weakgps.txt")
+        if (r == null || r.totalMeters < 1_500.0 || debugSim) {
+            outFile.writeText("HATA: rota yok / kısa (${r?.totalMeters?.toInt()} m) / zaten çalışıyor\n"); return
+        }
+        debugSim = true
+        location.debugFeed = true
+        googleNav.stop(); location.snappedFeed = false
+        setNavPaused(false); setWallHold(false)
+        progressM = 0.0; progressFixNs = 0L; drSpeedMps = 0.0; lastSnapDist = -1.0
+        if (frameBitmap == null) frameBitmap = newFrameBitmap()
+        viewModelScope.launch(Dispatchers.Default) {
+            val out = StringBuilder("t(s) faz   doğru_kalan  gösterilen_kalan  dönüşe  işaret_ilerleme  doğru_ilerleme  gps\n")
+            val rnd = java.util.Random(7)
+            val v = 12.5
+            val t0 = android.os.SystemClock.elapsedRealtime()
+            var nextFixT = 0.0
+            val rows = ArrayList<DoubleArray>()   // t, shown remaining, marker progress
+            var lastRow = -1
+            val snaps = intArrayOf(8, 20, 32, 45, 55, 66)
+            try {
+                while (true) {
+                    val t = (android.os.SystemClock.elapsedRealtime() - t0) / 1000.0
+                    if (t > 75.0) break
+                    val truth = (50.0 + v * t).coerceAtMost(r.totalMeters - 1.0)
+                    val phase = when { t < 10 -> "A"; t < 25 -> "B"; t < 40 -> "C"; t < 60 -> "D"; else -> "E" }
+                    if (t >= nextFixT && phase != "D") {
+                        val acc = when (phase) {
+                            "B" -> 50.0 + (t - 10) / 15.0 * 100.0
+                            "C" -> 80.0 + rnd.nextDouble() * 70.0
+                            else -> 5.0
+                        }
+                        val noise = if (phase == "A" || phase == "E") 2.0 else acc * 0.4
+                        val p = com.example.wayfindr.dash.map.RiderMotion.pointAt(r.geometry, r.cumulative, truth + rnd.nextGaussian() * noise)!!
+                        val hdg = com.example.wayfindr.dash.map.RiderMotion.bearingAt(r.geometry, r.cumulative, truth) ?: 0f
+                        val side = Math.toRadians(hdg + 90.0); val off = rnd.nextGaussian() * noise
+                        val loc = android.location.Location(if (phase == "C") "network" else "gps").apply {
+                            latitude = p.lat + off * Math.cos(side) / 111_195.0
+                            longitude = p.lng + off * Math.sin(side) / (111_195.0 * Math.cos(Math.toRadians(p.lat)))
+                            accuracy = acc.toFloat()
+                            time = System.currentTimeMillis()
+                            elapsedRealtimeNanos = android.os.SystemClock.elapsedRealtimeNanos()
+                            if (phase != "C") { speed = (v + rnd.nextGaussian() * 0.5).toFloat(); bearing = hdg }
+                        }
+                        location.debugFix(loc)
+                        nextFixT += if (phase == "C") 3.0 else 1.0
+                    } else if (phase == "D") nextFixT = 60.0
+                    tick()
+                    val sec = t.toInt()
+                    if (sec != lastRow) {
+                        lastRow = sec
+                        val shown = _ui.value.remainingKm?.let { it * 1000.0 } ?: -1.0
+                        val marker = com.example.wayfindr.dash.nav.RouteProgressMatcher.match(
+                            r.geometry, r.cumulative, GeoPoint(camLat, camLng), truth, null, v)?.progressMeters ?: -1.0
+                        rows += doubleArrayOf(t, shown, marker)
+                        out.append("%4d  %s  %9.0f  %12.0f  %8.0f  %12.0f  %12.0f  %s%s\n".format(sec, phase, r.totalMeters - truth, shown,
+                            turnCard?.meters ?: -1.0, marker, truth, gpsStatus, if (deadReckoning) " DR" else ""))
+                        if (sec in snaps) frameBitmap?.let { bmp ->
+                            java.io.File(c.getExternalFilesDir("diag"), "weakgps-%02d.png".format(sec)).outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                        }
+                    }
+                    delay(100)
+                }
+                // No freeze: in every 3 s of the weak phases (B, C, D) the shown remaining distance
+                // drops and the marker moves on along the route.
+                val weak = rows.filter { it[0] >= 11.0 && it[0] < 60.0 }
+                var frozen = 0
+                for (i in 3 until weak.size) {
+                    val a = weak[i - 3]; val b = weak[i]
+                    if (a[1] - b[1] < 10.0 || b[2] - a[2] < 10.0) { frozen++; out.append("DONMA ${a[0].toInt()}–${b[0].toInt()} s: kalan ${a[1].toInt()}→${b[1].toInt()} m, işaret ${a[2].toInt()}→${b[2].toInt()} m\n") }
+                }
+                val maxErr = rows.filter { it[0] >= 11.0 }.maxOfOrNull { kotlin.math.abs(it[2] - (50.0 + v * it[0])) } ?: -1.0
+                out.append(if (weak.size >= 40 && frozen == 0) "zayıf GPS'te donma yok: OK\n" else "HATA: zayıf GPS'te donma ($frozen pencere, ${weak.size} satır)\n")
+                out.append("işaretin doğru konumdan en büyük sapması (11 s sonrası): %.0f m\n".format(maxErr))
+            } catch (t: Throwable) {
+                out.append("HATA: ${t}\n")
+            } finally {
+                debugSim = false
+                location.debugFeed = false
+                outFile.writeText(out.toString())
+                com.example.wayfindr.data.RideDiagnostics.log("debug", "weak GPS sim:\n$out")
+                android.util.Log.i("DashViewModel", "DEBUG weakgps done")
+            }
+        }
+    }
+
     /** True while a debug-build adb broadcast is feeding a joystick code (see [debugButtonRx]). */
     @Volatile private var debugInjecting = false
 
@@ -1519,11 +1687,17 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         if (!com.example.wayfindr.BuildConfig.DEBUG) null else object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, intent: android.content.Intent) {
                 if (!com.example.wayfindr.util.TestHooks.on(c)) return
+                // CI: "Joystick testi" on/off (--ez joy_test true|false).
+                if (intent.hasExtra("joy_test")) dashConfig.setJoystickTest(intent.getBooleanExtra("joy_test", false))
                 val code = intent.getIntExtra("code", -1)
                 if (code >= 0) {
                     debugInjecting = true
                     try { session.onButton?.invoke(code.toByte()) } finally { debugInjecting = false }
+                    session.onEvent?.invoke(0x09, 0x00, byteArrayOf(0x00, 0x01, code.toByte()))
                 }
+                // CI: a non-button event as the dash would send it (--ei ev_type 9 --ei ev_sub 1 --es ev_hex "55").
+                if (intent.hasExtra("ev_type")) session.onEvent?.invoke(intent.getIntExtra("ev_type", 0), intent.getIntExtra("ev_sub", 0),
+                    intent.getStringExtra("ev_hex").orEmpty().chunked(2).mapNotNull { it.toIntOrNull(16)?.toByte() }.toByteArray())
                 // Fake now-playing (CI: the music card on the console): --es np_title … --es np_artist …
                 intent.getStringExtra("np_title")?.let { t ->
                     val art = Bitmap.createBitmap(96, 96, Bitmap.Config.ARGB_8888).also { b ->
@@ -1574,6 +1748,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     NavPlus.spdLimit = 50; NavPlus.spdAt = now; NavPlus.spdShowUntil = now + 60_000
                     NavPlus.rdAheadM = 320; NavPlus.rdAheadAt = now + 60_000
                 }
+                // CI: weak GPS along the current route (accuracy 50–150 m, network fixes, a 20 s gap).
+                if (intent.getBooleanExtra("weak_gps_sim", false)) runWeakGpsSim(c)
                 if (intent.getBooleanExtra("toggles", false)) {
                     val report = debugToggleCheck()
                     android.util.Log.i("DashViewModel", "DEBUG toggles:\n$report")
@@ -2021,27 +2197,52 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Navigation state (progress, waypoints, off-route, ETA, dash nav card, voice) only advances
         // while streaming to the dash; the phone preview before/without a dash just shows the map.
         // Paused ("Navigasyonu duraklat"): the map keeps following, but no guidance of any kind.
-        val streaming = userWantsConnection && session.state.value == DashState.STREAMING && !navPaused
+        val streaming = (userWantsConnection && session.state.value == DashState.STREAMING || debugSim) && !navPaused
         checkWallHold(loc)
 
         // Navigation SDK turn-by-turn while its guidance runs (null = our own route data).
         val navInfo = com.example.wayfindr.dash.nav.GoogleNav.navInfo?.takeIf { googleNav.active }
         // Card stays through a stale GPS tick (like the dash's widget); gone with the route or the link.
         if (r == null || !streaming) turnCard = null
-        if (r != null && loc != null && LocationTracker.isFreshForNavigation(loc)) {
-            val ns = trackProgress(
-                r, GeoPoint(loc.latitude, loc.longitude),
-                gpsBearing = if (headingKnown) loc.bearing else null,
-                speedMps = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0,
-                advanceProgress = streaming,
-            ).let { base -> navInfo?.let { withNavInfo(base, it) } ?: base }
+        val fixFresh = loc != null && LocationTracker.isFreshForNavigation(loc)
+        // Seconds since the fix the progress was committed from (elapsedRealtime clock).
+        val progressFixAgeS = if (progressFixNs > 0L)
+            (android.os.SystemClock.elapsedRealtimeNanos() - progressFixNs) / 1e9 else Double.MAX_VALUE
+        // Weak GPS: with no fresh fix (gap) keep guiding along the route at the last speed for up to
+        // WeakGps.MAX_S, instead of freezing the marker, distance and turn countdown.
+        val drOnly = !fixFresh && streaming && navInfo == null && r != null && loc != null &&
+            lastSnapDist in 0.0..WeakGps.snapBand(fixAccuracy.toDouble()) &&
+            WeakGps.canDeadReckon(drSpeedMps, progressFixAgeS)
+        deadReckoning = false
+        if (r != null && loc != null && (fixFresh || drOnly)) {
+            val ns = (if (drOnly) navStateAt(r, progressM + WeakGps.extraMeters(drSpeedMps, progressFixAgeS))
+                else trackProgress(
+                    r, GeoPoint(loc.latitude, loc.longitude),
+                    gpsBearing = if (headingKnown) loc.bearing else null,
+                    speedMps = if (loc.hasSpeed()) loc.speed.toDouble() else 0.0,
+                    advanceProgress = streaming,
+                    fix = loc,
+                ).let { base ->
+                    // Between fixes (> WeakGps.GAP_S, e.g. one fix per 5 s): distance and turn keep counting down.
+                    val ageNow = if (progressFixNs > 0L) (android.os.SystemClock.elapsedRealtimeNanos() - progressFixNs) / 1e9 else 0.0
+                    val extra = if (streaming && navInfo == null && base.snapDist <= WeakGps.snapBand(accuracy))
+                        WeakGps.extraMeters(drSpeedMps, ageNow) else 0.0
+                    if (extra > 0.0) navStateAt(r, base.progressM + extra).copy(snapDist = base.snapDist) else base
+                }).let { base -> navInfo?.let { withNavInfo(base, it) } ?: base }
+            deadReckoning = drOnly || ns.progressM > progressM + 0.5
+            if (deadReckoning && System.currentTimeMillis() - drLoggedAt > 5_000) {
+                drLoggedAt = System.currentTimeMillis()
+                com.example.wayfindr.data.RideDiagnostics.log("gps", "weak GPS: route dead reckoning " +
+                    "%.0f m ahead of the last fix (%.1f s old, %.1f m/s, acc %.0f m)".format(
+                        ns.progressM - progressM, progressFixAgeS, drSpeedMps, fixAccuracy))
+            }
             // If GPS bearing is weak or we are at low speed, use the route's current
             // segment bearing as the target so the map points the right way immediately.
             if (!headingKnown) {
                 targetHeading = normalizeHeading(ns.heading)
             }
             // With the SDK, its ArrivalListener moves to the next stop instead.
-            if (streaming && navInfo == null && advanceWaypointIfReached(loc, ns)) {
+            if (streaming && navInfo == null && !drOnly && advanceWaypointIfReached(loc, ns)) {
                 // The route geometry already continues to the next leg; reset the displayed ETA
                 // immediately while the tracker carries on from the same cumulative progress.
                 smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
@@ -2053,7 +2254,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // Keep the visible marker on the rendered route when GPS is close enough to make
             // that match trustworthy. Once outside this band, retain raw GPS so a parallel road
             // is not falsely pulled onto the route.
-            if (ns.snapDist <= 35.0) {
+            // Poor fixes too (band grows with their accuracy, WeakGps.snapBand), so a weak signal keeps
+            // the marker on the line instead of dropping it beside the road.
+            if (ns.snapDist <= WeakGps.snapBand(accuracy)) {
                 matchedLat = ns.snapped.lat
                 matchedLng = ns.snapped.lng
             }
@@ -2068,7 +2271,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // Clearly a different road → off; in the parallel/flyover band only if the heading
             // also diverges; and never on a fix too coarse to tell (NavigationReliability).
             // The Navigation SDK reroutes by itself: our off-route/reroute stays off while it guides.
-            offRoute = streaming && navInfo == null && com.example.wayfindr.dash.map.NavigationReliability
+            offRoute = streaming && navInfo == null && !drOnly && com.example.wayfindr.dash.map.NavigationReliability
                 .isConfidentlyOffRoute(ns.snapDist, accuracy, headingKnown, headingOff)
             val nowMs = System.currentTimeMillis()
 
@@ -2191,7 +2394,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 gpsFixIntervalMs = if (gpsFixIntervalMs <= 0.0) gap else gpsFixIntervalMs + (gap - gpsFixIntervalMs) * 0.3
             }
             fixLat = matchedLat ?: loc.latitude; fixLng = matchedLng ?: loc.longitude
-            fixBearing = loc.bearing; fixSpeed = loc.speed
+            // A fix without speed (network / cell, weak GPS) moves at the dead-reckoning speed instead of
+            // reading as "stopped" (which held the marker still while riding).
+            fixBearing = loc.bearing; fixSpeed = if (loc.hasSpeed()) loc.speed else drSpeedMps.toFloat()
             fixWallMs = nowWall
             fixElapsedNs = loc.elapsedRealtimeNanos
             fixArrivalNs = android.os.SystemClock.elapsedRealtimeNanos()
@@ -2203,6 +2408,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // classified from the previous gap. LOST is "no usable lock", not "slow for a few seconds".
         val fixAgeMs = if (fixWallMs > 0L) System.currentTimeMillis() - fixWallMs else Long.MAX_VALUE
         gpsStatus = when {
+            // Dead reckoning along the route through a gap: "weak", the guidance keeps going.
+            loc != null && deadReckoning -> GpsStatus.WEAK
             loc == null || fixAgeMs > GPS_LOST_AGE_MS -> GpsStatus.LOST
             loc.accuracy > 25f || gpsFixIntervalMs > 2_500 || fixAgeMs > GPS_WEAK_AGE_MS -> GpsStatus.WEAK
             else -> GpsStatus.GOOD
@@ -2233,7 +2440,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 // the marker holds the real fix (not the lead-projected point ahead of it).
                 heldRider = NavPlus.roadSnapHold(fixLat to fixLng) as Pair<Double, Double>?
                 // Project along the curving road / route rather than in a straight line.
-                navplusPredict(NavPlus.arcProject(fixLat, fixLng, fixBearing.toDouble(), dist), dist)
+                // On the route the prediction is not cut at MAX_PREDICT_S nor scaled down by accuracy:
+                // through a weak-GPS gap the marker keeps riding the line (WeakGps.MAX_S at most).
+                val routeDist = fixSpeed * (elapsed + com.example.wayfindr.dash.map.RiderMotion.LEAD_S).coerceIn(0.0, WeakGps.MAX_S)
+                navplusPredict(NavPlus.arcProject(fixLat, fixLng, fixBearing.toDouble(), dist), dist, routeDist)
             }
             else -> {
                 // Stopped: hold position and IGNORE sub-accuracy GPS wander, so a parked bike's dot
@@ -2447,7 +2657,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 if (r != null) {
                     route = r
                     lastTrafficRefreshAt = System.currentTimeMillis()
-                    progressM = 0.0
+                    progressM = 0.0; progressFixNs = 0L
                     routeLegOffset = activeStopIndex
                     offRouteSince = 0L
                     offRouteConfirmation.reset()
@@ -2569,7 +2779,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 if (refreshed != null) {
                     route = refreshed
-                    progressM = 0.0
+                    progressM = 0.0; progressFixNs = 0L
                     routeLegOffset = activeStopIndex
                     // No tile prefetch here: a traffic refresh is the same road. Prefetching on every
                     // refresh downloaded ~600 new tiles each time on a long route, even parked.
@@ -2713,6 +2923,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 }
             },
             joystickTrail = if (dashConfig.showJoystickTrail.value) joyTrail.text(System.currentTimeMillis()) else null,
+            joyTest = joyTestLines?.takeIf { System.currentTimeMillis() < joyTestUntilMs && dashConfig.joystickTestActive() },
             attribution = TileProvider.OSM_ATTRIBUTION,
             phoneBattery = if (dashConfig.showPhoneBattery.value) session.latestPhoneStatus?.let { it.batteryPct to it.charging } else null,
             gpsWeak = gpsStatus == GpsStatus.WEAK,
@@ -2806,17 +3017,41 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         gpsBearing: Float?,
         speedMps: Double,
         advanceProgress: Boolean = true,
+        fix: android.location.Location? = null,
     ): NavState {
+        // A NEW fix after a gap or with poor accuracy (WeakGps): where dead reckoning along the
+        // route puts the rider at that fix's time, so the fix is weighted against it, and the
+        // matcher's forward window reaches that far (a 20 s gap at 15 m/s is 300 m ahead).
+        val token = fix?.let { f -> f.elapsedRealtimeNanos.takeIf { it > 0 } ?: f.time } ?: 0L
+        val newFix = advanceProgress && token != 0L && token != progressFixToken
+        val fixNs = fix?.elapsedRealtimeNanos?.takeIf { it > 0 } ?: android.os.SystemClock.elapsedRealtimeNanos()
+        val acc = fix?.takeIf { it.hasAccuracy() }?.accuracy?.toDouble()
+        val gapS = if (progressFixNs > 0L) (fixNs - progressFixNs) / 1e9 else 0.0
+        val drAtFix = if (newFix && progressFixNs > 0L && lastSnapDist in 0.0..WeakGps.snapBand(acc))
+            progressM + WeakGps.extraMeters(drSpeedMps, gapS) else null
+        val matchSpeed = maxOf(speedMps, ((drAtFix ?: progressM) - progressM + (acc ?: 0.0)) / 4.0)
         val match = com.example.wayfindr.dash.nav.RouteProgressMatcher.match(
-            r.geometry, r.cumulative, pos, progressM, gpsBearing, speedMps,
+            r.geometry, r.cumulative, pos, progressM, gpsBearing, matchSpeed,
         )
         if (match == null) {
             val remaining = (r.totalMeters - progressM).coerceAtLeast(0.0)
             return NavState(remaining, remaining, gpsBearing ?: 0f, true, pos, Double.MAX_VALUE, null, progressM, null)
         }
         var matchedProgress = progressM
+        // A poor fix is used, not dropped: weighted against the dead-reckoned position (only once per
+        // fix — re-blending the same fix every frame would walk it to the raw match).
+        val poor = acc != null && acc > WeakGps.GOOD_ACC_M
+        val measured = if (newFix && poor && match.lateralDistanceMeters <= WeakGps.snapBand(acc))
+            WeakGps.blend(drAtFix, match.progressMeters, acc) else match.progressMeters
         // Mostly forward, tolerate small GPS slide.
-        if (advanceProgress) matchedProgress = maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, match.progressMeters)
+        if (advanceProgress && (newFix || !poor)) matchedProgress = maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, measured)
+        if (newFix) {
+            val derived = if (progressFixNs > 0L && gapS >= 1.0) (matchedProgress - progressM) / gapS else null
+            val gpsSpeed = fix?.takeIf { it.hasSpeed() && (acc == null || acc <= 60.0) }?.speed?.toDouble()
+            drSpeedMps = WeakGps.nextSpeed(drSpeedMps, gpsSpeed, derived)
+            progressFixToken = token
+            progressFixNs = fixNs
+        }
         if (advanceProgress) progressM = matchedProgress
 
         val remaining = (r.totalMeters - matchedProgress).coerceAtLeast(0.0)
@@ -2831,7 +3066,30 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         }
         return NavState(
             remaining, nextTurn, match.headingDegrees, match.lateralDistanceMeters > 70.0,
-            match.snappedPoint, match.lateralDistanceMeters, nextMan, matchedProgress, secondMan,
+            // A weighted poor fix is drawn where its committed progress is, not at its raw match.
+            if (poor) com.example.wayfindr.dash.map.RiderMotion.pointAt(r.geometry, r.cumulative, matchedProgress) ?: match.snappedPoint
+            else match.snappedPoint,
+            match.lateralDistanceMeters, nextMan, matchedProgress, secondMan,
+        )
+    }
+
+    /** Navigation state at [atM] metres along [r] with no fix (weak-GPS dead reckoning, WeakGps). */
+    private fun navStateAt(r: Route, atM: Double): NavState {
+        val p = atM.coerceIn(0.0, maxOf(0.0, r.totalMeters - 1.0))
+        val remaining = (r.totalMeters - p).coerceAtLeast(0.0)
+        val nextMan = r.maneuvers.firstOrNull {
+            it.cumulativeMeters > p + 1.0 && it.type != com.example.wayfindr.dash.nav.ManeuverType.DEPART
+        }
+        val secondMan = nextMan?.let { n ->
+            r.maneuvers.firstOrNull {
+                it.cumulativeMeters > n.cumulativeMeters + 1.0 && it.type != com.example.wayfindr.dash.nav.ManeuverType.DEPART
+            }
+        }
+        val at = com.example.wayfindr.dash.map.RiderMotion.pointAt(r.geometry, r.cumulative, p) ?: r.geometry.last()
+        val hdg = com.example.wayfindr.dash.map.RiderMotion.bearingAt(r.geometry, r.cumulative, p) ?: camHdg
+        return NavState(
+            remaining, nextMan?.let { (it.cumulativeMeters - p).coerceAtLeast(0.0) } ?: remaining, hdg, false,
+            at, lastSnapDist.coerceAtLeast(0.0), nextMan, p, secondMan,
         )
     }
 

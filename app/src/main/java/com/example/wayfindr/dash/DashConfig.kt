@@ -193,6 +193,36 @@ class DashConfig private constructor(context: Context) {
         _showJoystickTrail.value = on
     }
 
+    private val _joystickTest = MutableStateFlow(false)
+    /** "Joystick testi": every code the dash sends is shown big on the console and logged (not saved; off after 2 min). */
+    val joystickTest: StateFlow<Boolean> = _joystickTest.asStateFlow()
+    @Volatile private var joystickTestUntilMs = 0L
+    private val joyTestHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val joyTestOff = Runnable { _joystickTest.value = false }
+
+    fun setJoystickTest(on: Boolean) {
+        joyTestHandler.removeCallbacks(joyTestOff)
+        joystickTestUntilMs = if (on) System.currentTimeMillis() + JOY_TEST_MS else 0L
+        _joystickTest.value = on
+        if (on) joyTestHandler.postDelayed(joyTestOff, JOY_TEST_MS)
+        com.example.wayfindr.data.RideDiagnostics.log("joytest", if (on) "on (2 min)" else "off")
+    }
+
+    /** Joystick test running now (the 2-minute limit also holds if the timer was delayed). */
+    fun joystickTestActive(): Boolean = _joystickTest.value && System.currentTimeMillis() < joystickTestUntilMs
+
+    private val _mediaPlayState = MutableStateFlow(prefs.getBoolean(KEY_MEDIA_PLAY_STATE, false))
+    /**
+     * Send the real play/pause state (05 19) to the console's own media screen instead of "paused".
+     * Experimental: whether the firmware then draws a play/pause mark is not confirmed on the bike.
+     */
+    val mediaPlayState: StateFlow<Boolean> = _mediaPlayState.asStateFlow()
+
+    fun setMediaPlayState(on: Boolean) {
+        prefs.edit().putBoolean(KEY_MEDIA_PLAY_STATE, on).apply()
+        _mediaPlayState.value = on
+    }
+
     fun setShowPhoneBattery(on: Boolean) {
         prefs.edit().putBoolean(KEY_PHONE_BATTERY, on).apply()
         _showPhoneBattery.value = on
@@ -236,6 +266,8 @@ class DashConfig private constructor(context: Context) {
         private const val KEY_HQ_VIDEO = "hq_video"
         private const val KEY_PICKER_DOUBLE_TAP = "picker_double_tap"
         private const val KEY_JOY_TRAIL = "joystick_trail"
+        private const val KEY_MEDIA_PLAY_STATE = "media_play_state"
+        private const val JOY_TEST_MS = 120_000L
         private const val KEY_PHONE_BATTERY = "phone_battery"
         private const val KEY_SCENIC = "scenic_route"
         const val DEFAULT_PREFIX   = "RE_"

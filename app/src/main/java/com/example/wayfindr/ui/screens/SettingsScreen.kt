@@ -90,6 +90,8 @@ fun SettingsScreen(
         val pickerDoubleTap by dashConfig.pickerDoubleTap.collectAsState()
         val showJoystickTrail by dashConfig.showJoystickTrail.collectAsState()
         val showPhoneBattery by dashConfig.showPhoneBattery.collectAsState()
+        val joystickTest by dashConfig.joystickTest.collectAsState()
+        val mediaPlayState by dashConfig.mediaPlayState.collectAsState()
         WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 6.dp) {
             SettingRow(WayfindrIcons.Power, "Telefon ekranını kapat", "Harita konsola aktarılmaya devam eder",
                 control = { WayfindrToggle(screenOff) { screenOff = it } })
@@ -119,6 +121,16 @@ fun SettingsScreen(
             SettingRow(WayfindrIcons.Target, "Joystick basışlarını göster",
                 "Konsolun alt ortasında son 4 basışı D / R / L olarak, her biri 2 sn göster",
                 control = { WayfindrToggle(showJoystickTrail) { dashConfig.setShowJoystickTrail(it) } })
+            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+            SettingRow(WayfindrIcons.Target, "Joystick testi",
+                if (joystickTest) "Açık: her tuş konsolda büyük yazılır ve sürüş günlüğüne kaydedilir · 2 dk sonra kapanır"
+                else "Konsoldan gelen her tuş kodunu (0xNN) konsolda gösterir; yukarı/orta/uzun basışı öğrenmek için",
+                control = { WayfindrToggle(joystickTest) { dashConfig.setJoystickTest(it) } })
+            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+            SettingRow(WayfindrIcons.Target, "Konsol müzik ekranında çal/duraklat durumu",
+                if (mediaPlayState) "Deneysel: şarkının çalıp çalmadığı konsolun kendi müzik ekranına gönderilir"
+                else "Kapalı: konsola her zaman \"duraklatıldı\" gönderilir (önceki davranış)",
+                control = { WayfindrToggle(mediaPlayState) { dashConfig.setMediaPlayState(it) } })
             WayfindrDivider(Modifier.padding(horizontal = 6.dp))
             SettingRow(WayfindrIcons.Target, "Telefon pilini konsolda göster",
                 "Tahmini varış süresinin üstünde pil yüzdesi; şarj olurken şimşek simgesi",

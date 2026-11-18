@@ -106,7 +106,10 @@ public final class LocPlus {
                 long j = fusedAt;
                 return j > 0 && elapsedRealtime - j <= 3000;
             }
-            return location != null && rank(location.getProvider()) > 1 && d <= 120.0d; // Himican: kaba (network) konumlar 2 dk yok sayılır
+            // Himican: a coarse (network) fix is ignored while the GPS / fused fix is still recent. It
+            // used to be ignored for 2 minutes, which froze the console when GPS weakened ("kalıyor"):
+            // a weak signal then had nothing to move on. 12 s = GPS "lost" (DashViewModel.GPS_LOST_AGE_MS).
+            return location != null && rank(location.getProvider()) > 1 && d <= 12.0d;
         } catch (Throwable unused) {
             return false;
         }

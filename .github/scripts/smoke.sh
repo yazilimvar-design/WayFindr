@@ -22,7 +22,7 @@ adb pull "/sdcard/Android/data/$PKG/files/navcard.png" "$OUT/navcard.png" || ech
 # Then a simulated ride along a real Ankara route at 30/60/90/120 km/h (before/after position path).
 adb shell rm -f "/sdcard/Android/data/$PKG/files/framebench.txt"
 adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.FRAME_BENCH
-for i in $(seq 1 60); do
+for i in $(seq 1 100); do
   sleep 5
   adb shell ls "/sdcard/Android/data/$PKG/files/framebench.txt" >/dev/null 2>&1 && break
 done
@@ -341,6 +341,16 @@ snapf nav-up-resumed; dumpnav; upck "paused=false.*prompt=false" "UP prompt LEFT
 $BR --ei code 6; sleep 1; snapq nav-up-prompt-0x06; sleep 1; $BR --ei code 21; sleep 1; dumpnav; snapf nav-up-dismissed
 upck "notice=\[Vazgeçildi\].*paused=false.*prompt=false" "UP (0x06) prompt DOWN dismisses"
 pullf nav-up-prompt nav-up-prompt-resume nav-up-prompt-0x06
+# "Joystick testi": every received code big on the console for 3 s + logged (incl. unknown codes / events).
+$BR --ez joy_test true; sleep 1
+$BR --ei code 42; sleep 1; snapf joytest-unknown
+$BR --ei code 20; sleep 1; snapf joytest-left
+$BR --ei ev_type 9 --ei ev_sub 1 --es ev_hex 55; sleep 1; snapf joytest-event
+$BR --ez joy_test false; sleep 1; snapf joytest-off
+adb logcat -d -s DashViewModel | grep -a "JOYTEST" | tail -8 | tee "$OUT/joytest.txt"
+grep -q "2A.*bilinmeyen" "$OUT/joytest.txt" && echo "joystick test logs unknown codes: OK" | tee -a "$OUT/joytest.txt" \
+  || echo "::warning::joystick test log line not found (see logcat)" | tee -a "$OUT/joytest.txt"
+$BR --ei code 20; sleep 2   # LEFT again: undo the zoom of the test press
 sleep 4   # no DOWN pairing with the next menu_open
 $BR --ez test_wallpaper true --ez fake_ride true; sleep 2
 menu_open; $BR --ei code 21; sleep 2; snapf nav-menu-end   # cursor on the "Bitir" pill
@@ -363,6 +373,19 @@ grep -o "ball=\[[^]]*\]" "$OUT/nav-pause.txt" | sort | uniq -c | tee -a "$OUT/na
 grep -o "ball=\[card=0x[0-9A-F]*" "$OUT/nav-pause.txt" | grep -v "card=0xFF" && echo "::error::route card carries a ball glyph" | tee -a "$OUT/nav-pause.txt" \
   || echo "no dash ball in idle / navigating / paused / ended: OK" | tee -a "$OUT/nav-pause.txt"
 $BR --ez clear_wallpaper true; sleep 1
+# Weak GPS: the same stops again, then the simulated ride (good → 50–150 m accuracy → network fixes
+# every 3 s → 20 s without any fix → good) through the real fix filter and nav loop. The marker and
+# the remaining distance must keep moving (files/weakgps.txt, frames diag/weakgps-*.png).
+kill $GEO 2>/dev/null
+$BR --ez redo_dest true; sleep 25
+adb shell rm -f "/sdcard/Android/data/$PKG/files/weakgps.txt"
+$BR --ez weak_gps_sim true
+for n in $(seq 1 30); do sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/weakgps.txt" >/dev/null 2>&1 && break; done
+adb pull "/sdcard/Android/data/$PKG/files/weakgps.txt" "$OUT/weakgps.txt" && cat "$OUT/weakgps.txt" || echo "::warning::weakgps.txt not written"
+grep -q "donma yok: OK" "$OUT/weakgps.txt" 2>/dev/null && echo "weak GPS keeps navigating: OK" || echo "::error::weak GPS: navigation froze (weakgps.txt)"
+for f in 08 20 32 45 55 66; do adb pull "/sdcard/Android/data/$PKG/files/diag/weakgps-$f.png" "$OUT/weakgps-$f.png" >/dev/null 2>&1 || echo "::warning::weakgps-$f.png not rendered"; done
+adb logcat -d -s LocationTracker | grep -c REJECT | sed 's/^/sim fixes rejected (logcat): /' | tee -a "$OUT/weakgps.txt"
+( for n in $(seq 1 600); do adb emu geo fix 32.8541 39.9208 >/dev/null 2>&1; sleep 2; done ) & GEO=$!
 tap0 "Sürüşler"; sleep 5; shot rides-after-end
 # Incoming call: the caller stays on the console until answered / ended. A real emulator call
 # (dialer notification → listener) if the console accepts it, else the fake hook.

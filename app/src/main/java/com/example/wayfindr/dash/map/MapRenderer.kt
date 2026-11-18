@@ -54,6 +54,7 @@ class MapRenderer(private val tiles: TileProvider) {
         val pickerSelectHint: String = "Sol/sağ: gezin · sağa basılı: seç",
         val zoomLabel: String? = null,     // e.g. "Zoom 16", shown briefly after a zoom
         val joystickTrail: String? = null, // e.g. "DDRR": recent presses, bottom-centre (setting)
+        val joyTest: List<String>? = null, // "Joystick testi": ["Son tuş: 0x15", "AŞAĞI (harita)"], big, centre
         val attribution: String? = null,   // map-data credit the tile source requires (OSM)
         val notice: List<String>? = null,
         val routingBadge: com.example.wayfindr.dash.RoutingSource? = null, // G / O / BR box, top of the right stack  // short confirmation, e.g. ["Skipped Block 6", "→ Home"], above centre
@@ -616,6 +617,8 @@ class MapRenderer(private val tiles: TileProvider) {
         f.notice?.let { lines -> drawNotice(canvas, w, h, lines) }
         f.navPrompt?.let { drawNavPrompt(canvas, w, h, it) }
         f.pickerRows?.let { rows -> drawPicker(canvas, w, h, f.pickerTitle, rows, f.pickerIndex, f.pickerSelectHint) }
+        // "Joystick testi": the last code the dash sent, big in the middle, on top of everything.
+        f.joyTest?.let { lines -> overlay("joystick test") { drawJoyTest(canvas, w, h, lines) } }
 
         // No other on-map text overlays — the dash's own widgets show name/turn, and the
         // round bezel clips anything near the top edge.
@@ -627,6 +630,27 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.drawText(msg, (w - textBounds.width()) / 2f, h / 2f, standbyPaint)
         }
 
+    }
+
+    private val joyTestBig = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE; textSize = 40f; textAlign = Paint.Align.CENTER; typeface = android.graphics.Typeface.DEFAULT_BOLD
+    }
+    private val joyTestSmall = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(251, 188, 5); textSize = 22f; textAlign = Paint.Align.CENTER }
+    private val joyTestBg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(235, 12, 14, 18) }
+    private val joyTestBorder = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(251, 188, 5); style = Paint.Style.STROKE; strokeWidth = 3f }
+
+    /** Joystick test box: first line big (code), the rest smaller (name, state). Centred, inside the round bezel. */
+    private fun drawJoyTest(canvas: Canvas, w: Int, h: Int, lines: List<String>) {
+        if (lines.isEmpty()) return
+        val first = lines.first(); val rest = lines.drop(1)
+        val bw = (listOf(joyTestBig.measureText(first)) + rest.map { joyTestSmall.measureText(it) }).max() + 36f
+        val bh = 56f + rest.size * 28f + 12f
+        val cx = w / 2f; val cy = h / 2f
+        pillRect.set(cx - minOf(bw, w * 0.86f) / 2f, cy - bh / 2f, cx + minOf(bw, w * 0.86f) / 2f, cy + bh / 2f)
+        canvas.drawRoundRect(pillRect, 14f, 14f, joyTestBg)
+        canvas.drawRoundRect(pillRect, 14f, 14f, joyTestBorder)
+        canvas.drawText(first, cx, pillRect.top + 48f, joyTestBig)
+        rest.forEachIndexed { i, t -> canvas.drawText(t, cx, pillRect.top + 56f + 26f + i * 28f, joyTestSmall) }
     }
 
     /**

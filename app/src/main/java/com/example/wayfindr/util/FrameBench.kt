@@ -94,7 +94,7 @@ object FrameBench {
         val fps: Double, val workP50: Double, val workP95: Double, val workMax: Double, val dropped: Int,
         val gapMax: Double, val errRenderMean: Double, val errDashMean: Double, val errDashP95: Double,
         val errDashMax: Double, val latP95: Double, val stepDevP95: Double, val stepDevMax: Double,
-        val missFrames: Int, val frames: Int, val bytesPerFrame: Long,
+        val missFrames: Int, val frames: Int, val bytesPerFrame: Long, val bytesMax: Int = 0,
     )
 
     fun run(ctx: Context): String {
@@ -126,7 +126,30 @@ object FrameBench {
             }
         }
         writeStrip(ctx, strips)
+        out.append(rateCompare(ctx, g, c, route, renderer, tiles, bmp, mPerPx))
         out.append(longRoute(renderer))
+        return out.toString()
+    }
+
+    /**
+     * Smoothness vs frame rate on the production path ("sonra"): the same rides at 10 / 15 / 20 fps.
+     * "adım" = how far the map scrolls between two frames (px, the visible judder at speed);
+     * "sapma" = how unevenly (p95/max px); iş = render + encode ms per frame; B = encoded bytes
+     * per frame (ort / en büyük — the 1 s keyframe spike); kbps = what the dash Wi-Fi carries.
+     */
+    private fun rateCompare(
+        ctx: Context, g: List<GeoPoint>, c: DoubleArray, route: Route, renderer: MapRenderer, tiles: TileProvider,
+        bmp: Bitmap, mPerPx: Double,
+    ): String {
+        val out = StringBuilder("\n== Kare hızı karşılaştırması (sonra yolu, zoom $ZOOM) ==\n")
+        out.append("hız      | kare ms | fps  | adım px | sapma p95/max px | iş p95/max ms | düşen | B ort/max | kbps\n")
+        for (kmh in listOf(60, 90, 120)) for (ms in listOf(100L, 66L, 50L)) {
+            tiles.debugEvictMemory()
+            val r = runOne(ctx, g, c, route, renderer, tiles, bmp, kmh, false, true, 10.0, null, null, ms)
+            out.append("%3d km/sa | %4d    | %4.1f | %6.1f  | %5.1f / %5.1f     | %5.1f / %5.1f | %3d   | %5d/%6d | %4.0f\n".format(
+                kmh, ms, r.fps, kmh / 3.6 * ms / 1000.0 / mPerPx, r.stepDevP95 / mPerPx, r.stepDevMax / mPerPx,
+                r.workP95, r.workMax, r.dropped, r.bytesPerFrame, r.bytesMax, r.bytesPerFrame * 8.0 * r.fps / 1000.0))
+        }
         return out.toString()
     }
 
@@ -135,15 +158,16 @@ object FrameBench {
     private fun runOne(
         ctx: Context, g: List<GeoPoint>, c: DoubleArray, route: Route, renderer: MapRenderer, tiles: TileProvider,
         bmp: Bitmap, kmh: Int, legacy: Boolean, measure: Boolean, seconds: Double,
-        strip: MutableList<Bitmap>?, video: File?,
+        strip: MutableList<Bitmap>?, video: File?, frameMsOverride: Long? = null,
     ): Result {
         val v = kmh / 3.6
         val fx = fixes(g, c, v, 1_000L + kmh)
         renderer.cullRoute = !legacy
-        val frameMs = DashViewModelFrameMs()
+        val frameMs = frameMsOverride ?: DashViewModelFrameMs()
         val videoOut = video?.outputStream()
         var bytes = 0L; var encFrames = 0
-        val enc = DashEncoder { data, _ -> bytes += data.size; encFrames++; videoOut?.write(data) }.also { it.prepare() }
+        var bytesMax = 0
+        val enc = DashEncoder { data, _ -> bytes += data.size; encFrames++; bytesMax = maxOf(bytesMax, data.size); videoOut?.write(data) }.also { it.prepare() }
         val motion = RiderMotion()
         val dest = g.last()
         var progress = 0.0
@@ -250,6 +274,7 @@ object FrameBench {
             errDashMax = errD.maxOfOrNull { abs(it) } ?: 0.0, latP95 = lat.pct(0.95),
             stepDevP95 = dev.pct(0.95), stepDevMax = dev.maxOrNull() ?: 0.0,
             missFrames = missFrames, frames = measured, bytesPerFrame = if (encFrames > 0) bytes / encFrames else 0,
+            bytesMax = bytesMax,
         )
     }
 
