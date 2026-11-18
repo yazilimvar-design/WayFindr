@@ -200,7 +200,7 @@ object DashCommands {
         secondaryDist: Int? = null,
         secondaryUnit: Int? = null,
     ): ByteArray {
-        val rt = title.toByteArray(Charsets.UTF_8).let {
+        val rt = dashText(title).let {
             if (it.size > 60) it.copyOf(60) else it
         } + 0x00.toByte()
 
@@ -321,9 +321,22 @@ object DashCommands {
 
     /** One byte per char — the dash font is single-byte, so UTF-8
      *  multi-byte sequences (non-ASCII titles) would garble the card. */
-    private fun mediaField(s: String): ByteArray {
-        val t = if (s.length > MEDIA_FIELD_MAX) s.substring(0, MEDIA_FIELD_MAX) else s
-        return ByteArray(t.length) { i -> t[i].code.coerceAtMost(0xFF).toByte() }
+    private fun mediaField(s: String): ByteArray =
+        dashText(if (s.length > MEDIA_FIELD_MAX) s.substring(0, MEDIA_FIELD_MAX) else s)
+
+    /**
+     * The dash's own text (bottom bar, music line) is drawn one byte per letter from a Latin-1 font:
+     * UTF-8 "İ" (C4 B0) showed up as "XFÄTness". ö ü ç Ö Ü Ç exist in Latin-1 and are sent as is;
+     * the six Turkish letters it lacks get their closest Latin-1 letter (font limit, not a choice).
+     */
+    fun dashText(s: String): ByteArray {
+        val t = s.map {
+            when (it) {
+                'İ' -> 'I'; 'ı' -> 'i'; 'Ş' -> 'S'; 'ş' -> 's'; 'Ğ' -> 'G'; 'ğ' -> 'g'
+                else -> it
+            }
+        }
+        return ByteArray(t.size) { i -> (if (t[i].code <= 0xFF) t[i].code else '?'.code).toByte() }
     }
 
     /** 05 17: switch the dash's music widget on (session active) or off. */
