@@ -280,6 +280,39 @@ $BR --es set_mapmus true --ez np_clear true; sleep 1
 for f in nav-music nav-radar-off nav-music-off; do
   adb pull "/sdcard/Android/data/$PKG/files/diag/$f.png" "$OUT/$f.png" || echo "::warning::$f.png not rendered"
 done
+# Fuel stop: pause / resume / end navigation from the console menu (joystick codes: 21 = DOWN 0x15,
+# 19 = RIGHT 0x13, 20 = LEFT 0x14) and from the app's Konsol tab. A test wallpaper stands in for
+# "Fotoğrafımı konsolda göster"; fake_ride puts ~500 m into the recording so "bitir" saves a ride.
+dumpnav() { $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | tee -a "$OUT/nav-pause.txt"; }
+menu_open() { $BR --ei code 21; sleep 1; $BR --ei code 21; sleep 3; }
+snapf() { $BR --ez snap true --es snapname "$1"; sleep 3; adb pull "/sdcard/Android/data/$PKG/files/diag/$1.png" "$OUT/$1.png" || echo "::warning::$1.png not rendered"; }
+: > "$OUT/nav-pause.txt"
+$BR --ez test_wallpaper true --ez fake_ride true; sleep 2
+dumpnav
+menu_open; snapf nav-menu-top; dumpnav
+$BR --ei code 19; sleep 3          # row 0: "Navigasyonu duraklat"
+snapf nav-paused-wallpaper; dumpnav
+grep -q "paused=true wallHold=true" "$OUT/nav-pause.txt" && echo "pause from console menu: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::error::console menu did not pause navigation" | tee -a "$OUT/nav-pause.txt"
+$BR --ez clear_wallpaper true; sleep 1
+snapf nav-paused-pill
+tap0 "Konsol"; sleep 4; shot app-nav-paused
+tap0 "Navigasyona devam et"; sleep 4; shot app-nav-resumed   # resume from the phone
+snapf nav-resumed; dumpnav
+tail -1 "$OUT/nav-pause.txt" | grep -q "paused=false" && echo "resume from the app: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::error::app button did not resume navigation" | tee -a "$OUT/nav-pause.txt"
+$BR --ez test_wallpaper true --ez fake_ride true; sleep 2
+menu_open; $BR --ei code 21; sleep 2; snapf nav-menu-end   # cursor on "Navigasyonu bitir"
+$BR --ei code 19; sleep 4
+snapf nav-ended-wallpaper; dumpnav
+tail -1 "$OUT/nav-pause.txt" | grep -q "stops=\[\].*wallHold=true rideEnded=true recording=false" && echo "end from console menu: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::error::console menu did not end navigation" | tee -a "$OUT/nav-pause.txt"
+adb logcat -d -s DashViewModel | grep "Ride saved" | tail -2 | tee -a "$OUT/nav-pause.txt"
+adb shell run-as "$PKG" cat shared_prefs/ride_names.xml | tee "$OUT/ride_names.xml" | tee -a "$OUT/nav-pause.txt"
+grep -q "Mamak" "$OUT/ride_names.xml" && echo "ride saved under the destination name: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::warning::no ride named after the destination" | tee -a "$OUT/nav-pause.txt"
+$BR --ez clear_wallpaper true; sleep 1
+tap0 "Sürüşler"; sleep 5; shot rides-after-end
 # A Google Maps short link with no internet: a clear message, not silence. (Last: it opens a
 # second MainActivity, whose view models would also answer the debug broadcasts above.)
 adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://maps.app.goo.gl/9wMHSeJvD6xQZbH7A" -n "$PKG/com.example.wayfindr.MainActivity"

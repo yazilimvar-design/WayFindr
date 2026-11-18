@@ -63,6 +63,7 @@ class MapRenderer(private val tiles: TileProvider) {
         val gpsLost: Boolean = false,      // no fresh fix → grey marker + "GPS lost" pill
         val dark: Boolean = false,         // night ColorMatrix on cached light tiles
         val turnCard: TurnCard? = null,    // next turn, bottom-left card (replaces the dash's round turn widget)
+        val paused: Boolean = false,       // "Navigasyonu duraklat": small "Navigasyon duraklatıldı" pill (no wallpaper chosen)
     )
 
     /** Next turn for the bottom-left card: dash glyph code ([com.example.wayfindr.dash.nav.DashGlyph]),
@@ -557,6 +558,24 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.drawText(label, cxp, top + padV - fm.ascent, gpsPillText)
             topEdge = bottom + 4f
         }
+        // ── Navigation paused: small pill in the same top-centre stack ──
+        if (f.paused && f.pickerRows == null) {
+            val label = "Navigasyon duraklatıldı"
+            gpsPillText.color = Color.rgb(232, 183, 72)   // app gold
+            val padH = 14f; val padV = 6f
+            val fm = gpsPillText.fontMetrics
+            val textH = fm.descent - fm.ascent
+            val pillW = gpsPillText.measureText(label) + padH * 2
+            val cxp = w / 2f
+            val top = topEdge
+            val bottom = top + padV * 2 + textH
+            pillRect.set(cxp - pillW / 2f, top, cxp + pillW / 2f, bottom)
+            val r = (bottom - top) / 2f
+            canvas.drawRoundRect(pillRect, r, r, etaBgPaint)
+            canvas.drawRoundRect(pillRect, r, r, etaBorderPaint)
+            canvas.drawText(label, cxp, top + padV - fm.ascent, gpsPillText)
+            topEdge = bottom + 4f
+        }
 
         // ── Weather/fuel pill (NavPlus HUD), then the now-playing card below it. They used to share
         //    the same spot (pill at 0.14 H drawn over the card at 0.15 H, after the map), so while
@@ -684,10 +703,10 @@ class MapRenderer(private val tiles: TileProvider) {
     /** Compact music card at the top of the map: art left, bold title, grey artist (same look as the turn card). */
     private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int, top: Float = h * 0.15f) {
         if (title.isBlank()) return
-        val ch = h * 0.16f
+        val ch = h * 0.136f   // ~15% smaller than the first cut (0.16 H × 0.66 W); text and art scale with it
         // Round display: narrower near the top; at most as wide as the space left of the right-hand
         // stack (speed sign, radar pill) so they never overlap.
-        val cw = w * 0.66f
+        val cw = w * 0.58f
         val left = (w - cw) / 2f
         cardRect.set(left, top, left + cw, top + ch)
         canvas.drawRoundRect(cardRect, ch * 0.24f, ch * 0.24f, cardPaint)

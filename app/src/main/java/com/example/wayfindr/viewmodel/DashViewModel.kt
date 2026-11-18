@@ -65,6 +65,7 @@ data class DashUiState(
     val hasRoute: Boolean = false,
     val offRoute: Boolean = false,
     val recalculating: Boolean = false, // off-route long enough / actively rerouting → ETA frozen, pill shows "Recalculating"
+    val navPaused: Boolean = false,     // "Navigasyonu duraklat": route kept, guidance suspended
     val headingUp: Boolean = true,
     val mapDark: Boolean = false,       // effective (auto schedule or manual)
     val mapDarkAuto: Boolean = true,
@@ -198,10 +199,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var pickerItems: List<com.example.wayfindr.data.SavedLocation>? = null
     @Volatile private var pickerIndex = 0
     /**
-     * Page of the on-dash menu: ROOT = "Source ›", "Cancel ›" (only with a destination set) and
-     * saved destinations; SOURCE = map/routing choice; CANCEL = skip next stop / end navigation.
+     * Page of the on-dash menu: ROOT = (with a route) pause/resume, end, skip next stop; then
+     * "Uyarılar ›", the quick actions and saved destinations; SOURCE = the alert switches.
      */
-    private enum class MenuPage { ROOT, SOURCE, CANCEL }
+    private enum class MenuPage { ROOT, SOURCE }
     @Volatile private var menuPage = MenuPage.ROOT
     @Volatile private var pickerLastInputMs = 0L
     // State just before the last RIGHT tap, so a gesture that follows it (second tap of a
@@ -300,6 +301,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var routeRequestJob: Job? = null
     @Volatile private var lastTrafficRefreshAt = 0L
     @Volatile private var rideDestName: String? = null   // navigation destination during this ride → ride title
+    /** "Navigasyonu duraklat": route, stops and destination kept; guidance, rerouting and route alerts off. */
+    @Volatile private var navPaused = false
+    /** "Navigasyonu bitir" ended the ride: the next one starts with a new route or when riding off. */
+    @Volatile private var rideEnded = false
+    /** Paused / just ended: the console shows the wallpaper (if chosen) until the rider rides off. */
+    @Volatile private var wallHold = false
+    @Volatile private var wallHoldAt: Pair<Double, Double>? = null
     @Volatile private var lastTrafficSwitchAt = 0L   // no flip-flop: see TrafficSwitch.MIN_GAP_MS
     // Routes API bill guard (automatic calls only — a destination the rider picks is never blocked).
     @Volatile private var rerouteStreak = 0          // reroutes since last stably back on route → backoff
@@ -451,6 +459,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val DASH_MIN_ZOOM = 11
         /** Number of NavPlus quick-action rows (music, zoom, dark map, fuel) on the menu ROOT. */
         private const val JM_ROW_COUNT = 7
+        /** Paused / ended: this far from where it happened = ridden off → map back. */
+        private const val WALL_HOLD_M = 150.0
         private const val START_ZOOM = 16
         private const val DASH_MAX_ZOOM = 20
         /** How long a dash notice ("Skipped …") stays up. */
@@ -939,14 +949,17 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun stopRecording() {
+    /** Ends the recording; true when a ride was saved (a trivial one isn't). */
+    private fun stopRecording(): Boolean {
         recordJob?.cancel(); recordJob = null
-        if (!recorder.isRecording) return
-        val ride = recorder.stop() ?: return   // null = trivial session, don't save
+        if (!recorder.isRecording) return false
+        val ride = recorder.stop() ?: return false   // null = trivial session, don't save
         repo.addRide(ride)   // self-scoped on the repo (survives ViewModel teardown)
         rideDestName?.let { getApplication<android.app.Application>().getSharedPreferences("ride_names", 0).edit().putString(ride.sid, it).apply() }
+        android.util.Log.i("DashViewModel", "Ride saved: ${"%.1f".format(ride.distanceKm)} km, ${ride.durationSec}s name=${rideDestName ?: "-"}")
+        com.example.wayfindr.data.RideDiagnostics.log("ride", "saved ${ride.sid}: ${"%.1f".format(ride.distanceKm)} km name=${rideDestName ?: "-"}")
         rideDestName = null
-        android.util.Log.i("DashViewModel", "Ride saved: ${"%.1f".format(ride.distanceKm)} km, ${ride.durationSec}s")
+        return true
     }
 
     // ── Dash WiFi config (Settings) ──────────────────────────────────────────
@@ -997,6 +1010,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         routeStops = validStops
         // The ride is named after where it was going (not a reverse-geocoded house number).
         validStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }?.let { rideDestName = it }
+        // A new route after "Navigasyonu bitir": guidance runs again and a new ride starts.
+        setNavPaused(false); setWallHold(false)
+        if (rideEnded) { rideEnded = false; if (userWantsConnection) startRecording() }
         // New destination picked by the rider → fresh Routes API budget and reroute backoff.
         autoRouteCalls = 0; autoRouteCapLogged = false; rerouteStreak = 0; lastRerouteAt = 0L
         lastTrafficSwitchAt = 0L
@@ -1062,6 +1078,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         offRouteConfirmation.reset()
         panX = 0f; panY = 0f; followMode = true
         smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
+        setNavPaused(false); setWallHold(false)
         voice.resetTrip()
         googleNav.stop()
         location.snappedFeed = false
@@ -1079,6 +1096,96 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             followMode = true,
         ) }
         session.updateRouteCard("")   // dash card → app name + 0.0 km, nav off
+    }
+
+    private fun setNavPaused(on: Boolean) {
+        navPaused = on
+        _ui.update { it.copy(navPaused = on) }
+    }
+
+    /** Wallpaper instead of the map (NavPlus draws it when a photo is chosen) until the rider rides off. */
+    private fun setWallHold(on: Boolean) {
+        wallHold = on
+        wallHoldAt = if (on) location.lastKnown()?.let { it.latitude to it.longitude } else null
+        NavPlus.phHold = on
+        lastSignature = ""
+    }
+
+    /**
+     * "Navigasyonu duraklat" (fuel stop): route, stops and destination stay; turn card, voice,
+     * rerouting, off-route, traffic switching and the route's curve/rain alerts stop. The ride
+     * recording goes on as the same ride.
+     */
+    fun pauseNavigation() {
+        if (!hasDestination() || navPaused) return
+        routeRequestGeneration++
+        routeRequestJob?.cancel()
+        routeRequestJob = null
+        rerouting = false
+        trafficRefreshInFlight = false
+        waitingForFreshRouteOrigin = false
+        offRouteSince = 0L
+        offRouteConfirmation.reset()
+        offRouteStreakStart = 0L
+        recalcHoldUntil = 0L
+        setNavPaused(true)
+        turnCard = null
+        googleNav.stop()
+        location.snappedFeed = false
+        NavPlus.pend1 = null; NavPlus.pend2 = null
+        session.updateRouteCard("")   // the dash's own nav widget off while paused
+        setWallHold(true)
+        _ui.update { it.copy(maneuver = null, offRoute = false, recalculating = false, etaMinutes = null) }
+        com.example.wayfindr.data.RideDiagnostics.log("nav", "paused (route kept: ${routeStops.map { it.name }})")
+        wakeFrameLoop()
+    }
+
+    /** "Navigasyona devam et": guidance again from where the rider is now (progress re-matched, rerouted if off the line). */
+    fun resumeNavigation() {
+        if (!navPaused) return
+        setNavPaused(false)
+        setWallHold(false)
+        offRouteSince = 0L
+        offRouteConfirmation.reset()
+        offRouteStreakStart = 0L
+        smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null
+        voice.resetTrip()
+        val ahead = stopsAhead()
+        session.updateRouteCard(ahead.firstOrNull()?.name ?: _ui.value.destinationName.orEmpty())
+        val lat = destLat; val lng = destLng
+        if (lat != null && lng != null) {
+            googleNav.start(ahead)
+            if (route == null) fetchRoute(lat, lng, routeWaypoints)
+        }
+        com.example.wayfindr.data.RideDiagnostics.log("nav", "resumed")
+        wakeFrameLoop()
+    }
+
+    fun togglePauseNavigation() = if (navPaused) resumeNavigation() else pauseNavigation()
+
+    /** "Navigasyonu bitir": navigation off and the ride stopped + saved (named after the destination). */
+    fun endNavigation() {
+        val name = rideDestName
+        exitNavigation()
+        val saved = stopRecording()
+        rideEnded = true
+        setWallHold(true)
+        com.example.wayfindr.data.RideDiagnostics.log("nav", "ended; ride ${if (saved) "saved" else "not saved (too short)"} name=${name ?: "-"}")
+        showNotice("Navigasyon bitti", if (saved) "Sürüş kaydedildi" else "Sürüş çok kısa, kaydedilmedi")
+    }
+
+    /** Paused / ended: the hold lifts once the rider has clearly ridden off; after "bitir" a new ride starts. */
+    private fun checkWallHold(loc: android.location.Location?) {
+        if (!wallHold || loc == null) return
+        val at = wallHoldAt ?: (loc.latitude to loc.longitude).also { wallHoldAt = it }
+        if (GeoPoint.distMeters(GeoPoint(at.first, at.second), GeoPoint(loc.latitude, loc.longitude)) < WALL_HOLD_M) return
+        wallHold = false
+        NavPlus.phHold = false
+        lastSignature = ""
+        com.example.wayfindr.data.RideDiagnostics.log("nav", "rode off from the stop → map back")
+        if (rideEnded && userWantsConnection) viewModelScope.launch {
+            if (rideEnded && !recorder.isRecording) { rideEnded = false; startRecording() }
+        }
     }
 
     /**
@@ -1172,8 +1279,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 BTN_JOY_RIGHT -> "Picker RIGHT → " + selectPickerItem()
                 BTN_JOY_LEFT -> if (menuPage != MenuPage.ROOT) {
                     // Back to the row that opened this page.
-                    pickerIndex = if (menuPage == MenuPage.CANCEL && hasDestination()) 1 else 0
-                    menuPage = MenuPage.ROOT; "Picker back → menu"
+                    menuPage = MenuPage.ROOT
+                    pickerIndex = navRows().size   // the "Uyarılar" row
+                    "Picker back → menu"
                 } else { closePicker("cancelled (LEFT)"); "Picker cancelled" }
                 BTN_JOY_DOWN, BTN_REJECT -> {
                     pickerIndex = nextMenuIndex(menuRows(), pickerIndex); "Picker down → $pickerIndex"
@@ -1275,6 +1383,28 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     NavPlus.npNow = com.example.wayfindr.media.NowPlaying(t, "Albüm", intent.getStringExtra("np_artist").orEmpty(), art, true)
                 }
                 if (intent.getBooleanExtra("np_clear", false)) NavPlus.npNow = null
+                // CI: a console wallpaper ("Fotoğrafımı konsolda göster") without the photo picker.
+                if (intent.getBooleanExtra("test_wallpaper", false)) {
+                    val wp = Bitmap.createBitmap(1052, 600, Bitmap.Config.ARGB_8888)
+                    Canvas(wp).apply {
+                        drawPaint(android.graphics.Paint().apply { shader = android.graphics.LinearGradient(0f, 0f, 1052f, 600f,
+                            android.graphics.Color.rgb(30, 90, 140), android.graphics.Color.rgb(200, 120, 40), android.graphics.Shader.TileMode.CLAMP) })
+                        drawText("TEST DUVAR KAĞIDI", 526f, 300f, android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                            color = android.graphics.Color.WHITE; textSize = 64f; textAlign = android.graphics.Paint.Align.CENTER })
+                    }
+                    NavPlus.phFile(c).outputStream().use { wp.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+                    NavPlus.phSet(c, "ph_on", true)
+                    NavPlus.phBmp = wp; NavPlus.phTried = true; NavPlus.phOn = true
+                }
+                if (intent.getBooleanExtra("clear_wallpaper", false)) NavPlus.phClear(c)
+                // CI: ~500 m of riding into the ride recording, so "Navigasyonu bitir" has a ride to save.
+                if (intent.getBooleanExtra("fake_ride", false)) {
+                    if (!recorder.isRecording) startRecording()
+                    val l0 = location.lastKnown()
+                    val lat0 = l0?.latitude ?: 39.92; val lng0 = l0?.longitude ?: 32.85
+                    val t0 = System.currentTimeMillis() - 45_000L
+                    for (i in 0..44) recorder.add(lat0 + i * 0.0001, lng0, 11f, 5f, t0 + i * 1_000L)
+                }
                 intent.getStringExtra("set_safety")?.let { dashConfig.setOfflineSafety(it == "true") }
                 intent.getStringExtra("set_mapmus")?.let { NavPlus.phSet(c, "map_mus", it == "true") }
                 // Fake weather/fuel pill and speed sign / camera pill for layout frames.
@@ -1296,7 +1426,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     val loc = location.lastKnown()
                     if (frameBitmap == null) frameBitmap = newFrameBitmap()
                     val r = route
-                    if (r != null && turnCard == null && NavPlus.navCard) {
+                    if (r != null && turnCard == null && NavPlus.navCard && !navPaused) {
                         // Not streaming, so tick() made no turn card: the route's next turn stands in.
                         val m = r.maneuvers.firstOrNull { it.cumulativeMeters > progressM + 1 }
                         if (m != null) turnCard = MapRenderer.TurnCard(m.dashCode, m.cumulativeMeters - progressM, m.instruction, null)
@@ -1325,7 +1455,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         "end=${r?.geometry?.lastOrNull()?.let { "%.5f,%.5f".format(it.lat, it.lng) }} " +
                         "menu=${if (pickerItems == null) "closed" else "$menuPage@$pickerIndex"} " +
                         "notice=${notice?.takeIf { System.currentTimeMillis() < noticeUntilMs }}" +
-                        " zoom=$zoom range=${zoomRange()} map=OSM"
+                        " zoom=$zoom range=${zoomRange()} map=OSM" +
+                        " paused=$navPaused wallHold=$wallHold rideEnded=$rideEnded recording=${recorder.isRecording}"
                     android.util.Log.i("DashViewModel", "DEBUG $msg")
                     com.example.wayfindr.data.RideDiagnostics.log("debug", msg)
                 }
@@ -1372,8 +1503,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     /** Rows before the saved destinations on ROOT: the fixed rows plus the NavPlus quick actions. */
     private fun rootFixedRows() = rootFixedRows0() + JM_ROW_COUNT
 
-    /** Fixed rows on ROOT: "Rota kaynağı", and "Navigasyon" while navigating. */
-    private fun rootFixedRows0() = if (hasDestination()) 2 else 1
+    /** Fixed rows on ROOT: the navigation rows (while navigating), then "Uyarılar". */
+    private fun rootFixedRows0() = navRows().size + 1
 
     /** Rows of the menu page showing now; ROOT gets the NavPlus quick actions after its fixed rows. */
     private fun menuRows(): List<MapRenderer.MenuRow> {
@@ -1391,10 +1522,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun menuRows0(): List<MapRenderer.MenuRow> = when (menuPage) {
-        MenuPage.ROOT -> listOf(MapRenderer.MenuRow("Uyarılar", submenu = true)) +
-            (if (hasDestination()) listOf(MapRenderer.MenuRow("Navigasyon", submenu = true)) else emptyList()) +
+        MenuPage.ROOT -> navRows().map { MapRenderer.MenuRow(it.first) } +
+            MapRenderer.MenuRow("Uyarılar", submenu = true) +
             (pickerItems ?: emptyList()).map { MapRenderer.MenuRow(it.name) }
-        MenuPage.CANCEL -> cancelRows().map { MapRenderer.MenuRow(it.first) }
         // Routing is automatic since V57 (Google → OSM → offline BRouter), so this page only holds
         // the alert switches: the green tick = on; select toggles it.
         MenuPage.SOURCE ->
@@ -1416,10 +1546,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         else -> null
     }
 
-    /** CANCEL page rows (label, action id). */
-    private fun cancelRows(): List<Pair<String, String>> = buildList {
+    /** Rows at the top of ROOT while a route is set (label, action id). */
+    private fun navRows(): List<Pair<String, String>> = if (!hasDestination()) emptyList() else buildList {
+        add((if (navPaused) "Navigasyona devam et" else "Navigasyonu duraklat") to "pause")
+        add("Navigasyonu bitir" to "end")
         if (canSkipStop()) add("Sonraki durağı atla: ${stopsAhead().first().name}" to "skip")
-        if (hasDestination()) add("Navigasyonu durdur" to "end")
     }
 
     /** Next row the cursor can land on (wrapping, skipping headers). */
@@ -1449,8 +1580,16 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             showNotice(msg)
             return "Picker → $msg"
         }
-        if (menuPage == MenuPage.CANCEL) {
-            return when (cancelRows().getOrNull(pickerIndex)?.second) {
+        val nav = navRows()
+        if (pickerIndex < nav.size) {
+            return when (nav[pickerIndex].second) {
+                "pause" -> {
+                    val resume = navPaused
+                    closePicker(if (resume) "navigation resumed" else "navigation paused")
+                    if (resume) { resumeNavigation(); showNotice("Navigasyon devam ediyor") }
+                    else pauseNavigation()   // the wallpaper or the "Navigasyon duraklatıldı" pill shows it
+                    "Picker → navigation ${if (resume) "resumed" else "paused"}"
+                }
                 "skip" -> {
                     val ahead = stopsAhead()
                     closePicker("skipped stop ${ahead.first().name}")
@@ -1461,25 +1600,18 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     showNotice("Atlandı: ${ahead.first().name}", "→ ${ahead.drop(1).first().name}")
                     "Picker → skipped ${ahead.first().name}"
                 }
-                "end" -> {
-                    closePicker("navigation cancelled")
-                    com.example.wayfindr.data.RideDiagnostics.log("picker", "navigation cancelled (from the dash)")
-                    exitNavigation()
-                    showNotice("Navigasyon durduruldu.")
-                    "Picker → navigation cancelled"
+                else -> {
+                    closePicker("navigation ended")
+                    com.example.wayfindr.data.RideDiagnostics.log("picker", "navigation ended (from the dash)")
+                    endNavigation()
+                    "Picker → navigation ended"
                 }
-                else -> { menuPage = MenuPage.ROOT; pickerIndex = 0; "Picker: nothing to cancel" }
             }
         }
-        if (pickerIndex == 0) {
+        if (pickerIndex == nav.size) {
             menuPage = MenuPage.SOURCE
             pickerIndex = 1
             return "Picker → Source page"
-        }
-        if (pickerIndex == 1 && hasDestination()) {
-            menuPage = MenuPage.CANCEL
-            pickerIndex = 0
-            return "Picker → Cancel page"
         }
         val loc = items.getOrNull(pickerIndex - rootFixedRows())
         if (loc == null) { closePicker("cancel selected"); return "Picker cancelled" }
@@ -1725,7 +1857,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         var recalculating = false
         // Navigation state (progress, waypoints, off-route, ETA, dash nav card, voice) only advances
         // while streaming to the dash; the phone preview before/without a dash just shows the map.
-        val streaming = userWantsConnection && session.state.value == DashState.STREAMING
+        // Paused ("Navigasyonu duraklat"): the map keeps following, but no guidance of any kind.
+        val streaming = userWantsConnection && session.state.value == DashState.STREAMING && !navPaused
+        checkWallHold(loc)
 
         // Navigation SDK turn-by-turn while its guidance runs (null = our own route data).
         val navInfo = com.example.wayfindr.dash.nav.GoogleNav.navInfo?.takeIf { googleNav.active }
@@ -1857,7 +1991,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
         // Recompute the route if the rider has clearly left it for a few seconds.
         maybeReroute(offRoute, loc)
-        if (!googleNav.active) maybeRefreshTraffic(loc)
+        if (!googleNav.active && !navPaused) maybeRefreshTraffic(loc)
 
         // Periodic ride snapshot (~15 s) — GPS quality, motion, frame throughput and thermal,
         // so a post-ride read shows where the map stuttered (weak GPS) or the dash struggled.
@@ -2052,7 +2186,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             camBearing = if (headingUp) camHeading else 0f,
             mapZoom = zoom,
             remainingKm = remainingM?.let { d -> d / 1000.0 },
-            etaMinutes = if (etaSec != null) displayedEtaMin else null,
+            etaMinutes = if (etaSec != null && !navPaused) displayedEtaMin else null,
             maneuver = null,
             offRoute = offRoute,
             recalculating = recalculating,
@@ -2306,6 +2440,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Off-route / rerouting: tell the rider the ETA is being recomputed instead of showing a
         // frozen or wildly-swinging number.
         val etaPrimary = when {
+            navPaused -> null
             recalculating && route != null -> "Hesaplanıyor"
             mins != null && etaArrivalMs > 0L -> when {
                 arriving   -> "Varış"
@@ -2346,7 +2481,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             traffic = aheadTraffic,
             maneuverText = null, // turn-by-turn maneuver banner removed
             turnCard = turnCard,
-            remainingText = remainingM?.let { fmtDist(it) },
+            remainingText = remainingM?.takeIf { !navPaused }?.let { fmtDist(it) },
+            paused = navPaused,
             // Top-down (heading-up) nav view. The 3D perspective tilt is DISABLED: warping
             // flat raster tiles via setPolyToPoly stretches the baked-in map labels and
             // skews the angle (you can't get true Google-Maps 3D without vector tiles).
@@ -2354,10 +2490,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             etaPrimary = etaPrimary,
             etaSecondary = etaSecondary,
             pickerRows = pickerItems?.let { menuRows() },
-            pickerTitle = when (menuPage) { MenuPage.SOURCE -> "UYARILAR"; MenuPage.CANCEL -> "ROTA / DURAK"; MenuPage.ROOT -> "KAYITLI YERLER" },
+            pickerTitle = when (menuPage) { MenuPage.SOURCE -> "UYARILAR"; MenuPage.ROOT -> if (hasDestination()) "MENÜ" else "KAYITLI YERLER" },
             pickerSelectHint = when (menuPage) {
                 MenuPage.SOURCE -> "Sol/sağ: gez · sağ basılı: seç"
-                MenuPage.CANCEL -> "Sol/sağ: gez · sağ basılı: seç"
                 MenuPage.ROOT -> "Sol/sağ: gez · sağ basılı: aç"
             },
             pickerIndex = pickerIndex,

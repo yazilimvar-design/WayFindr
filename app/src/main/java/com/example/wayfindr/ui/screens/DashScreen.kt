@@ -213,6 +213,37 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
             },
         )
 
+        // Active navigation: pause/resume and end first, where the rider looks (fuel stop).
+        if (ui.destinationName != null) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+            ) {
+                WayfindrBtn(
+                    if (ui.navPaused) "Navigasyona devam et" else "Navigasyonu duraklat",
+                    onClick = { vm.togglePauseNavigation() },
+                    icon = if (ui.navPaused) WayfindrIcons.Play else WayfindrIcons.Pause,
+                    variant = if (ui.navPaused) BtnVariant.Primary else BtnVariant.Secondary,
+                    size = BtnSize.Md,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                WayfindrBtn(
+                    "Navigasyonu bitir",
+                    onClick = { vm.endNavigation() },
+                    icon = WayfindrIcons.Flag,
+                    variant = BtnVariant.Danger,
+                    size = BtnSize.Md,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (ui.navPaused) {
+                    Text(
+                        "Navigasyon duraklatıldı — rota ve duraklar korunuyor, sürüş kaydı sürüyor.",
+                        color = TextMid, fontSize = 12.sp,
+                    )
+                }
+            }
+        }
+
         // Single connection card (hidden once streaming)
         if (!streaming) {
             if (!hasBackgroundLocation) {
@@ -564,19 +595,6 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
                 WayfindrIconBtn(WayfindrIcons.Minus, onClick = { vm.zoomOut() }, size = 52.dp)
                 WayfindrIconBtn(WayfindrIcons.Recenter, onClick = { vm.recenter(); pan = Offset.Zero }, size = 52.dp, active = true)
             }
-        }
-
-        // Exit navigation → free roam (keeps streaming, just drops the route)
-        if (streaming && ui.destinationName != null) {
-            Spacer(Modifier.height(16.dp))
-            WayfindrBtn(
-                "Navigasyondan çık",
-                onClick = { vm.exitNavigation() },
-                icon = WayfindrIcons.Navi,
-                variant = BtnVariant.Ghost,
-                size = BtnSize.Md,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
 
         // Disconnect button when streaming

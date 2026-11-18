@@ -130,6 +130,8 @@ public final class NavPlus {
     public static volatile boolean phOn = false;
     public static volatile Paint phPaint = null;
     public static volatile boolean phTried = false;
+    // Himican: navigasyon duraklatıldı / bitirildi → rota çizili ya da motor biraz hareket etse de duvar kağıdı (DashViewModel).
+    public static volatile boolean phHold = false;
     public static volatile float phX = 0.5f;
     public static volatile float phY = 0.5f;
     public static volatile float phZ = 1.0f;
@@ -2159,10 +2161,13 @@ public final class NavPlus {
         try {
             phLoad();
             List<GeoPoint> route = frame.getRoute();
-            if ((route != null && !route.isEmpty()) || frame.getPickerRows() != null) {
+            if (frame.getPickerRows() != null) {
                 return false;
             }
-            if (frame.getRiderLat() != null && !LocPlus.stOn) {
+            if (!phHold && route != null && !route.isEmpty()) {
+                return false;
+            }
+            if (!phHold && frame.getRiderLat() != null && !LocPlus.stOn) {
                 return false;
             }
             // Himican: duvar kağıdı her zaman arka planda kalır; albüm kapağı yalnızca şeritte.

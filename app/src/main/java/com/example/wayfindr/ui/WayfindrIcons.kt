@@ -2,6 +2,8 @@ package com.example.wayfindr.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material.icons.outlined.Bolt
@@ -105,6 +107,8 @@ object WayfindrIcons {
     val Edit          = Icons.Outlined.Edit
     val Zap           = Icons.Outlined.Bolt
     val Units         = Icons.Outlined.Straighten
+    val Pause         = Icons.Outlined.Pause
+    val Play          = Icons.Outlined.PlayArrow
 
     // ---- Custom icons (SVG path → ImageVector) ----
     val Dash: ImageVector = pathVec(
