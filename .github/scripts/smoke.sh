@@ -276,10 +276,123 @@ $BR --ez fakehud true --es set_safety false; sleep 1
 $BR --ez snap true --es snapname nav-radar-off; sleep 2
 $BR --es set_safety true --es set_mapmus false --ez fakehud true; sleep 1
 $BR --ez snap true --es snapname nav-music-off; sleep 2
-$BR --es set_mapmus true --ez np_clear true; sleep 1
-for f in nav-music nav-radar-off nav-music-off; do
+$BR --es set_mapmus true --ez fakehud true; sleep 1
+# ▼ then ● (centre 0x18 = 24): play/pause; the card stays with a pause mark. ▼ presses 4 s apart (no double-▼ menu).
+: > "$OUT/music-toggle.txt"
+mdump() { $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "music=[a-z-]*" | tee -a "$OUT/music-toggle.txt"; }
+sleep 4; $BR --ei code 21; sleep 1; $BR --ez snap true --es snapname music-hint; $BR --ei code 24; sleep 2
+$BR --ez snap true --es snapname music-paused; sleep 2; mdump
+sleep 4; $BR --ei code 21; sleep 1; $BR --ei code 24; sleep 2; $BR --ez snap true --es snapname music-resumed; sleep 2; mdump
+sed -n 1p "$OUT/music-toggle.txt" | grep -q "music=paused" && sed -n 2p "$OUT/music-toggle.txt" | grep -q "music=playing" \
+  && echo "▼● play/pause: OK" | tee -a "$OUT/music-toggle.txt" || echo "::error::▼● did not toggle the music" | tee -a "$OUT/music-toggle.txt"
+$BR --ez np_clear true; sleep 1
+for f in nav-music nav-radar-off nav-music-off music-hint music-paused music-resumed; do
   adb pull "/sdcard/Android/data/$PKG/files/diag/$f.png" "$OUT/$f.png" || echo "::warning::$f.png not rendered"
 done
+# Fuel stop: pause / resume / end navigation from the console menu (joystick codes: 21 = DOWN 0x15,
+# 19 = RIGHT 0x13, 20 = LEFT 0x14) and from the app's Konsol tab. A test wallpaper stands in for
+# "Fotoğrafımı konsolda göster"; fake_ride puts ~500 m into the recording so "bitir" saves a ride.
+dumpnav() { $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | tee -a "$OUT/nav-pause.txt"; }
+menu_open() { $BR --ei code 21; sleep 1; $BR --ei code 21; sleep 3; }
+snapf() { $BR --ez snap true --es snapname "$1"; sleep 3; adb pull "/sdcard/Android/data/$PKG/files/diag/$1.png" "$OUT/$1.png" || echo "::warning::$1.png not rendered"; }
+: > "$OUT/nav-pause.txt"
+$BR --ez test_wallpaper true --ez fake_ride true; sleep 2
+dumpnav
+tap0 "Konsol"; sleep 4; shot app-nav-buttons      # one row: "Duraklat" | "Bitir"
+ui_dump; grep -o 'text="\(Duraklat\|Bitir\)"[^>]*bounds="[^"]*"' "$OUT/ui.xml" | tee -a "$OUT/nav-pause.txt"
+menu_open; snapf nav-menu-pill-duraklat; dumpnav  # top pill row, "Duraklat" highlighted
+$BR --ei code 21; sleep 2; snapf nav-menu-pill-bitir   # DOWN: cursor to the "Bitir" pill
+dumpnav | grep -q "menu=ROOT@1" && echo "DOWN moves to the Bitir pill: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::warning::DOWN did not move to the Bitir pill" | tee -a "$OUT/nav-pause.txt"
+grep -q "menu=ROOT@0" "$OUT/nav-pause.txt" && echo "menu opens on the Duraklat pill: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::warning::menu did not open on the Duraklat pill" | tee -a "$OUT/nav-pause.txt"
+$BR --ei code 20; sleep 2          # LEFT closes the menu
+menu_open
+$BR --ei code 19; sleep 3          # pill 0: "Duraklat"
+snapf nav-paused-wallpaper; dumpnav
+grep -q "paused=true wallHold=true" "$OUT/nav-pause.txt" && echo "pause from console menu: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::error::console menu did not pause navigation" | tee -a "$OUT/nav-pause.txt"
+$BR --ez clear_wallpaper true; sleep 1
+snapf nav-paused-pill
+tap0 "Konsol"; sleep 4; shot app-nav-paused
+tap0 "Devam et"; sleep 4; shot app-nav-resumed   # resume from the phone
+snapf nav-resumed; dumpnav
+tail -1 "$OUT/nav-pause.txt" | grep -q "paused=false" && echo "resume from the app: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::error::app button did not resume navigation" | tee -a "$OUT/nav-pause.txt"
+# Hands-free: UP (0x12 = 18, or 0x06) opens "◀ Duraklat · Bitir ▶"; LEFT pause/resume, DOWN / 5 s = Vazgeçildi.
+upck() { tail -1 "$OUT/nav-pause.txt" | grep -q "$1" && echo "$2: OK" | tee -a "$OUT/nav-pause.txt" || echo "::error::$2 failed" | tee -a "$OUT/nav-pause.txt"; }
+snapq() { $BR --ez snap true --es snapname "$1"; }   # frame now, pulled later (the prompt closes after 5 s)
+pullf() { for f in "$@"; do adb pull "/sdcard/Android/data/$PKG/files/diag/$f.png" "$OUT/$f.png" || echo "::warning::$f.png not rendered"; done; }
+$BR --ei code 18; sleep 1; snapq nav-up-prompt; sleep 6; dumpnav; upck "notice=\[Vazgeçildi\].*prompt=false" "UP prompt times out after 5 s"
+$BR --ei code 18; sleep 1; dumpnav; upck "prompt=true" "UP opens the prompt"
+$BR --ei code 20; sleep 2; snapf nav-up-paused; dumpnav; upck "paused=true.*prompt=false" "UP prompt LEFT pauses"
+$BR --ei code 18; sleep 1; snapq nav-up-prompt-resume; sleep 1; $BR --ei code 20; sleep 2
+snapf nav-up-resumed; dumpnav; upck "paused=false.*prompt=false" "UP prompt LEFT resumes"
+$BR --ei code 6; sleep 1; snapq nav-up-prompt-0x06; sleep 1; $BR --ei code 21; sleep 1; dumpnav; snapf nav-up-dismissed
+upck "notice=\[Vazgeçildi\].*paused=false.*prompt=false" "UP (0x06) prompt DOWN dismisses"
+pullf nav-up-prompt nav-up-prompt-resume nav-up-prompt-0x06
+sleep 4   # no DOWN pairing with the next menu_open
+$BR --ez test_wallpaper true --ez fake_ride true; sleep 2
+menu_open; $BR --ei code 21; sleep 2; snapf nav-menu-end   # cursor on the "Bitir" pill
+$BR --ei code 19; sleep 4
+snapf nav-ended-wallpaper; dumpnav
+tail -1 "$OUT/nav-pause.txt" | grep -q "stops=\[\].*wallHold=true rideEnded=true recording=false" && echo "end from console menu: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::error::console menu did not end navigation" | tee -a "$OUT/nav-pause.txt"
+adb logcat -d -s DashViewModel | grep "Ride saved" | tail -2 | tee -a "$OUT/nav-pause.txt"
+adb shell run-as "$PKG" cat shared_prefs/ride_names.xml | tee "$OUT/ride_names.xml" | tee -a "$OUT/nav-pause.txt"
+grep -q "Mamak" "$OUT/ride_names.xml" && echo "ride saved under the destination name: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::warning::no ride named after the destination" | tee -a "$OUT/nav-pause.txt"
+# UP → RIGHT: end + save from the prompt (same stops again first).
+$BR --ez redo_dest true; sleep 20; $BR --ez fake_ride true; sleep 2; dumpnav
+$BR --ei code 18; sleep 1; snapq nav-up-prompt-end; sleep 1
+$BR --ei code 19; sleep 4; snapf nav-up-ended; pullf nav-up-prompt-end; dumpnav
+upck "stops=\[\].*rideEnded=true recording=false" "UP prompt RIGHT ends + saves"
+adb logcat -d -s DashViewModel | grep "Ride saved" | tail -1 | tee -a "$OUT/nav-pause.txt"
+# The dash's own round ball: every route card in every state above carries glyph 0xFF.
+grep -o "ball=\[[^]]*\]" "$OUT/nav-pause.txt" | sort | uniq -c | tee -a "$OUT/nav-pause.txt"
+grep -o "ball=\[card=0x[0-9A-F]*" "$OUT/nav-pause.txt" | grep -v "card=0xFF" && echo "::error::route card carries a ball glyph" | tee -a "$OUT/nav-pause.txt" \
+  || echo "no dash ball in idle / navigating / paused / ended: OK" | tee -a "$OUT/nav-pause.txt"
+$BR --ez clear_wallpaper true; sleep 1
+tap0 "Sürüşler"; sleep 5; shot rides-after-end
+# Incoming call: the caller stays on the console until answered / ended. A real emulator call
+# (dialer notification → listener) if the console accepts it, else the fake hook.
+: > "$OUT/call.txt"
+cdump() { $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "call=[^ ]*" | tee -a "$OUT/call.txt"; }
+adb shell cmd notification allow_listener "$PKG/com.example.wayfindr.media.WayfindrNotificationListener" || true
+adb shell pm grant "$PKG" android.permission.ANSWER_PHONE_CALLS || true
+adb emu gsm call 5551234 || true; sleep 6
+REAL=1; cdump | grep -q "ringing" || { REAL=0; echo "no dialer notification seen → fake call" | tee -a "$OUT/call.txt"; $BR --es fake_call "'Ahmet Yılmaz'"; sleep 2; }
+snapf call-ringing-6s; sleep 14; snapf call-ringing-20s; cdump
+tail -1 "$OUT/call.txt" | grep -q "ringing" && echo "caller still shown after 20 s of ringing: OK" | tee -a "$OUT/call.txt" \
+  || echo "::error::caller vanished while ringing" | tee -a "$OUT/call.txt"
+# Answer with joystick UP (0x06) — the call has priority over the navigation prompt.
+if [ $REAL = 1 ]; then $BR --ei code 6; else $BR --ez fake_call_answer true; fi; sleep 5; cdump; snapf call-answered
+tail -1 "$OUT/call.txt" | grep -q "active" && echo "UP answered the call (no nav prompt): OK" | tee -a "$OUT/call.txt" \
+  || echo "::error::call not active after UP" | tee -a "$OUT/call.txt"
+$BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "prompt=[a-z]*" | tee -a "$OUT/call.txt"
+if [ $REAL = 1 ]; then adb emu gsm cancel 5551234; else $BR --ez fake_call_end true; fi; sleep 5; cdump; snapf call-ended
+tail -1 "$OUT/call.txt" | grep -q "call=-" && echo "call cleared after it ended: OK" | tee -a "$OUT/call.txt" \
+  || echo "::warning::call not cleared after end" | tee -a "$OUT/call.txt"
+adb logcat -d -s NsNotifListener DashViewModel | grep -E "call notification|Call answer" | tail -8 | tee -a "$OUT/call.txt"
+adb shell input keyevent KEYCODE_HOME; sleep 1
+# A ride the process never got to save: record (journal), kill the app in the background, relaunch →
+# the journal (last fix 40 min ago = over) becomes a saved ride.
+: > "$OUT/ride-recover.txt"
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity"; sleep 5
+$BR --ez fake_ride true --ei fake_ride_age_min 40; sleep 2
+$BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "recording=[a-z]*" | tee -a "$OUT/ride-recover.txt"
+adb shell run-as "$PKG" ls -l files/ride_journal.txt | tee -a "$OUT/ride-recover.txt"
+adb shell run-as "$PKG" head -2 files/ride_journal.txt | cut -c1-40 | tee -a "$OUT/ride-recover.txt"
+adb shell input keyevent KEYCODE_HOME; sleep 2
+adb shell am kill "$PKG"; sleep 2
+adb shell pidof "$PKG" && { echo "am kill left it running → force-stop" | tee -a "$OUT/ride-recover.txt"; adb shell am force-stop "$PKG"; sleep 2; }
+adb logcat -d > "$OUT/logcat-before-kill.txt"; adb logcat -c
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity"; sleep 10
+adb logcat -d -s DashViewModel | grep -E "Ride (recovered|dropped|journal)" | tee -a "$OUT/ride-recover.txt"
+adb shell run-as "$PKG" ls files/ride_journal.txt 2>&1 | tee -a "$OUT/ride-recover.txt"
+grep -q "Ride recovered" "$OUT/ride-recover.txt" && echo "killed ride recovered on relaunch: OK" | tee -a "$OUT/ride-recover.txt" \
+  || echo "::error::killed ride was not recovered" | tee -a "$OUT/ride-recover.txt"
+tap0 "Sürüşler"; sleep 5; shot rides-after-recover
 # A Google Maps short link with no internet: a clear message, not silence. (Last: it opens a
 # second MainActivity, whose view models would also answer the debug broadcasts above.)
 adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://maps.app.goo.gl/9wMHSeJvD6xQZbH7A" -n "$PKG/com.example.wayfindr.MainActivity"
@@ -317,6 +430,7 @@ adb logcat -d > "$OUT/logcat.txt"
 adb pull "/sdcard/Android/data/$PKG/files/diag" "$OUT/diag" 2>/dev/null || true
 adb shell run-as "$PKG" ls -R files > "$OUT/files-ls.txt" 2>&1 || true
 
+cat "$OUT/logcat-before-kill.txt" >> "$OUT/logcat.txt" 2>/dev/null || true
 if grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG"; then
   grep -A60 "FATAL EXCEPTION" "$OUT/logcat.txt"; echo "::error::FATAL EXCEPTION in $PKG"; exit 1
 fi

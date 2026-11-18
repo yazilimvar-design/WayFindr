@@ -41,6 +41,38 @@ class RideRecorder {
     private val alts = ArrayList<Float>()     // altitude at each track point (NaN = none yet)
 
     val isRecording: Boolean get() = recording
+
+    /**
+     * Crash-safe journal of the ride in progress (app storage): a header with the start time, then
+     * every fix [add] gets ("lat,lng,speed,acc,time,alt"), and "N,<name>" when the ride's name
+     * changes. Flushed per line, so a killed process (bike off, battery saver) loses at most the
+     * last fix; [recover] turns a left-over journal into the ride. Deleted by [stop].
+     */
+    var journal: File? = null
+    private var jw: java.io.Writer? = null
+    private var replaying = false
+    /** Why the last [stop] returned null ("< 150 m", "< 2 points"), for the ride log. */
+    var dropReason: String? = null; private set
+
+    private fun jWrite(line: String) {
+        if (replaying) return
+        val f = journal ?: return
+        try {
+            val w = jw ?: java.io.OutputStreamWriter(java.io.FileOutputStream(f, true), Charsets.UTF_8).also { jw = it }
+            w.write(line); w.write("\n"); w.flush()
+        } catch (_: Throwable) {}
+    }
+
+    private fun jClose(delete: Boolean) {
+        try { jw?.close() } catch (_: Throwable) {}
+        jw = null
+        if (delete) try { journal?.delete() } catch (_: Throwable) {}
+    }
+
+    /** Name the ride (navigation destination) in the journal, so a recovered ride keeps it. */
+    fun journalName(name: String?) {
+        if (recording && !name.isNullOrBlank()) jWrite("N," + name.replace('\n', ' '))
+    }
     /** Distance ridden so far this session (m). */
     val distanceSoFarM: Double get() = distanceM
 
@@ -50,11 +82,48 @@ class RideRecorder {
         altSmooth = Double.NaN; altRef = Double.NaN; altMin = Double.NaN; altMax = Double.NaN
         startMs = nowMs; lastMs = startMs
         recording = true
+        if (!replaying && journal != null) { jClose(delete = true); jWrite("H,1,$nowMs"); live = this }
     }
+
+    /**
+     * Continue the journal's ride (the app was killed and came back within [JOURNAL_STALE_MS]):
+     * its fixes are replayed, new ones append to the same file. Returns the journal's ride name.
+     */
+    fun resume(file: File): String? {
+        val r = replay(file) ?: return null
+        journal = file
+        live = this
+        return r
+    }
+
+    /** Replays [file] into this recorder (recording on afterwards); the ride name, or null if not a journal. */
+    private fun replay(file: File): String? {
+        val lines = try { file.readLines(Charsets.UTF_8) } catch (_: Throwable) { return null }
+        val head = lines.firstOrNull()?.split(',') ?: return null
+        if (head.size < 3 || head[0] != "H") return null
+        var name: String? = null
+        replaying = true
+        try {
+            start(head[2].toLongOrNull() ?: return null)
+            for (l in lines.drop(1)) {
+                if (l.startsWith("N,")) { name = l.substring(2).ifBlank { null }; continue }
+                val f = l.split(',')
+                if (f.size < 6) continue   // a half-written last line
+                val lat = f[0].toDoubleOrNull() ?: continue; val lng = f[1].toDoubleOrNull() ?: continue
+                add(lat, lng, f[2].toFloatOrNull() ?: 0f, f[3].toFloatOrNull() ?: 99f, f[4].toLongOrNull() ?: continue,
+                    f[5].toDoubleOrNull() ?: Double.NaN)
+            }
+        } finally { replaying = false }
+        return name ?: ""
+    }
+
+    /** Time of the last fix in the journal (or its start), for the "ride is over" age check. */
+    val lastFixTimeMs: Long get() = if (lastFixMs > 0) lastFixMs else startMs
 
     /** [altM]: GPS (WGS84 ellipsoid) altitude, NaN when the fix has none. */
     fun add(lat: Double, lng: Double, speedMps: Float, accuracyM: Float, timeMs: Long, altM: Double = Double.NaN) {
         if (!recording) return
+        jWrite("$lat,$lng,$speedMps,$accuracyM,$timeMs,${if (altM.isNaN()) "" else altM.toString()}")
         // Stopped time counts every fix (parked fixes are often imprecise); a long gap is capped
         // so a GPS outage isn't all banked as stopped.
         if (lastFixMs > 0 && speedMps < STILL_SPEED) stoppedMs += (timeMs - lastFixMs).coerceIn(0, if (fromFile) Long.MAX_VALUE else MAX_GAP_MS)
@@ -117,8 +186,15 @@ class RideRecorder {
     fun stop(end: Long = System.currentTimeMillis()): Ride? {
         saveSpeeds()
         recording = false
+        jClose(delete = true)
+        if (live === this) live = null
         val durationS = ((end - startMs) / 1000L).coerceAtLeast(0)
-        if (points.size < 2 || distanceM < MIN_RIDE_M) return null
+        dropReason = when {
+            points.size < 2 -> "< 2 points"
+            distanceM < MIN_RIDE_M -> "< ${MIN_RIDE_M.toInt()} m (${distanceM.roundToInt()} m)"
+            else -> null
+        }
+        if (dropReason != null) return null
         val avg = if (durationS > 0) distanceM / durationS else 0.0
         val first = points.first(); val lastPt = points.last()
         val sid = WayfindrDb.newSid()
@@ -173,6 +249,34 @@ class RideRecorder {
     }
 
     companion object {
+        /** A journal whose last fix is older than this is a finished ride, not one to continue. */
+        const val JOURNAL_STALE_MS = 30 * 60_000L
+
+        /** The recorder writing a journal in this process (a second view model must not touch it). */
+        @Volatile private var live: RideRecorder? = null
+        fun isLive(file: File): Boolean = live?.let { it.recording && it.journal == file } == true
+
+        /**
+         * Finish a journal left by a killed process: the ride (null if trivial — see the returned
+         * reason), its name, and the journal is deleted either way.
+         */
+        fun recover(file: File): Triple<Ride?, String?, String> {
+            val r = RideRecorder()
+            val name = r.replay(file)
+            if (name == null) { file.delete(); return Triple(null, null, "unreadable journal") }
+            r.journal = file
+            val ride = r.stop(r.lastFixTimeMs)
+            return Triple(ride, name.ifBlank { null }, r.dropReason ?: "ok")
+        }
+
+        /** Age of a journal = now − its last fix (reads only the last line). */
+        fun journalLastFixMs(file: File): Long? = try {
+            val lines = file.readLines(Charsets.UTF_8)
+            lines.asReversed().firstNotNullOfOrNull { l ->
+                val f = l.split(','); if (f.size >= 6) f[4].toLongOrNull() else if (f.size >= 3 && f[0] == "H") f[2].toLongOrNull() else null
+            }
+        } catch (_: Throwable) { null }
+
         private const val MIN_MOVE_M = 8.0     // thin track points to ~every 8 m
         private const val MIN_RIDE_M = 150.0   // discard rides that covered less than this (parking-lot blips)
         private const val ACC_GATE_M = 20f     // ignore fixes worse than this (m); noisy fixes inflate distance

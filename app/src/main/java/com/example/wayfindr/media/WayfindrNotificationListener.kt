@@ -35,13 +35,28 @@ class WayfindrNotificationListener : NotificationListenerService() {
         // CallStyle's EXTRA_CALL_TYPE (API 31+): 1=INCOMING, 2=ONGOING, 3=OUTGOING, 4=SCREENING.
         // INCOMING → ringing (overlay + answer/reject). ONGOING/OUTGOING → active (end only, no
         // overlay). Pre-31 we can't tell, so assume incoming.
+        // Himican: the caller stays until answered (→ active) or the call's own notification goes
+        // (CallNotifRules): other CALL posts/removals and re-posts no longer clear it while ringing.
         val type = if (android.os.Build.VERSION.SDK_INT >= 31) n.extras.getInt(Notification.EXTRA_CALL_TYPE, 0) else 1
-        val incoming = type == 1
-        val active = type == 2 || type == 3
-        if (!incoming && !active) { CallInfoProvider.update(null); return }   // screening / unknown
+        val current = CallInfoProvider.incomingCall.value
+        val sameKey = sbn.key == callKey
+        val (ans0, end0) = extractActions(n, false)
+        val kind = CallNotifRules.kind(type, android.os.Build.VERSION.SDK_INT,
+            ans0 != null, sameKey, current != null, end0 != null)
+        com.example.wayfindr.data.RideDiagnostics.log("media", "call notification type=$type sameKey=$sameKey → $kind")
+        Log.i(TAG, "call notification type=$type sameKey=$sameKey actions=${n.actions?.joinToString { it.title.toString() }} → $kind")
+        when (kind) {
+            CallNotifRules.Kind.IGNORE -> return
+            CallNotifRules.Kind.CLEAR -> { cancelPendingClear(); callKey = null; CallInfoProvider.update(null); return }
+            else -> {}
+        }
+        cancelPendingClear()
+        callKey = sbn.key
+        val incoming = kind == CallNotifRules.Kind.INCOMING
 
         val (answer, decline) = extractActions(n, incoming)
-        val caller = callerName(n).ifBlank { if (incoming) "Call" else "On call" }
+        val caller = CallNotifRules.callerName(callerName(n), GENERIC, current?.caller, sameKey)
+            .ifBlank { if (incoming) "Call" else "On call" }
         com.example.wayfindr.data.RideDiagnostics.log("media",
             "${if (incoming) "INCOMING" else "ACTIVE"} call: '$caller' (answerAct=${answer != null} declineAct=${decline != null})")
         CallInfoProvider.update(IncomingCall(caller, incoming, answer, decline))
@@ -72,10 +87,26 @@ class WayfindrNotificationListener : NotificationListenerService() {
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        if (sbn?.notification?.category == Notification.CATEGORY_CALL) {
-            CallInfoProvider.update(null)
+        if (sbn?.notification?.category != Notification.CATEGORY_CALL) return
+        if (!CallNotifRules.removalEndsCall(sbn.key, callKey)) {
+            com.example.wayfindr.data.RideDiagnostics.log("media", "other call notification removed — call kept")
+            return
         }
+        // A dialer may drop and re-post the card (contact lookup, heads-up → shade): clear only if
+        // it doesn't come back shortly.
+        cancelPendingClear()
+        val clear = Runnable {
+            callKey = null
+            CallInfoProvider.update(null)
+            com.example.wayfindr.data.RideDiagnostics.log("media", "call ended (notification removed)")
+        }
+        pendingClear = clear
+        handler.postDelayed(clear, CallNotifRules.REMOVE_GRACE_MS)
     }
+
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingClear: Runnable? = null
+    private fun cancelPendingClear() { pendingClear?.let { handler.removeCallbacks(it) }; pendingClear = null }
 
     /** Caller name = the call notification's title; fall back to its text. */
     private fun callerName(n: Notification): String {
@@ -88,6 +119,9 @@ class WayfindrNotificationListener : NotificationListenerService() {
     companion object {
         private const val TAG = "NsNotifListener"
         @Volatile private var bound: WayfindrNotificationListener? = null
+        /** Key of the CALL notification behind [CallInfoProvider.incomingCall]. */
+        @Volatile private var callKey: String? = null
+        private val GENERIC = setOf("Call", "On call", "Gelen arama", "Incoming call", "Arama", "Telefon", "Phone")
 
         /** Ask Android to unbind the listener (app asleep); IdleSleep re-binds it on wake. */
         fun unbindNow() {

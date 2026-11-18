@@ -117,6 +117,9 @@ public final class NavPlus {
     public static volatile long netAt = 0;
     public static volatile int netOff = 0;
     public static volatile Object npNow = null;
+    // Himican: a paused track keeps its console card (with a pause mark) this long, then hides.
+    public static volatile long npPausedAt = 0L;
+    public static final long NP_PAUSED_KEEP_MS = 600_000L;
     public static volatile long offAt = 0;
     public static volatile int offMode = 0;
     public static volatile boolean onRoute = false;
@@ -130,6 +133,8 @@ public final class NavPlus {
     public static volatile boolean phOn = false;
     public static volatile Paint phPaint = null;
     public static volatile boolean phTried = false;
+    // Himican: navigasyon duraklatıldı / bitirildi → rota çizili ya da motor biraz hareket etse de duvar kağıdı (DashViewModel).
+    public static volatile boolean phHold = false;
     public static volatile float phX = 0.5f;
     public static volatile float phY = 0.5f;
     public static volatile float phZ = 1.0f;
@@ -2133,7 +2138,8 @@ public final class NavPlus {
                 phX = sharedPreferences.getFloat("ph_x", 0.5f);
                 phY = sharedPreferences.getFloat("ph_y", 0.5f);
                 hudOn = sharedPreferences.getBoolean("hud_on", true);
-                navCard = sharedPreferences.getBoolean("nav_card", true);
+                // Himican: the app's turn card is always on — the dash's own round ball never comes back.
+                navCard = true;
                 phCfgOk = true;
             } catch (Throwable unused) {
             }
@@ -2159,10 +2165,13 @@ public final class NavPlus {
         try {
             phLoad();
             List<GeoPoint> route = frame.getRoute();
-            if ((route != null && !route.isEmpty()) || frame.getPickerRows() != null) {
+            if (frame.getPickerRows() != null) {
                 return false;
             }
-            if (frame.getRiderLat() != null && !LocPlus.stOn) {
+            if (!phHold && route != null && !route.isEmpty()) {
+                return false;
+            }
+            if (!phHold && frame.getRiderLat() != null && !LocPlus.stOn) {
                 return false;
             }
             // Himican: duvar kağıdı her zaman arka planda kalır; albüm kapağı yalnızca şeritte.
@@ -2271,6 +2280,14 @@ public final class NavPlus {
             if (obj instanceof NowPlaying) {
                 NowPlaying nowPlaying = (NowPlaying) obj;
                 if (nowPlaying.getPlaying()) {
+                    npPausedAt = 0L;
+                    return nowPlaying;
+                }
+                long now = System.currentTimeMillis();
+                if (npPausedAt == 0L) {
+                    npPausedAt = now;
+                }
+                if (now - npPausedAt < NP_PAUSED_KEEP_MS) {
                     return nowPlaying;
                 }
             }

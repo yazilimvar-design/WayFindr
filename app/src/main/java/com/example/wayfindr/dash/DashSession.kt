@@ -145,6 +145,13 @@ class DashSession(private val scope: CoroutineScope) {
     @Volatile private var navSecondaryDist = 0
     @Volatile private var navSecondaryUnit = DashCommands.NAV_UNIT_METERS
 
+    /** Glyph bytes of the route card and nav packet sent now (CI: "no ball" = 0xFF in every state). */
+    fun debugBallGlyphs(): String {
+        val card = DashCommands.glyphOf(liveRouteCard(projectionOn = true))
+        val nav = if (navActive) "0x%02X".format(navManeuver) else "-"
+        return "card=0x%02X nav=%s".format(card ?: -1, nav)
+    }
+
     /** Push the latest turn-by-turn figures; sent to the dash at 1 Hz. */
     fun updateNavInfo(
         maneuver: Int, primaryDist: Int, primaryUnit: Int,
