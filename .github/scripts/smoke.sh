@@ -289,20 +289,29 @@ snapf() { $BR --ez snap true --es snapname "$1"; sleep 3; adb pull "/sdcard/Andr
 : > "$OUT/nav-pause.txt"
 $BR --ez test_wallpaper true --ez fake_ride true; sleep 2
 dumpnav
-menu_open; snapf nav-menu-top; dumpnav
-$BR --ei code 19; sleep 3          # row 0: "Navigasyonu duraklat"
+tap0 "Konsol"; sleep 4; shot app-nav-buttons      # one row: "Duraklat" | "Bitir"
+ui_dump; grep -o 'text="\(Duraklat\|Bitir\)"[^>]*bounds="[^"]*"' "$OUT/ui.xml" | tee -a "$OUT/nav-pause.txt"
+menu_open; snapf nav-menu-pill-duraklat; dumpnav  # top pill row, "Duraklat" highlighted
+$BR --ei code 21; sleep 2; snapf nav-menu-pill-bitir   # DOWN: cursor to the "Bitir" pill
+dumpnav | grep -q "menu=ROOT@1" && echo "DOWN moves to the Bitir pill: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::warning::DOWN did not move to the Bitir pill" | tee -a "$OUT/nav-pause.txt"
+grep -q "menu=ROOT@0" "$OUT/nav-pause.txt" && echo "menu opens on the Duraklat pill: OK" | tee -a "$OUT/nav-pause.txt" \
+  || echo "::warning::menu did not open on the Duraklat pill" | tee -a "$OUT/nav-pause.txt"
+$BR --ei code 20; sleep 2          # LEFT closes the menu
+menu_open
+$BR --ei code 19; sleep 3          # pill 0: "Duraklat"
 snapf nav-paused-wallpaper; dumpnav
 grep -q "paused=true wallHold=true" "$OUT/nav-pause.txt" && echo "pause from console menu: OK" | tee -a "$OUT/nav-pause.txt" \
   || echo "::error::console menu did not pause navigation" | tee -a "$OUT/nav-pause.txt"
 $BR --ez clear_wallpaper true; sleep 1
 snapf nav-paused-pill
 tap0 "Konsol"; sleep 4; shot app-nav-paused
-tap0 "Navigasyona devam et"; sleep 4; shot app-nav-resumed   # resume from the phone
+tap0 "Devam et"; sleep 4; shot app-nav-resumed   # resume from the phone
 snapf nav-resumed; dumpnav
 tail -1 "$OUT/nav-pause.txt" | grep -q "paused=false" && echo "resume from the app: OK" | tee -a "$OUT/nav-pause.txt" \
   || echo "::error::app button did not resume navigation" | tee -a "$OUT/nav-pause.txt"
 $BR --ez test_wallpaper true --ez fake_ride true; sleep 2
-menu_open; $BR --ei code 21; sleep 2; snapf nav-menu-end   # cursor on "Navigasyonu bitir"
+menu_open; $BR --ei code 21; sleep 2; snapf nav-menu-end   # cursor on the "Bitir" pill
 $BR --ei code 19; sleep 4
 snapf nav-ended-wallpaper; dumpnav
 tail -1 "$OUT/nav-pause.txt" | grep -q "stops=\[\].*wallHold=true rideEnded=true recording=false" && echo "end from console menu: OK" | tee -a "$OUT/nav-pause.txt" \

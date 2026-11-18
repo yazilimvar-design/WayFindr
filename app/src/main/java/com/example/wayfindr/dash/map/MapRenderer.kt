@@ -73,12 +73,15 @@ class MapRenderer(private val tiles: TileProvider) {
     /**
      * One row of the on-dash menu. [header] rows are section titles the cursor skips; [active]
      * marks the setting in use (drawn green with a tick); [submenu] rows open another page (›).
+     * Consecutive [pill] rows share one line as side-by-side pills (the cursor still steps
+     * through them one by one, like rows).
      */
     data class MenuRow(
         val label: String,
         val header: Boolean = false,
         val active: Boolean = false,
         val submenu: Boolean = false,
+        val pill: Boolean = false,
     )
 
     private val lightBg   = Color.rgb(229, 227, 223) // Google Maps land colour, behind missing tiles
@@ -108,6 +111,7 @@ class MapRenderer(private val tiles: TileProvider) {
 
     // ETA box (drawn in screen space, lower-right, inside the round safe zone)
     private val etaBgPaint     = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(232, 20, 22, 26) }
+    private val pickerPillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(120, 255, 255, 255); style = Paint.Style.STROKE; strokeWidth = 2f }
     private val etaBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(46, 255, 255, 255); style = Paint.Style.STROKE; strokeWidth = 1.5f }
     private val etaBigPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(126, 217, 87); textSize = 20.4f; isFakeBoldText = true; textAlign = Paint.Align.CENTER }   // Google-nav green
     // Optional overlays are drawn inside overlay(): an error there only skips that box (logged once)
@@ -617,7 +621,17 @@ class MapRenderer(private val tiles: TileProvider) {
      */
     private fun drawPicker(canvas: Canvas, w: Int, h: Int, title: String, items: List<MenuRow>, index: Int, selectHint: String) {
         val rowH = 40f; val headH = 28f; val hintH = 26f; val pad = 6f
-        val rows = minOf(PICKER_ROWS, items.size)
+        // Lines on screen: consecutive pill rows share one line, every other row has its own.
+        val lines = ArrayList<IntRange>()
+        run {
+            var i = 0
+            while (i < items.size) {
+                var j = i
+                if (items[i].pill) while (j + 1 < items.size && items[j + 1].pill) j++
+                lines.add(i..j); i = j + 1
+            }
+        }
+        val rows = minOf(PICKER_ROWS, lines.size)
         // Right edge where it always was; left edge pushed clear of the dash's own turn-glyph circle,
         // which it draws over the lower-left of our frame (photo 2026-10-16 cropped the list there).
         val right = w / 2f + PICKER_W / 2f
@@ -634,10 +648,42 @@ class MapRenderer(private val tiles: TileProvider) {
         y += headH
 
         val sel = index.coerceIn(0, items.lastIndex)
-        val first = (sel - rows / 2).coerceIn(0, maxOf(0, items.size - rows))
+        val selLine = lines.indexOfFirst { sel in it }.coerceAtLeast(0)
+        val shown = rows
+        val first = (selLine - shown / 2).coerceIn(0, maxOf(0, lines.size - shown))
         val textX = pillRect.left + 16f
         val maxTextW = panelW - 32f
-        for (i in first until first + rows) {
+        for (li in first until first + shown) {
+            val line = lines[li]
+            if (items[line.first].pill) {
+                // Side-by-side pills ("Duraklat" | "Bitir"): equal widths, full-round ends, the
+                // highlighted one filled like a selected row, the other outlined.
+                val gap = 8f
+                val n = line.last - line.first + 1
+                val l0 = pillRect.left + 8f; val r0 = pillRect.right - 8f
+                val pw = (r0 - l0 - gap * (n - 1)) / n
+                val top = y + 4f; val bottom = y + rowH - 4f
+                val rad = (bottom - top) / 2f
+                val align = pickerItemPaint.textAlign
+                pickerItemPaint.textAlign = Paint.Align.CENTER
+                for (k in 0 until n) {
+                    val i = line.first + k
+                    val selected = i == sel
+                    val pl = l0 + k * (pw + gap)
+                    pickerRow.set(pl, top, pl + pw, bottom)
+                    if (selected) canvas.drawRoundRect(pickerRow, rad, rad, pickerHiPaint)
+                    else canvas.drawRoundRect(pickerRow, rad, rad, pickerPillPaint)
+                    pickerItemPaint.color = if (selected) Color.rgb(20, 22, 26) else Color.rgb(236, 238, 241)
+                    pickerItemPaint.isFakeBoldText = selected
+                    val ty = y + rowH / 2f - (pickerItemPaint.descent() + pickerItemPaint.ascent()) / 2f
+                    canvas.drawText(ellipsize(items[i].label, pickerItemPaint, pw - 16f), pl + pw / 2f, ty, pickerItemPaint)
+                }
+                pickerItemPaint.textAlign = align
+                pickerItemPaint.isFakeBoldText = false
+                y += rowH
+                continue
+            }
+            val i = line.first
             val row = items[i]
             if (row.header) {
                 // Section title: small grey caps with a rule under it; never highlighted.

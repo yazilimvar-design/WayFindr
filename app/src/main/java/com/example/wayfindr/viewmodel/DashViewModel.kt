@@ -1280,7 +1280,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 BTN_JOY_LEFT -> if (menuPage != MenuPage.ROOT) {
                     // Back to the row that opened this page.
                     menuPage = MenuPage.ROOT
-                    pickerIndex = navRows().size   // the "Uyarılar" row
+                    pickerIndex = navPills().size   // the "Uyarılar" row
                     "Picker back → menu"
                 } else { closePicker("cancelled (LEFT)"); "Picker cancelled" }
                 BTN_JOY_DOWN, BTN_REJECT -> {
@@ -1503,8 +1503,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     /** Rows before the saved destinations on ROOT: the fixed rows plus the NavPlus quick actions. */
     private fun rootFixedRows() = rootFixedRows0() + JM_ROW_COUNT
 
-    /** Fixed rows on ROOT: the navigation rows (while navigating), then "Uyarılar". */
-    private fun rootFixedRows0() = navRows().size + 1
+    /** Fixed rows on ROOT: the two navigation pills (while navigating), "Uyarılar", then "skip next stop". */
+    private fun rootFixedRows0() = navPills().size + 1 + (if (canSkipStop()) 1 else 0)
 
     /** Rows of the menu page showing now; ROOT gets the NavPlus quick actions after its fixed rows. */
     private fun menuRows(): List<MapRenderer.MenuRow> {
@@ -1522,8 +1522,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private fun menuRows0(): List<MapRenderer.MenuRow> = when (menuPage) {
-        MenuPage.ROOT -> navRows().map { MapRenderer.MenuRow(it.first) } +
+        MenuPage.ROOT -> navPills().map { MapRenderer.MenuRow(it.first, pill = true) } +
             MapRenderer.MenuRow("Uyarılar", submenu = true) +
+            (if (canSkipStop()) listOf(MapRenderer.MenuRow("Sonraki durağı atla: ${stopsAhead().first().name}")) else emptyList()) +
             (pickerItems ?: emptyList()).map { MapRenderer.MenuRow(it.name) }
         // Routing is automatic since V57 (Google → OSM → offline BRouter), so this page only holds
         // the alert switches: the green tick = on; select toggles it.
@@ -1546,12 +1547,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         else -> null
     }
 
-    /** Rows at the top of ROOT while a route is set (label, action id). */
-    private fun navRows(): List<Pair<String, String>> = if (!hasDestination()) emptyList() else buildList {
-        add((if (navPaused) "Navigasyona devam et" else "Navigasyonu duraklat") to "pause")
-        add("Navigasyonu bitir" to "end")
-        if (canSkipStop()) add("Sonraki durağı atla: ${stopsAhead().first().name}" to "skip")
-    }
+    /** The two side-by-side pills at the top of ROOT while a route is set (label, action id);
+     *  the cursor steps through them like rows. */
+    private fun navPills(): List<Pair<String, String>> = if (!hasDestination()) emptyList() else listOf(
+        (if (navPaused) "Devam et" else "Duraklat") to "pause",
+        "Bitir" to "end",
+    )
 
     /** Next row the cursor can land on (wrapping, skipping headers). */
     private fun nextMenuIndex(rows: List<MapRenderer.MenuRow>, from: Int): Int {
@@ -1580,7 +1581,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             showNotice(msg)
             return "Picker → $msg"
         }
-        val nav = navRows()
+        val nav = navPills()
         if (pickerIndex < nav.size) {
             return when (nav[pickerIndex].second) {
                 "pause" -> {
@@ -1589,16 +1590,6 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     if (resume) { resumeNavigation(); showNotice("Navigasyon devam ediyor") }
                     else pauseNavigation()   // the wallpaper or the "Navigasyon duraklatıldı" pill shows it
                     "Picker → navigation ${if (resume) "resumed" else "paused"}"
-                }
-                "skip" -> {
-                    val ahead = stopsAhead()
-                    closePicker("skipped stop ${ahead.first().name}")
-                    com.example.wayfindr.data.RideDiagnostics.log("picker",
-                        "cancel next stop ${ahead.first().name} → routing to ${ahead.drop(1).first().name} (from the dash)")
-                    // Re-plan from here through the stops after it (a new route request).
-                    setDestinations(ahead.drop(1))
-                    showNotice("Atlandı: ${ahead.first().name}", "→ ${ahead.drop(1).first().name}")
-                    "Picker → skipped ${ahead.first().name}"
                 }
                 else -> {
                     closePicker("navigation ended")
@@ -1612,6 +1603,16 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             menuPage = MenuPage.SOURCE
             pickerIndex = 1
             return "Picker → Source page"
+        }
+        if (pickerIndex == nav.size + 1 && canSkipStop()) {
+            val ahead = stopsAhead()
+            closePicker("skipped stop ${ahead.first().name}")
+            com.example.wayfindr.data.RideDiagnostics.log("picker",
+                "cancel next stop ${ahead.first().name} → routing to ${ahead.drop(1).first().name} (from the dash)")
+            // Re-plan from here through the stops after it (a new route request).
+            setDestinations(ahead.drop(1))
+            showNotice("Atlandı: ${ahead.first().name}", "→ ${ahead.drop(1).first().name}")
+            return "Picker → skipped ${ahead.first().name}"
         }
         val loc = items.getOrNull(pickerIndex - rootFixedRows())
         if (loc == null) { closePicker("cancel selected"); return "Picker cancelled" }

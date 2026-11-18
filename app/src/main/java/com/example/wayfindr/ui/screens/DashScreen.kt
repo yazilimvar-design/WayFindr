@@ -213,28 +213,34 @@ fun DashScreen(vm: DashViewModel = viewModel()) {
             },
         )
 
-        // Active navigation: pause/resume and end first, where the rider looks (fuel stop).
+        // Active navigation: pause/resume and end first, where the rider looks (fuel stop) —
+        // one row, two equal buttons.
         if (ui.destinationName != null) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
             ) {
-                WayfindrBtn(
-                    if (ui.navPaused) "Navigasyona devam et" else "Navigasyonu duraklat",
-                    onClick = { vm.togglePauseNavigation() },
-                    icon = if (ui.navPaused) WayfindrIcons.Play else WayfindrIcons.Pause,
-                    variant = if (ui.navPaused) BtnVariant.Primary else BtnVariant.Secondary,
-                    size = BtnSize.Md,
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth(),
-                )
-                WayfindrBtn(
-                    "Navigasyonu bitir",
-                    onClick = { vm.endNavigation() },
-                    icon = WayfindrIcons.Flag,
-                    variant = BtnVariant.Danger,
-                    size = BtnSize.Md,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                ) {
+                    WayfindrBtn(
+                        if (ui.navPaused) "Devam et" else "Duraklat",
+                        onClick = { vm.togglePauseNavigation() },
+                        icon = if (ui.navPaused) WayfindrIcons.Play else WayfindrIcons.Pause,
+                        variant = if (ui.navPaused) BtnVariant.Primary else BtnVariant.Secondary,
+                        size = BtnSize.Md,
+                        modifier = Modifier.weight(1f),
+                    )
+                    WayfindrBtn(
+                        "Bitir",
+                        onClick = { vm.endNavigation() },
+                        icon = WayfindrIcons.Flag,
+                        variant = BtnVariant.Danger,
+                        size = BtnSize.Md,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 if (ui.navPaused) {
                     Text(
                         "Navigasyon duraklatıldı — rota ve duraklar korunuyor, sürüş kaydı sürüyor.",
