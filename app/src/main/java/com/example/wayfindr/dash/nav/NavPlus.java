@@ -117,6 +117,9 @@ public final class NavPlus {
     public static volatile long netAt = 0;
     public static volatile int netOff = 0;
     public static volatile Object npNow = null;
+    // Himican: a paused track keeps its console card (with a pause mark) this long, then hides.
+    public static volatile long npPausedAt = 0L;
+    public static final long NP_PAUSED_KEEP_MS = 600_000L;
     public static volatile long offAt = 0;
     public static volatile int offMode = 0;
     public static volatile boolean onRoute = false;
@@ -2135,7 +2138,8 @@ public final class NavPlus {
                 phX = sharedPreferences.getFloat("ph_x", 0.5f);
                 phY = sharedPreferences.getFloat("ph_y", 0.5f);
                 hudOn = sharedPreferences.getBoolean("hud_on", true);
-                navCard = sharedPreferences.getBoolean("nav_card", true);
+                // Himican: the app's turn card is always on — the dash's own round ball never comes back.
+                navCard = true;
                 phCfgOk = true;
             } catch (Throwable unused) {
             }
@@ -2276,6 +2280,14 @@ public final class NavPlus {
             if (obj instanceof NowPlaying) {
                 NowPlaying nowPlaying = (NowPlaying) obj;
                 if (nowPlaying.getPlaying()) {
+                    npPausedAt = 0L;
+                    return nowPlaying;
+                }
+                long now = System.currentTimeMillis();
+                if (npPausedAt == 0L) {
+                    npPausedAt = now;
+                }
+                if (now - npPausedAt < NP_PAUSED_KEEP_MS) {
                     return nowPlaying;
                 }
             }

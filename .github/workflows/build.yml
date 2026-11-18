@@ -52,8 +52,8 @@ jobs:
       - name: Sürüş birim testleri
         # Older tests outside data/ no longer compile (e.g. MbTiles was removed), so only data/ is built here.
         run: |
-          find app/src/test/java -name '*.kt' ! -path '*/wayfindr/data/*' ! -name 'GoogleNavManeuverTest.kt' -delete
-          ./gradlew --no-daemon testStandardDebugUnitTest --tests 'com.example.wayfindr.data.*' --tests 'com.example.wayfindr.dash.nav.GoogleNavManeuverTest'
+          find app/src/test/java -name '*.kt' ! -path '*/wayfindr/data/*' ! -name 'GoogleNavManeuverTest.kt' ! -name 'NoDashBallTest.kt' ! -name 'CallNotifRulesTest.kt' -delete
+          ./gradlew --no-daemon testStandardDebugUnitTest --tests 'com.example.wayfindr.data.*' --tests 'com.example.wayfindr.dash.nav.GoogleNavManeuverTest' --tests 'com.example.wayfindr.dash.NoDashBallTest' --tests 'com.example.wayfindr.viewmodel.CallNotifRulesTest'
 
       - uses: actions/upload-artifact@v4
         with:

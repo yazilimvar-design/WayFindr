@@ -187,6 +187,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var notice: List<String>? = null
     @Volatile private var noticeUntilMs = 0L
 
+    // Joystick-UP navigation prompt (no call ringing, route set): LEFT pause/resume, RIGHT end, DOWN cancel.
+    @Volatile private var navPromptOpen = false
+    @Volatile private var debugLastStops: List<com.example.wayfindr.data.SharedLocation>? = null   // CI redo_dest
+    private var navPromptJob: Job? = null
+
     private fun showNotice(vararg lines: String) {
         notice = lines.toList()
         noticeUntilMs = System.currentTimeMillis() + NOTICE_MS
@@ -428,6 +433,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // not IN). The HOME button is left alone — it does the dash's own exit-to-home.
         private const val BTN_ANSWER = 0x06       // joystick UP
         private const val BTN_REJECT = 0x07       // joystick DOWN
+        /** Map-mode joystick UP (unconfirmed, see BTN_JOY_DOWN): with no call ringing, UP or this
+         *  opens the navigation prompt ("◀ Duraklat · Bitir ▶"). */
+        private const val BTN_JOY_UP = 0x12
+        /** Joystick CENTRE (IN) click: inside the ▼ music window it plays / pauses. */
+        private const val BTN_JOY_CENTRE = 0x18
+        /** The UP prompt closes itself ("Vazgeçildi") after this long without input. */
+        private const val NAV_PROMPT_MS = 5_000L
         // MAP-mode joystick codes (the dash forwards these directly while projecting, no media-control
         // mode needed) — confirmed in the ride log: 0x13/0x14 with callRinging=false during the map.
         // These give DIRECT zoom like the dash. In/out guess; swap if the ride feels wrong.
@@ -732,7 +744,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             val call = com.example.wayfindr.media.CallInfoProvider.incomingCall.value
             val ringing = call?.incoming == true
             val active  = call != null && !call.incoming
-            val pickerLabel = if (!ringing) handlePickerInput(code) else null
+            if (ringing && navPromptOpen) closeNavPrompt(null)   // the call has priority
+            val pickerLabel = if (!ringing) handleNavPrompt(code) ?: handlePickerInput(code) else null
             val label = pickerLabel ?: when {
                 // Ringing: IN answers, DOWN rejects. Active call: DOWN hangs up (fixes "can't end").
                 ringing && code == BTN_ANSWER -> { answerCall(call!!); "Call answered" }
@@ -746,6 +759,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     (code == BTN_JOY_RIGHT || code == BTN_JOY_LEFT) -> {
                     musicHintUntilMs = 0L; downHintUntilMs = 0L
                     if (code == BTN_JOY_RIGHT) { mediaInfo.skipNext(); "Next track (▼▶)" } else { mediaInfo.skipPrevious(); "Previous track (▼◀)" }
+                }
+                // ▼ then ● (centre): play / pause, same window.
+                !ringing && pickerItems == null && System.currentTimeMillis() < musicHintUntilMs && code == BTN_JOY_CENTRE -> {
+                    musicHintUntilMs = 0L; downHintUntilMs = 0L
+                    toggleMusic()
                 }
                 !ringing && code == zoomInCode()  -> { zoomIn();  "Zoom in (map)" }
                 !ringing && code == zoomOutCode() -> { zoomOut(); "Zoom out (map)" }
@@ -1166,12 +1184,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     /** "Navigasyonu bitir": navigation off and the ride stopped + saved (named after the destination). */
     fun endNavigation() {
         val name = rideDestName
+        debugLastStops = routeStops.takeIf { it.isNotEmpty() }
         exitNavigation()
         val saved = stopRecording()
         rideEnded = true
         setWallHold(true)
         com.example.wayfindr.data.RideDiagnostics.log("nav", "ended; ride ${if (saved) "saved" else "not saved (too short)"} name=${name ?: "-"}")
         showNotice("Navigasyon bitti", if (saved) "Sürüş kaydedildi" else "Sürüş çok kısa, kaydedilmedi")
+        if (navPromptOpen) closeNavPrompt(null)
     }
 
     /** Paused / ended: the hold lifts once the rider has clearly ridden off; after "bitir" a new ride starts. */
@@ -1239,6 +1259,75 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun isFallbackRouteOrigin(loc: android.location.Location): Boolean = NavPlus.fallbackOrigin(loc)
 
     // ── Map controls ────────────────────────────────────────────────────────
+
+    /**
+     * Hands-free pause / end: with a route set (or paused), the menu closed and no call ringing, UP
+     * opens a prompt; LEFT = pause/resume, RIGHT = end (+ save the ride, as the menu's "Bitir"),
+     * DOWN or [NAV_PROMPT_MS] without input = "Vazgeçildi". Returns a log label when it took the
+     * code, else null (DOWN keeps its music-hint / double-DOWN-menu meaning when the prompt is closed).
+     */
+    private fun handleNavPrompt(code: Int): String? {
+        if (!navPromptOpen) {
+            if ((code == BTN_ANSWER || code == BTN_JOY_UP) && pickerItems == null && hasDestination()) {
+                navPromptOpen = true
+                downHintUntilMs = 0L; musicHintUntilMs = 0L
+                navPromptJob?.cancel()
+                navPromptJob = viewModelScope.launch {
+                    delay(NAV_PROMPT_MS)
+                    if (navPromptOpen) closeNavPrompt("timeout")
+                }
+                lastSignature = ""; wakeFrameLoop()
+                com.example.wayfindr.data.RideDiagnostics.log("navprompt", "opened (paused=$navPaused)")
+                return "UP → navigation prompt"
+            }
+            return null
+        }
+        return when (code) {
+            BTN_JOY_LEFT -> {
+                closeNavPrompt(null)
+                if (navPaused) { resumeNavigation(); showNotice("Navigasyon devam ediyor") }
+                else { pauseNavigation(); showNotice("Navigasyon duraklatıldı") }
+                "Prompt LEFT → navigation ${if (navPaused) "paused" else "resumed"}"
+            }
+            BTN_JOY_RIGHT -> {
+                closeNavPrompt(null)
+                com.example.wayfindr.data.RideDiagnostics.log("navprompt", "navigation ended (UP prompt)")
+                endNavigation()
+                "Prompt RIGHT → navigation ended"
+            }
+            BTN_JOY_DOWN, BTN_REJECT -> { closeNavPrompt("DOWN"); "Prompt dismissed" }
+            else -> "Prompt: ignored 0x%02X".format(code)
+        }
+    }
+
+    /** "duraklat" while the track plays, "devam" while it's paused (music hint). */
+    private fun musicToggleWord(): String =
+        if ((NavPlus.npNow as? com.example.wayfindr.media.NowPlaying)?.playing == false) "devam" else "duraklat"
+
+    /** ▼ then ●: play/pause the phone's player; the fake CI track flips its own flag. */
+    private fun toggleMusic(): String {
+        var playing = mediaInfo.togglePlayPause()
+        if (playing == null && com.example.wayfindr.util.TestHooks.on(getApplication())) {
+            (NavPlus.npNow as? com.example.wayfindr.media.NowPlaying)?.let { np ->
+                NavPlus.npNow = np.copy(playing = !np.playing); playing = !np.playing
+            }
+        }
+        if (playing == null) return "Play/pause: no player"
+        showNotice(if (playing == true) "Müzik devam ediyor" else "Müzik duraklatıldı")
+        com.example.wayfindr.data.RideDiagnostics.log("media", "play/pause (▼●) → playing=$playing")
+        return "Music ${if (playing == true) "resumed" else "paused"} (▼●)"
+    }
+
+    /** Closes the UP prompt; with a [reason] (DOWN / timeout) it says "Vazgeçildi". */
+    private fun closeNavPrompt(reason: String?) {
+        navPromptOpen = false
+        navPromptJob?.cancel(); navPromptJob = null
+        if (reason != null) {
+            com.example.wayfindr.data.RideDiagnostics.log("navprompt", "dismissed ($reason)")
+            showNotice("Vazgeçildi")
+        }
+        lastSignature = ""; wakeFrameLoop()
+    }
 
     /**
      * Joystick input for the on-dash destination picker. Returns a log label when the event was
@@ -1383,6 +1472,13 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     NavPlus.npNow = com.example.wayfindr.media.NowPlaying(t, "Albüm", intent.getStringExtra("np_artist").orEmpty(), art, true)
                 }
                 if (intent.getBooleanExtra("np_clear", false)) NavPlus.npNow = null
+                // CI: the same stops again after "Bitir" (UP prompt → RIGHT needs a route).
+                if (intent.getBooleanExtra("redo_dest", false)) debugLastStops?.let { setDestinations(it) }
+                // CI: a ringing / answered / ended call without the dialer (when `adb emu gsm call` gives none).
+                intent.getStringExtra("fake_call")?.let { com.example.wayfindr.media.CallInfoProvider.update(com.example.wayfindr.media.IncomingCall(it, true)) }
+                if (intent.getBooleanExtra("fake_call_answer", false)) com.example.wayfindr.media.CallInfoProvider.incomingCall.value?.let {
+                    com.example.wayfindr.media.CallInfoProvider.update(it.copy(incoming = false)) }
+                if (intent.getBooleanExtra("fake_call_end", false)) com.example.wayfindr.media.CallInfoProvider.update(null)
                 // CI: a console wallpaper ("Fotoğrafımı konsolda göster") without the photo picker.
                 if (intent.getBooleanExtra("test_wallpaper", false)) {
                     val wp = Bitmap.createBitmap(1052, 600, Bitmap.Config.ARGB_8888)
@@ -1456,7 +1552,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         "menu=${if (pickerItems == null) "closed" else "$menuPage@$pickerIndex"} " +
                         "notice=${notice?.takeIf { System.currentTimeMillis() < noticeUntilMs }}" +
                         " zoom=$zoom range=${zoomRange()} map=OSM" +
-                        " paused=$navPaused wallHold=$wallHold rideEnded=$rideEnded recording=${recorder.isRecording}"
+                        " paused=$navPaused wallHold=$wallHold rideEnded=$rideEnded recording=${recorder.isRecording}" +
+                        " ball=[${session.debugBallGlyphs()}] prompt=$navPromptOpen" +
+                        " call=${com.example.wayfindr.media.CallInfoProvider.incomingCall.value?.let { "${it.caller}/${if (it.incoming) "ringing" else "active"}" } ?: "-"}" +
+                        " music=${(NavPlus.npNow as? com.example.wayfindr.media.NowPlaying)?.let { if (it.playing) "playing" else "paused" } ?: "-"}"
                     android.util.Log.i("DashViewModel", "DEBUG $msg")
                     com.example.wayfindr.data.RideDiagnostics.log("debug", msg)
                 }
@@ -2491,6 +2590,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             etaPrimary = etaPrimary,
             etaSecondary = etaSecondary,
             pickerRows = pickerItems?.let { menuRows() },
+            navPrompt = if (navPromptOpen && pickerItems == null) listOf(
+                "NAVİGASYON",
+                if (navPaused) "◀ Devam et" else "◀ Duraklat",
+                "Bitir ▶",
+                "▼ vazgeç",
+            ) else null,
             pickerTitle = when (menuPage) { MenuPage.SOURCE -> "UYARILAR"; MenuPage.ROOT -> if (hasDestination()) "MENÜ" else "KAYITLI YERLER" },
             pickerSelectHint = when (menuPage) {
                 MenuPage.SOURCE -> "Sol/sağ: gez · sağ basılı: seç"
@@ -2507,8 +2612,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 val music = pickerItems == null && now < musicHintUntilMs
                 val menu = pickerItems == null && now < downHintUntilMs
                 when {
-                    music && menu -> "▼ menü · ▶ sonraki · ◀ önceki"
-                    music -> "▶ sonraki · ◀ önceki"
+                    music && menu -> "▼ menü · ● ${musicToggleWord()} · ◀ ▶ şarkı"
+                    music -> "● ${musicToggleWord()} · ◀ ▶ şarkı"
                     menu -> "▼ tekrar: menüyü aç"
                     else -> null
                 }
@@ -2556,9 +2661,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val cx = w / 2f; val cy = h / 2f
         val half = h * 0.28f   // ~half the previous width; stays inside the round display
         canvas.drawRoundRect(cx - half, cy - 26f, cx + half, cy + 26f, 10f, 10f, ovBg)
-        canvas.drawText("Incoming call", cx, cy - 11f, ovSub)
+        canvas.drawText("Gelen arama", cx, cy - 11f, ovSub)
         canvas.drawText(ellipsizeOverlay(call.caller, 16), cx, cy + 5f, ovTitle)
-        canvas.drawText("UP answer · DOWN reject", cx, cy + 19f, ovAccent)
+        canvas.drawText("▲ yanıtla · ▼ reddet", cx, cy + 19f, ovAccent)
     }
 
     private fun ellipsizeOverlay(s: String, max: Int) = if (s.length > max) s.take(max - 1) + "…" else s

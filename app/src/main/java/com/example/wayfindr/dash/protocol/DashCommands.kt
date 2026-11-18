@@ -228,7 +228,9 @@ object DashCommands {
             }
         }
         patch1(0x06, 0x05, if (projectionOn) 0x55 else 0xAA)
-        maneuver?.let { patch1(0x05, 0x02, it) }
+        // Himican: no glyph unless one is passed — the template's captured 0x3C (destination pin)
+        // made the dash's own round ball show with no route / while paused.
+        patch1(0x05, 0x02, maneuver ?: NAV_MANEUVER_NONE)
         primaryUnit?.let { patch1(0x05, 0x06, it) }
         // The template carries the captured French ride's figures (total 0x004F =
         // "7.9 km", secondary 0x000A). Zero them by DEFAULT so a card sent with no live
@@ -259,6 +261,12 @@ object DashCommands {
     const val NAV_SECONDARY_NONE = 0xFF
     /** No primary glyph: hides the dash's round turn widget while the app draws its own turn card. */
     const val NAV_MANEUVER_NONE = 0xFF
+
+    /** Glyph byte (05 02) a route card / nav packet carries — CI checks the dash ball stays hidden. */
+    fun glyphOf(packet: ByteArray): Int? {
+        val m = indexOf(packet, byteArrayOf(0x05, 0x02, 0x00, 0x01), fromEnd = true)
+        return if (m >= 0 && m + 4 < packet.size) packet[m + 4].toInt() and 0xFF else null
+    }
     const val NAV_UNIT_KM_TENTHS = 0x10   // distance field = km × 10
     const val NAV_UNIT_METERS    = 0x30
     private const val NAV_HDR = "00000000020100054B31472000"

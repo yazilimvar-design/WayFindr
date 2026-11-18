@@ -128,7 +128,6 @@ public class OfflineMapActivity extends Activity implements View.OnClickListener
         linearLayout.addView(Ui2.toggle(this, "Müziği fotoğrafın üstünde göster", "Bir şey çalarken fotoğrafın altındaki şerit albüm kapağını, şarkıyı ve sanatçıyı gösterir. Bildirim erişimi gerekir.", 12, NavPlus.phMus, this));
         linearLayout.addView(Ui2.toggle(this, "Haritada şarkı ve sanatçı", "Navigasyonda üstte küçük kart: albüm kapağı, şarkı adı, sanatçı. ▼ sonra ▶/◀ ile şarkı değiştir.", 16, NavPlus.mapMus, this));
         linearLayout.addView(Ui2.toggle(this, "Hava durumu ve benzinlik konsolda", "Konsolun üstünde küçük şerit: sıcaklık, hava ve gittiğin yöndeki en yakın benzinliğe uzaklık. Yağmur bekleniyorsa uyarı da çıkar. İnternet gerekir.", 14, NavPlus.hudOn, this));
-        linearLayout.addView(Ui2.toggle(this, "Dönüş kartı (yuvarlak top yerine)", "Navigasyonda sol alttaki yuvarlak dönüş topu yerine, müzik kartı gibi koyu bir kart: dönüş oku, dönüşe kalan mesafe ve sokak. Kapatırsan konsolun kendi topu geri gelir.", 15, NavPlus.navCard, this));
         LinearLayout card2 = Ui2.card(this);
         TextView text2 = Ui2.text(this, "", 14, -3091498, false);
         this.tv2 = text2;

@@ -64,6 +64,7 @@ class MapRenderer(private val tiles: TileProvider) {
         val dark: Boolean = false,         // night ColorMatrix on cached light tiles
         val turnCard: TurnCard? = null,    // next turn, bottom-left card (replaces the dash's round turn widget)
         val paused: Boolean = false,       // "Navigasyonu duraklat": small "Navigasyon duraklatıldı" pill (no wallpaper chosen)
+        val navPrompt: List<String>? = null, // joystick-UP prompt: [title, left action, right action, hint]
     )
 
     /** Next turn for the bottom-left card: dash glyph code ([com.example.wayfindr.dash.nav.DashGlyph]),
@@ -111,6 +112,7 @@ class MapRenderer(private val tiles: TileProvider) {
 
     // ETA box (drawn in screen space, lower-right, inside the round safe zone)
     private val etaBgPaint     = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(232, 20, 22, 26) }
+    private val pauseMarkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(232, 183, 72) }
     private val pickerPillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(120, 255, 255, 255); style = Paint.Style.STROKE; strokeWidth = 2f }
     private val etaBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(46, 255, 255, 255); style = Paint.Style.STROKE; strokeWidth = 1.5f }
     private val etaBigPaint    = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(126, 217, 87); textSize = 20.4f; isFakeBoldText = true; textAlign = Paint.Align.CENTER }   // Google-nav green
@@ -174,7 +176,13 @@ class MapRenderer(private val tiles: TileProvider) {
     /** [w]×[h] is the LOGICAL frame size; the canvas may be pre-scaled (2× "sharper map"). */
     fun draw(canvas: Canvas, f: Frame, w: Int = canvas.width, h: Int = canvas.height) {
         // Wallpaper / music-card frame (NavPlus) replaces the map entirely when it draws.
-        if (NavPlus.phDraw(canvas, f, w, h)) { NavPlus.hudDraw(canvas, w, h); return }
+        if (NavPlus.phDraw(canvas, f, w, h)) {
+            NavPlus.hudDraw(canvas, w, h)
+            // Notices and the UP prompt must read on the wallpaper too (paused / ended navigation).
+            f.notice?.let { lines -> drawNotice(canvas, w, h, lines) }
+            f.navPrompt?.let { drawNavPrompt(canvas, w, h, it) }
+            return
+        }
         canvas.drawColor(if (f.dark) darkBg else lightBg)
         GoogleTheme.dark = f.dark
         // Google tiles come pre-styled in the chosen theme (night → "Gece"), so no inversion for them.
@@ -595,11 +603,12 @@ class MapRenderer(private val tiles: TileProvider) {
         //    changes the track. ──
         overlay("now playing") {
             if (f.pickerRows == null && NavPlus.mapMus) NavPlus.phNow()?.let { np ->
-                drawMusicPill(canvas, np.title, np.artist, np.art, w, h, maxOf(topEdge, h * 0.15f))
+                drawMusicPill(canvas, np.title, np.artist, np.art, w, h, maxOf(topEdge, h * 0.15f), !np.playing)
             }
         }
 
         f.notice?.let { lines -> drawNotice(canvas, w, h, lines) }
+        f.navPrompt?.let { drawNavPrompt(canvas, w, h, it) }
         f.pickerRows?.let { rows -> drawPicker(canvas, w, h, f.pickerTitle, rows, f.pickerIndex, f.pickerSelectHint) }
 
         // No other on-map text overlays — the dash's own widgets show name/turn, and the
@@ -715,6 +724,48 @@ class MapRenderer(private val tiles: TileProvider) {
         canvas.drawText(ellipsize(selectHint, pickerHintPaint, panelW - 10f), cx, y + hintH / 2f - (pickerHintPaint.descent() + pickerHintPaint.ascent()) / 2f, pickerHintPaint)
     }
 
+    /**
+     * Joystick-UP prompt while navigating: a centred panel, a small title, then two big pills
+     * "◀ Duraklat" | "Bitir ▶" (LEFT / RIGHT pick one) and a hint line ("▼ vazgeç"). Sized for the
+     * round 526×300 console: width as the notice panel, well inside the visible circle.
+     */
+    private fun drawNavPrompt(canvas: Canvas, w: Int, h: Int, p: List<String>) {
+        if (p.size < 3) return
+        val title = p[0]; val leftLabel = p[1]; val rightLabel = p[2]; val hint = p.getOrNull(3)
+        val panelW = NOTICE_W; val pad = 10f; val titleH = 26f; val pillH = 50f; val hintH = if (hint != null) 24f else 0f
+        val panelH = pad + titleH + pillH + hintH + pad
+        val cx = w / 2f; val cy = h / 2f
+        pillRect.set(cx - panelW / 2f, cy - panelH / 2f, cx + panelW / 2f, cy + panelH / 2f)
+        canvas.drawRoundRect(pillRect, 14f, 14f, pickerBgPaint)
+        canvas.drawRoundRect(pillRect, 14f, 14f, etaBorderPaint)
+        var y = pillRect.top + pad
+        canvas.drawText(title, cx, y + titleH / 2f - (pickerTitlePaint.descent() + pickerTitlePaint.ascent()) / 2f, pickerTitlePaint)
+        y += titleH
+        val gap = 10f
+        val l0 = pillRect.left + 12f; val r0 = pillRect.right - 12f
+        val pw = (r0 - l0 - gap) / 2f
+        val rad = pillH / 2f
+        val align = pickerItemPaint.textAlign
+        val size = pickerItemPaint.textSize
+        pickerItemPaint.textAlign = Paint.Align.CENTER
+        pickerItemPaint.textSize = 28f
+        pickerItemPaint.isFakeBoldText = true
+        listOf(leftLabel, rightLabel).forEachIndexed { k, label ->
+            val pl = l0 + k * (pw + gap)
+            pickerRow.set(pl, y, pl + pw, y + pillH)
+            canvas.drawRoundRect(pickerRow, rad, rad, if (k == 0) pickerHiPaint else pickerPillPaint)
+            pickerItemPaint.color = if (k == 0) Color.rgb(20, 22, 26) else Color.rgb(236, 238, 241)
+            val ty = y + pillH / 2f - (pickerItemPaint.descent() + pickerItemPaint.ascent()) / 2f
+            canvas.drawText(ellipsize(label, pickerItemPaint, pw - 12f), pl + pw / 2f, ty, pickerItemPaint)
+        }
+        pickerItemPaint.textAlign = align
+        pickerItemPaint.textSize = size
+        pickerItemPaint.isFakeBoldText = false
+        y += pillH
+        if (hint != null) canvas.drawText(ellipsize(hint, pickerHintPaint, panelW - 16f), cx,
+            y + hintH / 2f - (pickerHintPaint.descent() + pickerHintPaint.ascent()) / 2f, pickerHintPaint)
+    }
+
     /** Confirmation panel above the rider marker: first line bold, the rest normal; fits the safe circle. */
     private fun drawNotice(canvas: Canvas, w: Int, h: Int, lines: List<String>) {
         if (lines.isEmpty()) return
@@ -747,7 +798,7 @@ class MapRenderer(private val tiles: TileProvider) {
     }
 
     /** Compact music card at the top of the map: art left, bold title, grey artist (same look as the turn card). */
-    private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int, top: Float = h * 0.15f) {
+    private fun drawMusicPill(canvas: Canvas, title: String, artist: String, art: android.graphics.Bitmap?, w: Int, h: Int, top: Float = h * 0.15f, paused: Boolean = false) {
         if (title.isBlank()) return
         val ch = h * 0.136f   // ~15% smaller than the first cut (0.16 H × 0.66 W); text and art scale with it
         // Round display: narrower near the top; at most as wide as the space left of the right-hand
@@ -764,7 +815,14 @@ class MapRenderer(private val tiles: TileProvider) {
             canvas.drawBitmap(art, null, musicArtRect, tilePaint)
             x += s + pad
         }
-        val maxW = left + cw - pad - x
+        if (paused) {
+            // Small pause mark (two bars) at the right end: the track is paused, not gone.
+            val bh = ch * 0.36f; val bw = ch * 0.09f
+            val bx = left + cw - pad - bw * 3f; val by = top + (ch - bh) / 2f
+            canvas.drawRect(bx, by, bx + bw, by + bh, pauseMarkPaint)
+            canvas.drawRect(bx + bw * 2f, by, bx + bw * 3f, by + bh, pauseMarkPaint)
+        }
+        val maxW = left + cw - pad - x - (if (paused) ch * 0.36f else 0f)
         cardDistPaint.textSize = ch * 0.34f
         canvas.drawText(ellipsize(title, cardDistPaint, maxW), x, top + ch * 0.46f, cardDistPaint)
         if (artist.isNotBlank()) {

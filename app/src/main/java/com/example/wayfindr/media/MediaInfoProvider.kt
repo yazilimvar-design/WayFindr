@@ -66,6 +66,13 @@ class MediaInfoProvider(private val context: Context) {
     /** Skip the active media session forward/back — driven by the dash joystick in media mode. */
     fun skipNext(): Boolean = runCatching { controller?.transportControls?.skipToNext() != null }.getOrDefault(false)
     fun skipPrevious(): Boolean = runCatching { controller?.transportControls?.skipToPrevious() != null }.getOrDefault(false)
+    /** Play/pause the bound session by its PlaybackState: the new state (true = playing), or null without a session. */
+    fun togglePlayPause(): Boolean? = runCatching {
+        val c = controller ?: return null
+        val playing = c.playbackState?.state == PlaybackState.STATE_PLAYING
+        if (playing) c.transportControls.pause() else c.transportControls.play()
+        !playing
+    }.getOrNull()
 
     /** Bind to the top active session (the one currently driving playback). */
     private fun bind(list: List<MediaController>?) {
