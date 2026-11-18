@@ -163,9 +163,13 @@ PY
   grep -qi "deneysel" "$OUT/ui.xml" && echo "::error::'Deneysel' still on the ride page" | tee -a "$OUT/settings.txt"
   adb shell input keyevent KEYCODE_BACK; sleep 2; shot settings-back
   BR="adb shell am broadcast -a com.wayfindr.DASH_BUTTON -p $PKG"
-  $BR --ez synth_route true; sleep 4
+  # Fresh Ankara fixes into the running tracker first (as the full run's GEO loop does): otherwise its
+  # last fix is stale/elsewhere and every simulated fix fails the jump check (CI 44404701428).
+  ( for n in $(seq 1 60); do adb emu geo fix 32.8541 39.9208 >/dev/null 2>&1; sleep 2; done ) & QGEO=$!
+  $BR --ez synth_route true; sleep 12
   $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | tee -a "$OUT/settings.txt"
   adb shell rm -f "/sdcard/Android/data/$PKG/files/weakgps.txt"
+  kill $QGEO 2>/dev/null
   $BR --ez weak_gps_sim true
   for n in $(seq 1 30); do sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/weakgps.txt" >/dev/null 2>&1 && break; done
   adb pull "/sdcard/Android/data/$PKG/files/weakgps.txt" "$OUT/weakgps.txt" && cat "$OUT/weakgps.txt" || echo "::error::weakgps.txt not written"

@@ -1763,6 +1763,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 // CI: weak GPS along the current route (accuracy 50–150 m, network fixes, a 20 s gap).
                 // CI (quick run, no offline pack): a 4 km synthetic route from here, as the trip.
                 if (intent.getBooleanExtra("synth_route", false)) {
+                    location.start()   // quick run never taps "Navigasyonu başlat": the fix filter must be running
                     val l0 = location.lastKnown()
                     val lat0 = l0?.latitude ?: 39.92; val lng0 = l0?.longitude ?: 32.85
                     val pts = ArrayList<GeoPoint>()
