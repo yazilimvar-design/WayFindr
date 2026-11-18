@@ -57,6 +57,16 @@ for t in "Rota" "Konsol" "Sürüşler" "Ana Sayfa"; do
   adb exec-out screencap -p > "$OUT/$i-$t.png"; i=$((i+1))
 done
 
+# SMOKE_QUICK=1 (CI, when the coordinator asks for speed): install, open, draw the map, stop here.
+if [ "${SMOKE_QUICK:-0}" = 1 ]; then
+  adb logcat -d > "$OUT/logcat.txt"
+  adb shell pidof "$PKG" > "$OUT/pid.txt" || { echo "::error::app process died"; exit 1; }
+  if grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG"; then
+    grep -A60 "FATAL EXCEPTION" "$OUT/logcat.txt"; echo "::error::FATAL EXCEPTION in $PKG"; exit 1
+  fi
+  echo "quick smoke OK (open + tabs)"; exit 0
+fi
+
 # Second pass like a real phone: GPS fix + notification access granted, cold start.
 adb shell cmd notification allow_listener "$PKG/com.example.wayfindr.media.WayfindrNotificationListener" || true
 adb emu geo fix 32.85 39.92
