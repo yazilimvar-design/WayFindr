@@ -24,7 +24,7 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberMarkerState
 
-private const val FOLLOW_ZOOM = 15.5f
+private const val FOLLOW_ZOOM = 17f   // opens at the rider at z17 (was 15.5)
 
 /**
  * In-app phone map using Google Maps.

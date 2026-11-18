@@ -94,7 +94,7 @@ fun WayfindrMap(
 
 // MapLibre zoom is one level lower than Google's for the same scale (512 px vs 256 px tiles).
 private const val ZOOM_OFFSET = 1.0
-private const val FOLLOW_ZOOM = 15.5 - ZOOM_OFFSET
+private const val FOLLOW_ZOOM = 17.0 - ZOOM_OFFSET   // opens at the rider at z17 (was 15.5)
 private const val RIDER_ICON = "rider-chevron"
 private const val DEST_ICON = "dest-pin"
 
@@ -266,7 +266,7 @@ private fun FreeWayfindrMap(
         when {
             camLat != null && camLng != null -> animate(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder()
                 .target(LatLng(camLat, camLng))
-                .zoom((camZoom?.toDouble() ?: 15.5) - ZOOM_OFFSET)
+                .zoom((camZoom?.toDouble() ?: 17.0) - ZOOM_OFFSET)
                 .bearing(camBearing?.toDouble() ?: 0.0)
                 .tilt(if (navMode) 45.0 else 0.0).build()), 400)
             !followRider && !fitRoute && dest != null ->

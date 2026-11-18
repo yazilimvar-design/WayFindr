@@ -94,8 +94,6 @@ class DashSession(private val scope: CoroutineScope) {
     @Volatile private var npAlbum = ""
     @Volatile private var npArtist = ""
     @Volatile private var npPlaying = false
-    /** Send the real play state in 05 19 (DashConfig.mediaPlayState) instead of always "paused". */
-    @Volatile var sendPlayState = false
     @Volatile private var lastJoyRxMs = 0L
 
     // ── Dash data capture (for mapping odometer/trip/fuel/speed/temp fields) ──
@@ -602,7 +600,6 @@ class DashSession(private val scope: CoroutineScope) {
             var prevCaller: String? = null
             var prevTitle: String? = null
             var prevPlaying: Boolean? = null
-            var prevSend = false
             var loggedNp = false
             var loggedCall = false
             while (isActive && _state.value == DashState.STREAMING) {
@@ -620,13 +617,11 @@ class DashSession(private val scope: CoroutineScope) {
                 // (05 19) whenever the track or state changes; switch it off once nothing plays.
                 val title = npTitle
                 val playing = npPlaying
-                if (title != null && (title != prevTitle || playing != prevPlaying || sendPlayState != prevSend)) {
-                    prevSend = sendPlayState
+                if (title != null && (title != prevTitle || playing != prevPlaying)) {
                     // Himican: the dash's own round music bubble stays off; the phone draws its own card.
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
-                    // 05 19 = play state; the real one only when "Konsol müzik ekranında çal/duraklat" is on.
-                    runCatching { socket?.send(DashCommands.musicPlaying(sendPlayState && playing)) }
-                    com.example.wayfindr.data.RideDiagnostics.log("media", "TX music 05 17=off, 05 19 playing=${sendPlayState && playing} (player playing=$playing)")
+                    runCatching { socket?.send(DashCommands.musicPlaying(false)) }
+                    com.example.wayfindr.data.RideDiagnostics.log("media", "TX music 05 17=off, 05 19=off (player playing=$playing)")
                 } else if (title == null && prevTitle != null) {
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
                     loggedNp = false

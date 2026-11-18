@@ -220,18 +220,6 @@ class DashConfig private constructor(context: Context) {
         _smoothMap.value = on
     }
 
-    private val _mediaPlayState = MutableStateFlow(prefs.getBoolean(KEY_MEDIA_PLAY_STATE, false))
-    /**
-     * Send the real play/pause state (05 19) to the console's own media screen instead of "paused".
-     * Experimental: whether the firmware then draws a play/pause mark is not confirmed on the bike.
-     */
-    val mediaPlayState: StateFlow<Boolean> = _mediaPlayState.asStateFlow()
-
-    fun setMediaPlayState(on: Boolean) {
-        prefs.edit().putBoolean(KEY_MEDIA_PLAY_STATE, on).apply()
-        _mediaPlayState.value = on
-    }
-
     fun setShowPhoneBattery(on: Boolean) {
         prefs.edit().putBoolean(KEY_PHONE_BATTERY, on).apply()
         _showPhoneBattery.value = on
@@ -275,7 +263,6 @@ class DashConfig private constructor(context: Context) {
         private const val KEY_HQ_VIDEO = "hq_video"
         private const val KEY_PICKER_DOUBLE_TAP = "picker_double_tap"
         private const val KEY_JOY_TRAIL = "joystick_trail"
-        private const val KEY_MEDIA_PLAY_STATE = "media_play_state"
         private const val KEY_SMOOTH_MAP = "smooth_map_15fps"
         private const val JOY_TEST_MS = 120_000L
         private const val KEY_PHONE_BATTERY = "phone_battery"

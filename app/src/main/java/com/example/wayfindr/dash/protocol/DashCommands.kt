@@ -321,7 +321,7 @@ object DashCommands {
     //   05 0d value = three NUL-separated fields [album]\0[title]\0[artist], each cut to
     //                 19 chars, one byte per char (chars above 0xFF sent as 0xFF).
     //   05 22 value = caller display name, NUL-terminated, re-sent ~1 Hz while ringing.
-    //   05 40       = album-art JPEG, fragmented across ~1 KB packets (see albumArtFrames).
+    //   05 40       = album-art JPEG (seen in a capture, fragmentation not decoded; not sent).
     // K1GPacket.build emits the exact captured frame: [len][segcount][..]"K1G "[seq] TT SS LL value.
 
     private const val MEDIA_FIELD_MAX = 19   // the dash shows at most 19 chars per field
@@ -378,17 +378,6 @@ object DashCommands {
     /** Best-effort "call ended": empty 05 22. the dash'sexact clear wasn't captured; the dash also
      *  times the notification out once callNotify stops repeating, so this is belt-and-suspenders. */
     fun callClear(): ByteArray = K1GPacket.build(K1GPacket.tlv(0x05, 0x22, byteArrayOf(0x00)))
-
-    /**
-     * 05 40 album-art frames (EXPERIMENTAL — fragment sub-framing unconfirmed). The capture showed
-     * the art split across ~1 KB 05 40 TLVs with an incrementing seq byte; the 2-byte intra-value
-     * prefix we saw isn't decoded yet, so this is NOT auto-sent until validated against the dash.
-     * Returns one packet per ~1000-byte JPEG chunk.
-     */
-    fun albumArtFrames(jpeg: ByteArray, chunk: Int = 1000): List<ByteArray> =
-        jpeg.toList().chunked(chunk).map { c ->
-            K1GPacket.build(K1GPacket.tlv(0x05, 0x40, c.toByteArray()))
-        }
 
     private fun indexOf(haystack: ByteArray, needle: ByteArray, fromEnd: Boolean = false): Int {
         val range = if (fromEnd) (haystack.size - needle.size downTo 0) else (0..haystack.size - needle.size)

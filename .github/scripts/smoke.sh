@@ -18,6 +18,8 @@ adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wa
 sleep 15
 adb pull "/sdcard/Android/data/$PKG/files/navcard.png" "$OUT/navcard.png" || echo "::warning::navcard.png not rendered"
 
+Q="${SMOKE_QUICK:-0}"
+if [ "$Q" != 1 ]; then
 # Dash frame path benchmark (debug-only entry): achieved fps + render/encode ms, old 4 fps vs now.
 # Then a simulated ride along a real Ankara route at 30/60/90/120 km/h (before/after position path).
 adb shell rm -f "/sdcard/Android/data/$PKG/files/framebench.txt"
@@ -32,6 +34,8 @@ adb pull "/sdcard/Android/data/$PKG/files/framebench-frames.png" "$OUT/framebenc
 for v in once sonra; do   # mp4/gif are made from these after the emulator (build.yml)
   adb pull "/sdcard/Android/data/$PKG/files/bench90-$v.h264" "$OUT/bench90-$v.h264" || echo "::warning::bench90-$v.h264 not written"
 done
+
+fi
 
 find_xy() {  # print the centre of the node whose text or content-desc is $1
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
@@ -57,16 +61,7 @@ for t in "Rota" "Konsol" "Sürüşler" "Ana Sayfa"; do
   adb exec-out screencap -p > "$OUT/$i-$t.png"; i=$((i+1))
 done
 
-# SMOKE_QUICK=1 (CI, when the coordinator asks for speed): install, open, draw the map, stop here.
-if [ "${SMOKE_QUICK:-0}" = 1 ]; then
-  adb logcat -d > "$OUT/logcat.txt"
-  adb shell pidof "$PKG" > "$OUT/pid.txt" || { echo "::error::app process died"; exit 1; }
-  if grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG"; then
-    grep -A60 "FATAL EXCEPTION" "$OUT/logcat.txt"; echo "::error::FATAL EXCEPTION in $PKG"; exit 1
-  fi
-  echo "quick smoke OK (open + tabs)"; exit 0
-fi
-
+if [ "$Q" != 1 ]; then
 # Second pass like a real phone: GPS fix + notification access granted, cold start.
 adb shell cmd notification allow_listener "$PKG/com.example.wayfindr.media.WayfindrNotificationListener" || true
 adb emu geo fix 32.85 39.92
@@ -78,6 +73,8 @@ for t in "Rota" "Konsol" "Sürüşler" "Ana Sayfa"; do
   adb emu geo fix 32.86 39.93; tap "$t"; sleep 6
   adb exec-out screencap -p > "$OUT/$i-gps-$t.png"; i=$((i+1))
 done
+
+fi
 
 # Third pass: import a real GPX export (Super TripperDash) through "GPX içe aktar" and the system
 # file picker, then open the ride detail, the full-screen map and the share sheet.
@@ -140,6 +137,48 @@ tap0 "Paylaş"; sleep 8; shot share-sheet
 tap0 "Diğer"; sleep 4; shot share-chooser
 adb shell "run-as $PKG sh -c 'cat cache/route_qr/*.png'" > "$OUT/share-image.png" 2>/dev/null || true
 adb shell input keyevent KEYCODE_BACK; sleep 1; adb shell input keyevent KEYCODE_BACK; sleep 1
+
+# Quick run (SMOKE_QUICK=1): only the V62 checks — Ayarlar → "Sürüş sırasında" page, the ride share
+# card / full-screen ride map (above) and the weak-GPS simulation on a synthetic route. Then stop.
+if [ "$Q" = 1 ]; then
+  adb shell cmd notification allow_listener "$PKG/com.example.wayfindr.media.WayfindrNotificationListener" || true
+  adb emu geo fix 32.8541 39.9208; sleep 2
+  tap "Ana Sayfa"; sleep 3; tap0 "Ayarlar"; sleep 4; shot settings
+  for n in 1 2 3; do [ -n "$(find_xy 'Sürüş sırasında' 2>/dev/null)" ] && break; up; sleep 1; done
+  shot settings-ride-row
+  ui_dump0() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb exec-out cat /sdcard/ui.xml > "$OUT/ui.xml"; }
+  ui_dump0; grep -c 'Joystick testi' "$OUT/ui.xml" | sed 's/^/joystick rows on the main Ayarlar page (want 0): /' | tee "$OUT/settings.txt"
+  xy=$(python3 - "$OUT/ui.xml" <<'PY'
+import re, sys
+for node in re.findall(r'<node [^>]*>', open(sys.argv[1], encoding='utf-8').read()):
+    if 'text="Sürüş sırasında"' in node:
+        x1, y1, x2, y2 = map(int, re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', node).groups()); print((x1 + x2) // 2, (y1 + y2) // 2)
+PY
+)
+  for p in $xy; do :; done
+  set -- $xy; [ $# -ge 4 ] && adb shell input tap $3 $4 || { [ $# -ge 2 ] && adb shell input tap $1 $2; }
+  sleep 3; shot settings-ride-page
+  ui_dump0; for t in "Telefon ekranını kapat" "Joystick testi" "Akıcı harita (15 kare/sn)" "Daha keskin harita"; do
+    grep -q "text=\"$t\"" "$OUT/ui.xml" && echo "ride page has '$t': OK" || echo "::warning::ride page lacks '$t' (may need scrolling)"; done | tee -a "$OUT/settings.txt"
+  grep -qi "deneysel" "$OUT/ui.xml" && echo "::error::'Deneysel' still on the ride page" | tee -a "$OUT/settings.txt"
+  adb shell input keyevent KEYCODE_BACK; sleep 2; shot settings-back
+  BR="adb shell am broadcast -a com.wayfindr.DASH_BUTTON -p $PKG"
+  $BR --ez synth_route true; sleep 4
+  $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | tee -a "$OUT/settings.txt"
+  adb shell rm -f "/sdcard/Android/data/$PKG/files/weakgps.txt"
+  $BR --ez weak_gps_sim true
+  for n in $(seq 1 30); do sleep 5; adb shell ls "/sdcard/Android/data/$PKG/files/weakgps.txt" >/dev/null 2>&1 && break; done
+  adb pull "/sdcard/Android/data/$PKG/files/weakgps.txt" "$OUT/weakgps.txt" && cat "$OUT/weakgps.txt" || echo "::error::weakgps.txt not written"
+  grep -q "donma yok: OK" "$OUT/weakgps.txt" 2>/dev/null && echo "weak GPS keeps navigating: OK" || echo "::error::weak GPS: navigation froze (weakgps.txt)"
+  for f in 08 20 32 45 55 66; do adb pull "/sdcard/Android/data/$PKG/files/diag/weakgps-$f.png" "$OUT/weakgps-$f.png" >/dev/null 2>&1 || echo "::warning::weakgps-$f.png not rendered"; done
+  adb logcat -d > "$OUT/logcat.txt"
+  adb shell pidof "$PKG" > "$OUT/pid.txt" || { echo "::error::app process died"; exit 1; }
+  if grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG"; then
+    grep -A60 "FATAL EXCEPTION" "$OUT/logcat.txt"; echo "::error::FATAL EXCEPTION in $PKG"; exit 1
+  fi
+  grep -q "donma yok: OK" "$OUT/weakgps.txt" || exit 1
+  echo "quick smoke OK"; exit 0
+fi
 
 # Fourth pass: Türkiye çevrimdışı paketi. (a) The real one-button download (map + search index from
 # the tr-map-latest manifest + 8 BRouter segments, ~1.1 GB, via DownloadManager) from the card in

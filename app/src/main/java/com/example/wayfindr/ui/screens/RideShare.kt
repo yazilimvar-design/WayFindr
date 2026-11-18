@@ -165,7 +165,9 @@ private fun rememberShareCard(ride: Ride, name: String, stats: RideStats): Image
     val terrain = rememberVectorPainter(Icons.Outlined.Terrain)
     val land = rememberVectorPainter(Icons.Outlined.Landscape)
     val card by produceState<ImageBitmap?>(null, ride.sid, name, stats) {
-        val map = RideThumbs.renderLive(ctx, ride, CARD_W, MAP_H, 3f)
+        // Pixel ratio 1.5, not 3: the map is drawn about one zoom level closer, so street names show
+        // (at 3 the 1080 px card was a 360 px map → only district names), and the line stays thin.
+        val map = RideThumbs.renderLive(ctx, ride, CARD_W, MAP_H, 1.5f)
         val banner = BitmapFactory.decodeResource(ctx.resources, R.drawable.share_banner).asImageBitmap()
         val row1 = listOf(
             Stat(pin, Gold, fmtKm(ride.distanceKm), "MESAFE"),

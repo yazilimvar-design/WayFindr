@@ -17,7 +17,7 @@ object WeakGps {
     /** Dead reckoning along the route stops this long after the last fix (s). */
     const val MAX_S = 45.0
     /** Fix age before progress starts to dead-reckon (s): a normal 1 Hz stream never triggers it. */
-    const val GAP_S = 1.5
+    const val GAP_S = 1.2
     /** Below this speed (m/s) nothing is dead-reckoned (stopped / walking pace). */
     const val MIN_SPEED_MPS = 1.0
     private const val MIN_SNAP_M = 35.0

@@ -248,7 +248,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     @JvmField @Volatile var route: Route? = null  // read by NavPlus.pickPlanned
     @Volatile private var panX = 0f
     @Volatile private var panY = 0f
-    @Volatile private var zoom = START_ZOOM  // dash map always opens at z16
+    @Volatile private var zoom = START_ZOOM  // dash map always opens at z17
     @Volatile private var headingUp = true
     @JvmField @Volatile var mapDark = false  // read by NavPlus (dash menu)
     @Volatile private var followMode = true
@@ -509,7 +509,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val JM_ROW_COUNT = 7
         /** Paused / ended: this far from where it happened = ridden off → map back. */
         private const val WALL_HOLD_M = 150.0
-        private const val START_ZOOM = 16
+        private const val START_ZOOM = 17   // console map and every navigation start (was 16)
         private const val DASH_MAX_ZOOM = 20
         /** How long a dash notice ("Skipped …") stays up. */
         private const val NOTICE_MS = 4_000L
@@ -784,7 +784,6 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         viewModelScope.launch { dashConfig.joystickTest.collect { session.rawInputLog = it; if (!it) joyTestLines = null } }
-        viewModelScope.launch { dashConfig.mediaPlayState.collect { session.sendPlayState = it } }
         session.onButton = { btn ->
             val code = btn.toInt() and 0xFF
             when (code) {   // physical directions: 0x15 down, 0x13 right, 0x14 left
@@ -847,7 +846,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     fun connect() {
         userWantsConnection = true
         hasStreamedThisConnection = false
-        zoom = START_ZOOM   // every ride starts at z16, whatever was zoomed last time
+        zoom = START_ZOOM   // every ride starts at z17, whatever was zoomed last time
         authAttempts = 0
         _ui.update { it.copy(errorMessage = null, retryAttempt = 0, needsWifiOn = false) }
 
@@ -1134,6 +1133,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         routeStops = validStops
         // The ride is named after where it was going (not a reverse-geocoded house number).
         validStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }?.let { rideDestName = it; recorder.journalName(it) }
+        // Every navigation starts at z17 (START_ZOOM).
+        if (validStops.isNotEmpty()) { zoom = START_ZOOM; _ui.update { it.copy(mapZoom = START_ZOOM) } }
         // A new route after "Navigasyonu bitir": guidance runs again and a new ride starts.
         setNavPaused(false); setWallHold(false)
         if (rideEnded) { rideEnded = false; if (userWantsConnection) startRecording() }
@@ -1760,6 +1761,17 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     NavPlus.rdAheadM = 320; NavPlus.rdAheadAt = now + 60_000
                 }
                 // CI: weak GPS along the current route (accuracy 50–150 m, network fixes, a 20 s gap).
+                // CI (quick run, no offline pack): a 4 km synthetic route from here, as the trip.
+                if (intent.getBooleanExtra("synth_route", false)) {
+                    val l0 = location.lastKnown()
+                    val lat0 = l0?.latitude ?: 39.92; val lng0 = l0?.longitude ?: 32.85
+                    val pts = ArrayList<GeoPoint>()
+                    for (i in 0..400) { val t = i / 400.0; pts += GeoPoint(lat0 + 0.012 * t + 0.002 * Math.sin(t * 6.0), lng0 + 0.04 * t) }
+                    val cum = DoubleArray(pts.size).also { cc -> for (i in 1 until pts.size) cc[i] = cc[i - 1] + GeoPoint.distMeters(pts[i - 1], pts[i]) }
+                    val end = pts.last()
+                    setDestinations(listOf(com.example.wayfindr.data.SharedLocation("Test hedefi", end.lat, end.lng)),
+                        Route(pts, emptyList(), cum.last(), cum.last() / 12.5, cum))
+                }
                 if (intent.getBooleanExtra("weak_gps_sim", false)) runWeakGpsSim(c)
                 if (intent.getBooleanExtra("toggles", false)) {
                     val report = debugToggleCheck()
@@ -3066,7 +3078,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // remaining distance stand still for seconds (CI 44380760112, 14–17 s). Good fixes still may.
         val noBack = poor && drSpeedMps >= WeakGps.MIN_SPEED_MPS
         if (advanceProgress && (newFix || !poor)) matchedProgress =
-            if (noBack) maxOf(matchedProgress, measured) else maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, measured)
+            // …and keeps at least half the dead-reckoned advance, so noise behind can't cancel the motion
+            // (CI 44387192724: three 1 Hz poor fixes in a row moved it only 10 m at 12.5 m/s).
+            if (noBack) maxOf(matchedProgress + 0.5 * ((drAtFix ?: matchedProgress) - matchedProgress), measured)
+            else maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, measured)
         if (newFix) {
             // GPS speed is Doppler-measured: good even when the position is poor, so it is always taken.
             // Without it (network fixes) only progress over 3 s+ counts, so position noise can't drive it.
@@ -3191,7 +3206,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      * Bridge the phone's now-playing session + incoming-call notification onto the dash (TLV 05 0d /
      * 05 22), matching the dash. Needs notification access; without it MediaInfoProvider
      * stays silent and the dash simply shows no media card. Album art (05 40) is captured in the
-     * protocol but not auto-sent yet (fragmentation unverified — see DashCommands.albumArtFrames).
+     * protocol but not auto-sent yet (05 40 fragmentation not decoded).
      */
     private fun startMediaForwarding() {
         val granted = com.example.wayfindr.media.MediaInfoProvider.isAccessGranted(getApplication())

@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +53,82 @@ fun SettingsScreen(
         com.example.wayfindr.dash.nav.VoiceMode.FULL  -> "Tam TTS"
     }
 
+    // "Sürüş sırasında" opens as its own page (system back returns to Ayarlar).
+    var ridePage by rememberSaveable { mutableStateOf(false) }
+    if (ridePage) {
+        androidx.activity.compose.BackHandler { ridePage = false }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(18.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            ScreenHeader(title = "Sürüş sırasında", onBack = { ridePage = false },
+                hint = "Konsol haritası ve joystick ayarları.")
+            Spacer(Modifier.height(12.dp))
+            val dashConfig = remember { DashConfig.get(ctx) }
+            val mapDark by dashConfig.mapDarkMode.collectAsState()
+            val mapDarkAuto by dashConfig.mapDarkAuto.collectAsState()
+            val invertZoom by dashConfig.invertZoom.collectAsState()
+            val sharperMap by dashConfig.sharperMap.collectAsState()
+            val pickerDoubleTap by dashConfig.pickerDoubleTap.collectAsState()
+            val showJoystickTrail by dashConfig.showJoystickTrail.collectAsState()
+            val showPhoneBattery by dashConfig.showPhoneBattery.collectAsState()
+            val joystickTest by dashConfig.joystickTest.collectAsState()
+            val smoothMap by dashConfig.smoothMap.collectAsState()
+            WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 6.dp) {
+                SettingRow(WayfindrIcons.Power, "Telefon ekranını kapat", "Harita konsola aktarılmaya devam eder",
+                    control = { WayfindrToggle(screenOff) { screenOff = it } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Dash, "Konsolu uyanık tut", "Konsolun uykuya geçmesini önle",
+                    control = { WayfindrToggle(keepAwake) { keepAwake = it } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Moon, "Haritada otomatik karanlık mod",
+                    if (mapDarkAuto) "Saat 19.00–05.00 arasında karanlık (telefon saatine göre)" else "Kapalı: aşağıdaki anahtarla elle ayarlayın",
+                    control = { WayfindrToggle(mapDarkAuto) { dashConfig.setMapDarkAuto(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                // Shows the current state while auto; flipping it switches to manual.
+                val darkNow = com.example.wayfindr.dash.DarkSchedule.effective(mapDarkAuto, mapDark)
+                SettingRow(WayfindrIcons.Moon, "Konsol haritası: karanlık mod",
+                    if (mapDarkAuto) "Saati izliyor · elle ayarlamak için dokunun" else "Elle · aynı önbelleğe alınmış harita kutucuklarında gece görünümü",
+                    control = { WayfindrToggle(darkNow) { dashConfig.setMapDarkMode(it); dashConfig.setMapDarkAuto(false) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Sync, "Joystick yakınlaştırmasını tersine çevir",
+                    if (invertZoom) "Sağa: yakınlaştır · sola: uzaklaştır" else "Sola: yakınlaştır · sağa: uzaklaştır",
+                    control = { WayfindrToggle(invertZoom) { dashConfig.setInvertZoom(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Pin, "Sola/sağa iki kez basınca hedef listesi açılsın",
+                    if (pickerDoubleTap) "Açık: sola/sağa iki kez dokunun veya aşağıya iki kez basın; kayıtlı liste açılır"
+                    else "Kapalı: aşağıya 3 sn içinde iki kez basınca kayıtlı liste açılır",
+                    control = { WayfindrToggle(pickerDoubleTap) { dashConfig.setPickerDoubleTap(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Target, "Joystick basışlarını göster",
+                    "Konsolun alt ortasında son 4 basışı D / R / L olarak, her biri 2 sn göster",
+                    control = { WayfindrToggle(showJoystickTrail) { dashConfig.setShowJoystickTrail(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Target, "Joystick testi",
+                    if (joystickTest) "Açık: her tuş konsolda büyük yazılır ve sürüş günlüğüne kaydedilir · 2 dk sonra kapanır"
+                    else "Konsoldan gelen her tuş kodunu (0xNN) konsolda gösterir; yukarı/orta/uzun basışı öğrenmek için",
+                    control = { WayfindrToggle(joystickTest) { dashConfig.setJoystickTest(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Target, "Telefon pilini konsolda göster",
+                    "Tahmini varış süresinin üstünde pil yüzdesi; şarj olurken şimşek simgesi",
+                    control = { WayfindrToggle(showPhoneBattery) { dashConfig.setShowPhoneBattery(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Target, "Akıcı harita (15 kare/sn)",
+                    if (smoothMap) "Hızlı giderken harita daha az zıplar · biraz daha fazla pil · sonraki bağlantıda geçerli"
+                    else "Standart: saniyede 10 kare",
+                    control = { WayfindrToggle(smoothMap) { dashConfig.setSmoothMap(it) } })
+                WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+                SettingRow(WayfindrIcons.Target, "Daha keskin harita",
+                    if (sharperMap) "2× çizim, yüksek çözünürlüklü harita kutucukları · daha fazla bellek" else "Standart harita kutucukları",
+                    control = { WayfindrToggle(sharperMap) { dashConfig.setSharperMap(it) } }, last = true)
+            }
+        }
+        return
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -82,69 +159,12 @@ fun SettingsScreen(
         OfflinePackCard()
 
         SectionLabel("Sürüş sırasında")
-        val dashConfig = remember { DashConfig.get(ctx) }
-        val mapDark by dashConfig.mapDarkMode.collectAsState()
-        val mapDarkAuto by dashConfig.mapDarkAuto.collectAsState()
-        val invertZoom by dashConfig.invertZoom.collectAsState()
-        val sharperMap by dashConfig.sharperMap.collectAsState()
-        val pickerDoubleTap by dashConfig.pickerDoubleTap.collectAsState()
-        val showJoystickTrail by dashConfig.showJoystickTrail.collectAsState()
-        val showPhoneBattery by dashConfig.showPhoneBattery.collectAsState()
-        val joystickTest by dashConfig.joystickTest.collectAsState()
-        val mediaPlayState by dashConfig.mediaPlayState.collectAsState()
-        val smoothMap by dashConfig.smoothMap.collectAsState()
+        // One row; the settings themselves are on their own page (rider: the section was too crowded).
         WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 6.dp) {
-            SettingRow(WayfindrIcons.Power, "Telefon ekranını kapat", "Harita konsola aktarılmaya devam eder",
-                control = { WayfindrToggle(screenOff) { screenOff = it } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Dash, "Konsolu uyanık tut", "Konsolun uykuya geçmesini önle",
-                control = { WayfindrToggle(keepAwake) { keepAwake = it } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Moon, "Haritada otomatik karanlık mod",
-                if (mapDarkAuto) "Saat 19.00–05.00 arasında karanlık (telefon saatine göre)" else "Kapalı: aşağıdaki anahtarla elle ayarlayın",
-                control = { WayfindrToggle(mapDarkAuto) { dashConfig.setMapDarkAuto(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            // Shows the current state while auto; flipping it switches to manual.
-            val darkNow = com.example.wayfindr.dash.DarkSchedule.effective(mapDarkAuto, mapDark)
-            SettingRow(WayfindrIcons.Moon, "Konsol haritası: karanlık mod",
-                if (mapDarkAuto) "Saati izliyor · elle ayarlamak için dokunun" else "Elle · aynı önbelleğe alınmış harita kutucuklarında gece görünümü",
-                control = { WayfindrToggle(darkNow) { dashConfig.setMapDarkMode(it); dashConfig.setMapDarkAuto(false) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Sync, "Joystick yakınlaştırmasını tersine çevir",
-                if (invertZoom) "Sağa: yakınlaştır · sola: uzaklaştır" else "Sola: yakınlaştır · sağa: uzaklaştır",
-                control = { WayfindrToggle(invertZoom) { dashConfig.setInvertZoom(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Pin, "Sola/sağa iki kez basınca hedef listesi açılsın",
-                if (pickerDoubleTap) "Açık: sola/sağa iki kez dokunun veya aşağıya iki kez basın; kayıtlı liste açılır"
-                else "Kapalı: aşağıya 3 sn içinde iki kez basınca kayıtlı liste açılır",
-                control = { WayfindrToggle(pickerDoubleTap) { dashConfig.setPickerDoubleTap(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Target, "Joystick basışlarını göster",
-                "Konsolun alt ortasında son 4 basışı D / R / L olarak, her biri 2 sn göster",
-                control = { WayfindrToggle(showJoystickTrail) { dashConfig.setShowJoystickTrail(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Target, "Joystick testi",
-                if (joystickTest) "Açık: her tuş konsolda büyük yazılır ve sürüş günlüğüne kaydedilir · 2 dk sonra kapanır"
-                else "Konsoldan gelen her tuş kodunu (0xNN) konsolda gösterir; yukarı/orta/uzun basışı öğrenmek için",
-                control = { WayfindrToggle(joystickTest) { dashConfig.setJoystickTest(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Target, "Konsol müzik ekranında çal/duraklat durumu",
-                if (mediaPlayState) "Deneysel: şarkının çalıp çalmadığı konsolun kendi müzik ekranına gönderilir"
-                else "Kapalı: konsola her zaman \"duraklatıldı\" gönderilir (önceki davranış)",
-                control = { WayfindrToggle(mediaPlayState) { dashConfig.setMediaPlayState(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Target, "Telefon pilini konsolda göster",
-                "Tahmini varış süresinin üstünde pil yüzdesi; şarj olurken şimşek simgesi",
-                control = { WayfindrToggle(showPhoneBattery) { dashConfig.setShowPhoneBattery(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Target, "Akıcı harita (15 kare/sn)",
-                if (smoothMap) "Deneysel: hızlı giderken harita daha az zıplar · biraz daha fazla pil · sonraki bağlantıda geçerli"
-                else "Standart: saniyede 10 kare",
-                control = { WayfindrToggle(smoothMap) { dashConfig.setSmoothMap(it) } })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Target, "Daha keskin harita",
-                if (sharperMap) "2× çizim, yüksek çözünürlüklü harita kutucukları · daha fazla bellek" else "Standart harita kutucukları",
-                control = { WayfindrToggle(sharperMap) { dashConfig.setSharperMap(it) } }, last = true)
+            SettingRow(WayfindrIcons.Dash, "Sürüş sırasında",
+                "Ekran, karanlık harita, joystick, konsoldaki göstergeler, harita akıcılığı",
+                control = { Icon(WayfindrIcons.ChevronRight, contentDescription = null, tint = TextMid, modifier = Modifier.size(22.dp)) },
+                last = true, onClick = { ridePage = true })
         }
 
         SectionLabel("Konsolda medya ve aramalar")
