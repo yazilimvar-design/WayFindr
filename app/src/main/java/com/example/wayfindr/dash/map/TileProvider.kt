@@ -151,6 +151,21 @@ class TileProvider(context: Context, private val scope: CoroutineScope) {
         return memory.get(keyOf(z, xw, y))
     }
 
+    /**
+     * Load the 3×3 tiles around a point the rider reaches in a few seconds into the memory cache,
+     * so they are ready before they scroll in. Google / offline-map tiles only: OpenStreetMap's
+     * tile policy allows live viewing, no prefetching (see [liveOsmOnly]).
+     */
+    fun warmAhead(lat: Double, lng: Double, z: Int) {
+        if (!(GPlus.tilesOn || vectorMode())) return
+        val cx = Mercator.lngToTileX(lng, z).toInt()
+        val cy = Mercator.latToTileY(lat, z).toInt()
+        for (dx in -1..1) for (dy in -1..1) get(z, cx + dx, cy + dy)
+    }
+
+    /** Debug/benchmark: drop the memory cache so a run starts cold. */
+    fun debugEvictMemory() = memory.evictAll()
+
     /** Warm a single zoom level around a point right now (e.g. right after the rider zooms). */
     fun prefetchZoom(lat: Double, lng: Double, z: Int, radius: Int = 2) {
         if (z < 0 || liveOsmOnly) return

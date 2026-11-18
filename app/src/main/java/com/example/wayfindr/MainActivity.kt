@@ -142,6 +142,9 @@ class MainActivity : ComponentActivity() {
                 if (frames > 0) bytes / frames else 0, bytes * 8 / 12_000.0,
                 13.9 * frameMs / 1000.0 / (156_543.03 * Math.cos(Math.toRadians(39.92)) / (1 shl 19))))
         }
+        // Driving along a real route at 30–120 km/h: frame cadence, frame cost and position lag, before/after.
+        report.append(runCatching { com.example.wayfindr.util.FrameBench.run(applicationContext) }
+            .getOrElse { "FrameBench failed: $it\n" + it.stackTraceToString() })
         android.util.Log.i("FrameBench", report.toString())
         java.io.File(getExternalFilesDir(null), "framebench.txt").writeText(report.toString())
     }.start()

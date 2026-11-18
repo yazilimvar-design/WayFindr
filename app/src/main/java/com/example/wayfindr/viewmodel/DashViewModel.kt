@@ -269,6 +269,22 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private var fixSpeed = 0f             // m/s
     private var fixWallMs = 0L
     private var lastFixTime = 0L
+    // The fix's own measurement time and when this loop received it (elapsedRealtime ns): the
+    // prediction counts from the measurement, so a fix that is already old on delivery
+    // (fused / Navigation SDK) no longer leaves the marker that far behind.
+    private var fixElapsedNs = 0L
+    private var fixArrivalNs = 0L
+    private var fixAccuracy = 12f
+    // Turns the per-fix prediction into continuous motion (see RiderMotion); the mode tag
+    // (0 none, 1 moving, 2 stopped) rebases it when the prediction switches source.
+    private val riderMotion = com.example.wayfindr.dash.map.RiderMotion()
+    private var motionMode = 0
+    private var motionOnRoute = false
+    private var fixIsNew = false
+    // Route progress the on-route prediction landed on (-1 = off route): the camera heading follows
+    // the road there instead of the last fix's GPS bearing.
+    private var predProgressM = -1.0
+    private var lastWarmMs = 0L
     private var gpsFixIntervalMs = 0.0   // EMA of the gap between fixes — exposes screen-off GPS throttling
 
     // GPS health surfaced to the dash + phone (computed each tick from accuracy + fix age).
@@ -394,13 +410,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         private const val REROUTE_MAX_MS = 20_000L
         private const val REROUTE_STREAK_RESET_MS = 60_000L
         private const val MAX_AUTO_ROUTE_CALLS = 150
-        // Lead the displayed position by the pipeline latency (camera ease + H.264 encode + RTP +
-        // dash decode/display ≈ 0.5 s) so the dash shows where the bike IS, not where it was.
-        private const val DISPLAY_LEAD_S = 0.8
-        // Cap on how far ahead the constant-velocity predictor projects (s of travel). Bounds the
-        // over-shoot if a fix is missed across a real stop / a long dropout; below this it tracks
-        // the rider's actual motion so the camera never freezes between sparse (screen-off) fixes.
-        private const val MAX_PREDICT_S = 2.25
+        /** Look-ahead tile warming points, seconds of travel ahead of the rider. */
+        private val WARM_AHEAD_S = doubleArrayOf(3.0, 6.0)
+        // Display lead and dead-reckoning cap: RiderMotion.LEAD_S / MAX_PREDICT_S (were 0.8 s from
+        // when the fix was first seen, + a camera ease; now 0.5 s from the fix's measurement time).
         // Motion-adaptive frame cadence — the heart of the RE-style power/stability model.
         // Measuringthe dash showed it projects the map at just 2–4 fps with two
         // profiles (q2g: 4 fps/200 kbps "frameToSend"=250 ms, and 2 fps/100 kbps =500 ms) and switches
@@ -493,20 +506,6 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         return Math.toDegrees(lat2) to Math.toDegrees(lng2)
     }
 
-    /**
-     * Distance (m) to dead-reckon ahead of the last GPS fix, given the time since it arrived.
-     *
-     * CONSTANT velocity (distance = speed × time), capped at [MAX_PREDICT_S]. The old version
-     * tapered off after ~1 s, so the camera DECELERATED to a near-stop between fixes and then
-     * jumped when the next one landed — the "stuck then teleport" feel, especially with the screen
-     * off when GPS callbacks slow to multi-second gaps. Projecting at the true speed keeps the
-     * camera (and the constant [DISPLAY_LEAD_S] lead) moving smoothly through the gap, so each new
-     * fix lands where the camera already is — no jump. The cap bounds over-shoot if the rider
-     * stops/turns mid-gap; the next fix (with speed ~0 → predictor off) then eases it back.
-     */
-    private fun predictedDistance(speedMps: Float, elapsedSec: Double): Double =
-        speedMps * elapsedSec.coerceIn(0.0, MAX_PREDICT_S)
-
     /** Speed-limit / console notices from NavPlus: feed it the last fix, show what it queued. */
     private fun navplusNotice() {
         try {
@@ -534,6 +533,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     val ahead = NavPlus.pointAt(geometry, cumulative, progress + dist)
                     if (ahead != null) {
                         NavPlus.onRoute = true
+                        predProgressM = progress + dist
                         return ahead.lat to ahead.lng
                     }
                 }
@@ -541,6 +541,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         } catch (_: Throwable) {
         }
         NavPlus.onRoute = false
+        predProgressM = -1.0
         return NavPlus.roadSnap(arc) as Pair<Double, Double>?
     }
 
@@ -1875,7 +1876,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         frameBitmap = newFrameBitmap()
         lastSignature = ""
         // Fresh camera so it snaps to the first fix instead of gliding from a stale spot.
-        camInit = false; lastTickNs = 0L; lastFixTime = 0L; heldRider = null
+        camInit = false; lastTickNs = 0L; lastFixTime = 0L; heldRider = null; riderMotion.reset(); motionMode = 0
 
         session.startStreaming()
         startMediaForwarding()
@@ -2192,6 +2193,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             fixLat = matchedLat ?: loc.latitude; fixLng = matchedLng ?: loc.longitude
             fixBearing = loc.bearing; fixSpeed = loc.speed
             fixWallMs = nowWall
+            fixElapsedNs = loc.elapsedRealtimeNanos
+            fixArrivalNs = android.os.SystemClock.elapsedRealtimeNanos()
+            fixAccuracy = if (loc.hasAccuracy()) loc.accuracy else 30f
+            fixIsNew = true
         }
 
         // GPS health after applying this tick's fix, so a just-accepted update isn't still
@@ -2209,24 +2214,21 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             loc == null -> null
             fixSpeed > 0.5f -> {
                 // Dead-reckon forward from the last fix so the camera keeps GLIDING through GPS
-                // gaps instead of freezing then snapping ("stuck then jump"). predictedDistance
-                // runs at full speed for the first ~1 s (the normal 1 Hz fix gap) then tapers, so
-                // a long dropout — or a brake/stop the predictor hasn't heard about yet — can't
-                // fling the camera far ahead; the next fix then needs only a tiny eased correction.
-                // elapsed = time since the fix arrived; + DISPLAY_LEAD_S leads the marker past
-                // "now" to cancel the camera-ease + encode + RTP + dash-decode/display latency, so
-                // the dash tracks the bike instead of trailing ~0.5 s behind. The predictor's taper
-                // still caps how far a long dropout / unannounced brake can fling it.
-                val elapsed = (System.currentTimeMillis() - fixWallMs) / 1000.0
+                // gaps instead of freezing then snapping ("stuck then jump"). Constant speed, capped
+                // at RiderMotion.MAX_PREDICT_S so a long dropout or an unannounced stop can't fling
+                // the camera far ahead; RiderMotion fades the next fix's correction in.
+                // elapsed = time since the fix was MEASURED (its age on delivery + time since it
+                // arrived, elapsedRealtime clock; it used to start when this loop first saw the
+                // fix, so the fix's own age and up to a frame of polling were lost = lag ∝ speed).
+                // + LEAD_S leads the marker past "now" to cancel encode + RTP + dash decode/show.
+                val elapsed = com.example.wayfindr.dash.map.RiderMotion.sinceFixSeconds(
+                    fixElapsedNs, fixArrivalNs, android.os.SystemClock.elapsedRealtimeNanos())
                 // Weak-GPS guard: a noisy fix has an unreliable position AND bearing/speed, so
-                // extrapolating from it flings the view ("teleport"). Scale the prediction down as
-                // accuracy worsens — but only for GENUINELY poor fixes: full up to 25 m, none above
-                // 50 m. The old 12 m cutoff scaled prediction DOWN at the moderate accuracy that's
-                // normal at speed, so the predictor undershot → the camera lagged → each new fix
-                // snap-corrected forward = the "jumping when moving fast". Widening it keeps the
-                // dead-reckon gliding through the 1 Hz gaps at speed while still guarding bad fixes.
-                val conf = ((50f - (loc.accuracy)) / 25f).toDouble().coerceIn(0.0, 1.0)
-                val dist = predictedDistance(fixSpeed, elapsed + DISPLAY_LEAD_S) * conf
+                // scale the prediction down for GENUINELY poor fixes (full to 30 m, none at 60 m).
+                // Any scale-down leaves a 1 Hz forward sawtooth, so it starts later than the old 25 m.
+                val conf = com.example.wayfindr.dash.map.RiderMotion.confidence(fixAccuracy)
+                val dist = com.example.wayfindr.dash.map.RiderMotion.distance(
+                    fixSpeed, elapsed + com.example.wayfindr.dash.map.RiderMotion.LEAD_S) * conf
                 // Remember where the bike actually is (snapped to the road), so that when it stops
                 // the marker holds the real fix (not the lead-projected point ahead of it).
                 heldRider = NavPlus.roadSnapHold(fixLat to fixLng) as Pair<Double, Double>?
@@ -2249,18 +2251,34 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
 
+        // Continuous motion: a new fix / prediction source becomes a fading offset (RiderMotion)
+        // instead of a jump, and the prediction itself moves at full speed — the camera no longer
+        // low-passes the position (that trailed the bike by speed × τ and made a 1 Hz sawtooth).
+        val nowNs = System.nanoTime()
+        val mode = when { rider == null -> 0; fixSpeed > 0.5f -> 1; else -> 2 }
+        val onRouteNow = mode == 1 && predProgressM >= 0.0
+        val rebase = fixIsNew || mode != motionMode || onRouteNow != motionOnRoute
+        fixIsNew = false; motionMode = mode; motionOnRoute = onRouteNow
+        val shown = rider?.let {
+            riderMotion.step(it.first, it.second, rebase, nowNs, com.example.wayfindr.dash.map.RiderMotion.tauFor(fixAccuracy))
+        }
+        // Heading-up on the route: follow the road's bearing at the predicted point (smooth through
+        // bends, no 1 Hz GPS-bearing steps); off the route the GPS bearing as before.
+        if (onRouteNow && fixSpeed >= BEARING_MIN_SPEED) r?.let {
+            com.example.wayfindr.dash.map.RiderMotion.bearingAt(it.geometry, it.cumulative, predProgressM)
+        }?.let { targetHeading = normalizeHeading(it) }
+
         // Follow mode: track the rider. If GPS is lost, HOLD the last position instead of
         // jumping to the destination or (0,0). Manual pan mode tracks the panned centre.
-        val targetLat = if (followMode) (rider?.first ?: camLat) else (rider?.first ?: camLat)
-        val targetLng = if (followMode) (rider?.second ?: camLng) else (rider?.second ?: camLng)
+        val targetLat = shown?.first ?: camLat
+        val targetLng = shown?.second ?: camLng
 
         // ...but if we have NO camera state yet and NO rider, then and only then snap to dest.
-        val finalTargetLat = if (!camInit && rider == null) (dLat ?: targetLat) else targetLat
-        val finalTargetLng = if (!camInit && rider == null) (dLng ?: targetLng) else targetLng
+        val finalTargetLat = if (!camInit && shown == null) (dLat ?: targetLat) else targetLat
+        val finalTargetLng = if (!camInit && shown == null) (dLng ?: targetLng) else targetLng
 
-        // Time-based smoothing: alpha derived from the real frame interval + a time
-        // constant, so motion is equally smooth at any (dynamic) frame rate.
-        val nowNs = System.nanoTime()
+        // Time-based smoothing (heading only): alpha derived from the real frame interval + a
+        // time constant, so rotation is equally smooth at any frame rate.
         val dt = if (lastTickNs == 0L) 0.042 else ((nowNs - lastTickNs) / 1e9).coerceIn(0.0, 0.5)
         lastTickNs = nowNs
         // Adaptive smoothing: ease HARDER (bigger time constant) when the fix is noisy so weak-GPS
@@ -2281,14 +2299,28 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             camHdg = normalizeHeading(targetHeading)
             camInit = true
         } else {
-            camLat += (finalTargetLat - camLat) * a
-            camLng += (finalTargetLng - camLng) * a
+            camLat = finalTargetLat
+            camLng = finalTargetLng
             // Smoothly rotate toward the target heading.
             val dh = (((targetHeading - camHdg) % 360f) + 540f) % 360f - 180f
             camHdg = normalizeHeading(camHdg + dh * a.toFloat())
         }
         frameRiderLat = if (rider != null) camLat else null
         frameRiderLng = if (rider != null) camLng else null
+
+        // Tiles 3 s and 6 s ahead into memory (Google / offline map only), twice a second, so they
+        // are decoded before they scroll in at speed.
+        val nowWarm = System.currentTimeMillis()
+        if (followMode && mode == 1 && fixSpeed > 5f && nowWarm - lastWarmMs > 500) {
+            lastWarmMs = nowWarm
+            for (aheadS in WARM_AHEAD_S) {
+                val d = fixSpeed * aheadS
+                val p = if (onRouteNow && r != null)
+                    com.example.wayfindr.dash.map.RiderMotion.pointAt(r.geometry, r.cumulative, predProgressM + d)?.let { it.lat to it.lng }
+                else project(camLat, camLng, camHdg.toDouble(), d)
+                p?.let { tiles.warmAhead(it.first, it.second, zoom) }
+            }
+        }
 
         val centerLat = if (camInit) camLat else 0.0
         val centerLng = if (camInit) camLng else 0.0

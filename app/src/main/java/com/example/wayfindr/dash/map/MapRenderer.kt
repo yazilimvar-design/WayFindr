@@ -247,9 +247,17 @@ class MapRenderer(private val tiles: TileProvider) {
 
         // ── Road route polyline ──
         if (f.route.size >= 2) {
-            routePath.reset()
-            routePath.moveTo(sx(f.route[0].lng), sy(f.route[0].lat))
-            for (i in 1 until f.route.size) routePath.lineTo(sx(f.route[i].lng), sy(f.route[i].lat))
+            // Only the segments that can be on screen: a long route (thousands of points) was
+            // projected and stroked in full on every frame. Bounds = the circle the rotated
+            // screen sweeps around the pivot, + a stroke margin, in lat/lng.
+            val reach = Math.hypot(w / 2.0, maxOf(pivotY, h - pivotY).toDouble()) + 24.0
+            val pivX = left + w / 2.0; val pivY = top + pivotY
+            val wTiles = Math.max(0.0, (pivX - reach) / ts); val eTiles = (pivX + reach) / ts
+            visW = if (cullRoute) Mercator.tileXToLng(wTiles, f.zoom) else -1e9
+            visE = if (cullRoute) Mercator.tileXToLng(eTiles, f.zoom) else 1e9
+            visN = if (cullRoute) Mercator.tileYToLat((pivY - reach) / ts, f.zoom) else 1e9
+            visS = if (cullRoute) Mercator.tileYToLat((pivY + reach) / ts, f.zoom) else -1e9
+            buildRoutePath(f.route, 0, f.route.lastIndex, ::sx, ::sy)
             canvas.drawPath(routePath, routeCasing)
             canvas.drawPath(routePath, routePaint)
             // Google Routes returns live speed intervals against encoded-polyline point indexes.
@@ -258,9 +266,7 @@ class MapRenderer(private val tiles: TileProvider) {
                 val start = interval.startPointIndex.coerceIn(0, f.route.lastIndex)
                 val end = interval.endPointIndex.coerceIn(start, f.route.lastIndex)
                 if (end <= start) return@forEach
-                routePath.reset()
-                routePath.moveTo(sx(f.route[start].lng), sy(f.route[start].lat))
-                for (i in start + 1..end) routePath.lineTo(sx(f.route[i].lng), sy(f.route[i].lat))
+                buildRoutePath(f.route, start, end, ::sx, ::sy)
                 routePaint.color = when (interval.speed) {
                     TrafficSpeed.NORMAL -> routeBlue
                     TrafficSpeed.SLOW -> trafficAmber
@@ -987,8 +993,33 @@ class MapRenderer(private val tiles: TileProvider) {
      *    once the real tile arrives (no blank flash, which is what made zoom feel slow);
      * 3. else scale DOWN the four cached higher-zoom children into quadrants (zoom-OUT case).
      */
+    /** Debug/benchmark: tiles of the frame's zoom that were not in memory yet (drawn from another level / blank). */
+    @Volatile var tileMisses = 0L
+    /** Debug/benchmark: false draws the whole route every frame (the old path). */
+    @Volatile var cullRoute = true
+    // Visible lat/lng bounds for [buildRoutePath], set per frame.
+    private var visW = 0.0; private var visE = 0.0; private var visN = 0.0; private var visS = 0.0
+
+    /** [routePath] = the visible pieces of route[from..to] (pen lifted across off-screen stretches). */
+    private inline fun buildRoutePath(route: List<GeoPoint>, from: Int, to: Int, sx: (Double) -> Float, sy: (Double) -> Float) {
+        routePath.reset()
+        var penDown = false
+        var prev = route[from]
+        for (i in from + 1..to) {
+            val p = route[i]
+            val visible = maxOf(prev.lat, p.lat) >= visS && minOf(prev.lat, p.lat) <= visN &&
+                maxOf(prev.lng, p.lng) >= visW && minOf(prev.lng, p.lng) <= visE
+            if (visible) {
+                if (!penDown) { routePath.moveTo(sx(prev.lng), sy(prev.lat)); penDown = true }
+                routePath.lineTo(sx(p.lng), sy(p.lat))
+            } else penDown = false
+            prev = p
+        }
+    }
+
     private fun drawTileBestEffort(canvas: Canvas, z: Int, tx: Int, ty: Int, dst: RectF) {
         tiles.get(z, tx, ty)?.let { canvas.drawBitmap(it, null, dst, tilePaint); return }
+        tileMisses++
 
         var up = 1
         while (up <= 4 && z - up >= 0) {

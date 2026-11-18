@@ -19,9 +19,24 @@ sleep 15
 adb pull "/sdcard/Android/data/$PKG/files/navcard.png" "$OUT/navcard.png" || echo "::warning::navcard.png not rendered"
 
 # Dash frame path benchmark (debug-only entry): achieved fps + render/encode ms, old 4 fps vs now.
+# Then a simulated ride along a real Ankara route at 30/60/90/120 km/h (before/after position path).
+adb shell rm -f "/sdcard/Android/data/$PKG/files/framebench.txt"
 adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.FRAME_BENCH
-sleep 32
+for i in $(seq 1 60); do
+  sleep 5
+  adb shell ls "/sdcard/Android/data/$PKG/files/framebench.txt" >/dev/null 2>&1 && break
+done
+sleep 2
 adb pull "/sdcard/Android/data/$PKG/files/framebench.txt" "$OUT/framebench.txt" && cat "$OUT/framebench.txt" || echo "::warning::framebench.txt not written"
+adb pull "/sdcard/Android/data/$PKG/files/framebench-frames.png" "$OUT/framebench-frames.png" || echo "::warning::framebench-frames.png not written"
+for v in once sonra; do
+  adb pull "/sdcard/Android/data/$PKG/files/bench90-$v.h264" "$OUT/bench90-$v.h264" || continue
+  # The exact H.264 stream the dash would get (10 fps); mp4 + gif for viewing when ffmpeg is there.
+  if command -v ffmpeg >/dev/null 2>&1 || (timeout 240 sh -c "sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg" >/dev/null 2>&1); then
+    ffmpeg -loglevel error -y -r 10 -i "$OUT/bench90-$v.h264" -c copy "$OUT/bench90-$v.mp4" || true
+    ffmpeg -loglevel error -y -r 10 -i "$OUT/bench90-$v.h264" -vf "fps=10,scale=526:-1" "$OUT/bench90-$v.gif" || true
+  fi
+done
 
 find_xy() {  # print the centre of the node whose text or content-desc is $1
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
