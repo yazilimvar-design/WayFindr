@@ -27,6 +27,16 @@ object WeakGps {
     fun snapBand(accuracyM: Double?): Double =
         maxOf(MIN_SNAP_M, minOf((accuracyM ?: 0.0) * 1.5, MAX_SNAP_M))
 
+    /** A fix too coarse to judge "off route" (as NavigationReliability) can't take the rider off the line. */
+    const val UNTRUSTED_ACC_M = 60.0
+
+    /**
+     * Treat the rider as on the route for snapping / dead reckoning: within [snapBand], or the fix is
+     * too coarse to say otherwise (a 150 m fix lands 100+ m beside the road while still riding it).
+     */
+    fun onRoute(lateralM: Double, accuracyM: Double?): Boolean =
+        lateralM >= 0.0 && (lateralM <= snapBand(accuracyM) || (accuracyM ?: 0.0) > UNTRUSTED_ACC_M)
+
     /** Share of a fix's own route progress kept against the dead-reckoned one: 1 up to 25 m, 0.2 at 125 m+. */
     fun weight(accuracyM: Double?): Double {
         val a = accuracyM?.takeIf { it.isFinite() && it > 0.0 } ?: return 1.0

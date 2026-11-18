@@ -39,4 +39,11 @@ class WeakGpsTest {
         assertEquals(12.0, WeakGps.nextSpeed(12.0, null, null), 0.0)
         assertEquals(12.0 + (2.0 - 12.0) * 0.3, WeakGps.nextSpeed(12.0, null, 2.0), 1e-9)
     }
+
+    @Test fun coarseFixNeverTakesTheRiderOffTheLine() {
+        assertTrue(WeakGps.onRoute(30.0, 5.0))
+        assertFalse(WeakGps.onRoute(60.0, 5.0))
+        assertTrue(WeakGps.onRoute(140.0, 150.0))   // beyond the 120 m band, but a 150 m fix can't tell
+        assertFalse(WeakGps.onRoute(-1.0, 150.0))   // no match yet
+    }
 }

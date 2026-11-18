@@ -547,7 +547,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun navplusPredict(arc: Pair<*, *>?, dist: Double, routeDist: Double = dist): Pair<Double, Double>? {
         try {
             val r = route
-            if (lastSnapDist <= WeakGps.snapBand(fixAccuracy.toDouble()) && r != null) {
+            if (WeakGps.onRoute(lastSnapDist, fixAccuracy.toDouble()) && r != null) {
                 val geometry = r.geometry
                 val cumulative = r.cumulative
                 val progress = progressM
@@ -2229,7 +2229,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // Weak GPS: with no fresh fix (gap) keep guiding along the route at the last speed for up to
         // WeakGps.MAX_S, instead of freezing the marker, distance and turn countdown.
         val drOnly = !fixFresh && streaming && navInfo == null && r != null && loc != null &&
-            lastSnapDist in 0.0..WeakGps.snapBand(fixAccuracy.toDouble()) &&
+            WeakGps.onRoute(lastSnapDist, fixAccuracy.toDouble()) &&
             WeakGps.canDeadReckon(drSpeedMps, progressFixAgeS)
         deadReckoning = false
         if (r != null && loc != null && (fixFresh || drOnly)) {
@@ -2243,7 +2243,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 ).let { base ->
                     // Between fixes (> WeakGps.GAP_S, e.g. one fix per 5 s): distance and turn keep counting down.
                     val ageNow = if (progressFixNs > 0L) (android.os.SystemClock.elapsedRealtimeNanos() - progressFixNs) / 1e9 else 0.0
-                    val extra = if (streaming && navInfo == null && base.snapDist <= WeakGps.snapBand(accuracy))
+                    val extra = if (streaming && navInfo == null && WeakGps.onRoute(base.snapDist, accuracy))
                         WeakGps.extraMeters(drSpeedMps, ageNow) else 0.0
                     if (extra > 0.0) navStateAt(r, base.progressM + extra).copy(snapDist = base.snapDist) else base
                 }).let { base -> navInfo?.let { withNavInfo(base, it) } ?: base }
@@ -2274,7 +2274,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             // is not falsely pulled onto the route.
             // Poor fixes too (band grows with their accuracy, WeakGps.snapBand), so a weak signal keeps
             // the marker on the line instead of dropping it beside the road.
-            if (ns.snapDist <= WeakGps.snapBand(accuracy)) {
+            if (WeakGps.onRoute(ns.snapDist, accuracy)) {
                 matchedLat = ns.snapped.lat
                 matchedLng = ns.snapped.lng
             }
@@ -3045,7 +3045,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val fixNs = fix?.elapsedRealtimeNanos?.takeIf { it > 0 } ?: android.os.SystemClock.elapsedRealtimeNanos()
         val acc = fix?.takeIf { it.hasAccuracy() }?.accuracy?.toDouble()
         val gapS = if (progressFixNs > 0L) (fixNs - progressFixNs) / 1e9 else 0.0
-        val drAtFix = if (newFix && progressFixNs > 0L && lastSnapDist in 0.0..WeakGps.snapBand(acc))
+        val drAtFix = if (newFix && progressFixNs > 0L && WeakGps.onRoute(lastSnapDist, acc))
             progressM + WeakGps.extraMeters(drSpeedMps, gapS) else null
         val matchSpeed = maxOf(speedMps, ((drAtFix ?: progressM) - progressM + (acc ?: 0.0)) / 4.0)
         val match = com.example.wayfindr.dash.nav.RouteProgressMatcher.match(
@@ -3059,13 +3059,15 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // A poor fix is used, not dropped: weighted against the dead-reckoned position (only once per
         // fix — re-blending the same fix every frame would walk it to the raw match).
         val poor = acc != null && acc > WeakGps.GOOD_ACC_M
-        val measured = if (newFix && poor && match.lateralDistanceMeters <= WeakGps.snapBand(acc))
+        val measured = if (newFix && poor && WeakGps.onRoute(match.lateralDistanceMeters, acc))
             WeakGps.blend(drAtFix, match.progressMeters, acc) else match.progressMeters
         // Mostly forward, tolerate small GPS slide.
         if (advanceProgress && (newFix || !poor)) matchedProgress = maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, measured)
         if (newFix) {
-            val derived = if (progressFixNs > 0L && gapS >= 1.0) (matchedProgress - progressM) / gapS else null
-            val gpsSpeed = fix?.takeIf { it.hasSpeed() && (acc == null || acc <= 60.0) }?.speed?.toDouble()
+            // GPS speed is Doppler-measured: good even when the position is poor, so it is always taken.
+            // Without it (network fixes) only progress over 3 s+ counts, so position noise can't drive it.
+            val derived = if (progressFixNs > 0L && gapS >= 3.0) (matchedProgress - progressM) / gapS else null
+            val gpsSpeed = fix?.takeIf { it.hasSpeed() }?.speed?.toDouble()
             drSpeedMps = WeakGps.nextSpeed(drSpeedMps, gpsSpeed, derived)
             progressFixToken = token
             progressFixNs = fixNs
