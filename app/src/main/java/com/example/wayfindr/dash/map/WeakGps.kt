@@ -55,6 +55,11 @@ object WeakGps {
         if (!speedMps.isFinite() || speedMps < MIN_SPEED_MPS || !ageS.isFinite() || ageS <= GAP_S) 0.0
         else speedMps * ageS.coerceAtMost(MAX_S)
 
+    /** Where dead reckoning puts a new fix [dtS] after the previous one: no [GAP_S] threshold (used to weigh it). */
+    fun predictedMeters(speedMps: Double, dtS: Double): Double =
+        if (!speedMps.isFinite() || speedMps < MIN_SPEED_MPS || !dtS.isFinite() || dtS <= 0.0) 0.0
+        else speedMps * dtS.coerceAtMost(MAX_S)
+
     /** True while a fix [ageS] old may still be dead-reckoned. */
     fun canDeadReckon(speedMps: Double, ageS: Double): Boolean =
         speedMps >= MIN_SPEED_MPS && ageS in 0.0..MAX_S

@@ -3046,7 +3046,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val acc = fix?.takeIf { it.hasAccuracy() }?.accuracy?.toDouble()
         val gapS = if (progressFixNs > 0L) (fixNs - progressFixNs) / 1e9 else 0.0
         val drAtFix = if (newFix && progressFixNs > 0L && WeakGps.onRoute(lastSnapDist, acc))
-            progressM + WeakGps.extraMeters(drSpeedMps, gapS) else null
+            progressM + WeakGps.predictedMeters(drSpeedMps, gapS) else null
         val matchSpeed = maxOf(speedMps, ((drAtFix ?: progressM) - progressM + (acc ?: 0.0)) / 4.0)
         val match = com.example.wayfindr.dash.nav.RouteProgressMatcher.match(
             r.geometry, r.cumulative, pos, progressM, gpsBearing, matchSpeed,

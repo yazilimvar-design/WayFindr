@@ -46,4 +46,9 @@ class WeakGpsTest {
         assertTrue(WeakGps.onRoute(140.0, 150.0))   // beyond the 120 m band, but a 150 m fix can't tell
         assertFalse(WeakGps.onRoute(-1.0, 150.0))   // no match yet
     }
+
+    @Test fun predictionForWeighingHasNoGapThreshold() {
+        assertEquals(12.0, WeakGps.predictedMeters(12.0, 1.0), 1e-9)   // 1 Hz poor fixes still advance
+        assertEquals(0.0, WeakGps.predictedMeters(0.5, 1.0), 0.0)
+    }
 }
