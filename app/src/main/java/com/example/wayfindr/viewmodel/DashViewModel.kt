@@ -3062,7 +3062,11 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val measured = if (newFix && poor && WeakGps.onRoute(match.lateralDistanceMeters, acc))
             WeakGps.blend(drAtFix, match.progressMeters, acc) else match.progressMeters
         // Mostly forward, tolerate small GPS slide.
-        if (advanceProgress && (newFix || !poor)) matchedProgress = maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, measured)
+        // A poor fix while moving never steps the progress back: its noise (±tens of metres) made the
+        // remaining distance stand still for seconds (CI 44380760112, 14–17 s). Good fixes still may.
+        val noBack = poor && drSpeedMps >= WeakGps.MIN_SPEED_MPS
+        if (advanceProgress && (newFix || !poor)) matchedProgress =
+            if (noBack) maxOf(matchedProgress, measured) else maxOf(matchedProgress - WAYPOINT_PROGRESS_TOLERANCE_M, measured)
         if (newFix) {
             // GPS speed is Doppler-measured: good even when the position is poor, so it is always taken.
             // Without it (network fixes) only progress over 3 s+ counts, so position noise can't drive it.
