@@ -76,9 +76,8 @@ object OfflineSearch {
         val database = open(ctx) ?: return emptyList()
         val q = words.joinToString(" ")
         val byName = run(database, words.joinToString(" ") { "name:$it*" }, near)
-        val rows = if (byName.size >= limit) byName
-            else (byName + run(database, words.joinToString(" ") { "$it*" }, near)).distinctBy { Triple(it.name, it.lat, it.lng) }
-                .let { snapAdmin(it) }
+        val rows = snapAdmin(if (byName.size >= limit) byName
+            else (byName + run(database, words.joinToString(" ") { "$it*" }, near)).distinctBy { Triple(it.name, it.lat, it.lng) })
 
         fun quality(r: Row): Int {
             val n = norm(r.name)

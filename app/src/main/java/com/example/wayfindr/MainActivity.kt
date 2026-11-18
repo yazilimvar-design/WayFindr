@@ -275,9 +275,15 @@ class MainActivity : ComponentActivity() {
             "offline index: ${com.example.wayfindr.dash.offline.OfflineSearch.available(ctx)}\n")
         val queries = listOf("Mamak", "Çankaya", "Keçiören", "Kızılay", "Mamak Devlet Hastanesi")
         val fold = com.example.wayfindr.dash.offline.OfflineSearch::norm
-        for (offline in listOf(true, false)) {
+        val savedKey = com.example.wayfindr.dash.nav.GPlus.key
+        // The build's key (CI secret) stands in for a key typed into the app, in memory only, for the Places pass.
+        val places = !com.example.wayfindr.dash.nav.GPlus.isReal(com.example.wayfindr.dash.nav.GPlus.key()) && com.example.wayfindr.dash.nav.GPlus.isReal(com.example.wayfindr.BuildConfig.MAPS_API_KEY)
+        val passes = listOf(false to true, false to false) + (if (places) listOf(true to true, true to false) else emptyList())
+        for ((usePlaces, offline) in passes) {
+            if (usePlaces) { com.example.wayfindr.dash.nav.GPlus.key = com.example.wayfindr.BuildConfig.MAPS_API_KEY; com.example.wayfindr.dash.nav.GPlus.placesFailUntil = 0 }
             ac.useOffline = offline; ac.clearCache(); com.example.wayfindr.dash.nav.GPlus.pcache?.clear()
-            report.append("== merkez kaynağı: ${if (offline) "çevrimdışı dizin, sonra Photon" else "yalnız Photon"}\n")
+            report.append("== ${if (usePlaces) "Google Places" else "anahtarsız (Photon + geocoder)"}; merkez kaynağı: " +
+                "${if (offline) "çevrimdışı dizin, sonra çevrimiçi" else "yalnız çevrimiçi (Photon/Nominatim)"}\n")
             for (q in queries) {
                 val hits = kotlinx.coroutines.runBlocking { com.example.wayfindr.dash.nav.PlaceSearch.suggestions(ctx, q, near) }
                 val pick = hits.firstOrNull { fold(it.name) == fold(q) } ?: hits.firstOrNull()
@@ -287,9 +293,12 @@ class MainActivity : ComponentActivity() {
                 val d = routeViewModel.state.value.destination
                 val km = if (d?.lat != null && d.lng != null) GeoPoint.distMeters(GeoPoint(d.lat, d.lng), GeoPoint(39.93, 32.91)) / 1000 else Double.NaN
                 report.append("'$q' → ${pick.name} (${pick.provider}; ${pick.subtitle}) hedef=%.5f,%.5f".format(java.util.Locale.ROOT, d?.lat, d?.lng) +
-                    (if (q == "Mamak") " uzaklık(39.93,32.91)=%.2f km %s".format(java.util.Locale.ROOT, km, if (km <= 3) "OK" else "HATA") else "") + "\n")
+                    (if (q == "Mamak") " uzaklık(39.93,32.91)=%.2f km %s".format(java.util.Locale.ROOT, km,
+                        if (km <= 3) "OK" else if (offline) "HATA" else "UYARI") else "") + "\n")
             }
             synchronized(ac.notes) { ac.notes.forEach { report.append("  $it\n") } }
+            if (usePlaces) report.append("  Places: ${com.example.wayfindr.dash.nav.GPlus.lastErr ?: "-"}\n")
+            com.example.wayfindr.dash.nav.GPlus.key = savedKey
         }
         ac.useOffline = true; ac.clearCache(); com.example.wayfindr.dash.nav.GPlus.pcache?.clear()
         runOnUiThread { routeViewModel.clearDestinations() }

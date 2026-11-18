@@ -87,8 +87,11 @@ object AreaCentre {
         val c: DoubleArray? = try {
             (if (ctx != null && useOffline) OfflineSearch.centre(ctx, name, lat, lng, town, MAX_KM)
                 ?.let { src = "çevrimdışı ${it.subtitle}"; doubleArrayOf(it.lat, it.lng) } else null)
-                ?: (if (ctx != null && InternetNetwork.validated(ctx) != null) photon(ctx, name, lat, lng, town)
-                    ?.also { src = "Photon" } else null)
+                ?: (if (ctx != null && InternetNetwork.validated(ctx) != null)
+                    (runCatching { photon(ctx, name, lat, lng, town) }.onFailure { Log.w(TAG, "Photon '$name': $it") }.getOrNull()
+                        ?.also { src = "Photon" }
+                        ?: nominatim(ctx, name, lat, lng, town)?.also { src = "Nominatim" })
+                    else null)
         } catch (e: Exception) {
             Log.w(TAG, "centre '$name' failed: $e"); null
         }
@@ -104,33 +107,61 @@ object AreaCentre {
         return c ?: doubleArrayOf(lat, lng)
     }
 
-    /** Photon restricted to OSM place objects: the place node (or a boundary's admin_centre/label). */
-    private fun photon(ctx: Context, name: String, lat: Double, lng: Double, town: Boolean): DoubleArray? {
-        val url = "https://photon.komoot.io/api/?osm_tag=place&limit=10&location_bias_scale=0.6&q=" +
-            URLEncoder.encode(name, "UTF-8") + "&lat=%.5f&lon=%.5f".format(Locale.ROOT, lat, lng)
+    private fun get(ctx: Context, url: String): String? {
         com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.OSM_SEARCH)
         val conn = InternetNetwork.openConnection(ctx, url).apply {
             connectTimeout = 5_000; readTimeout = 6_000
             setRequestProperty("User-Agent", "Wayfindr/${BuildConfig.VERSION_NAME} (personal motorcycle navigation app; Android)")
             setRequestProperty("Accept", "application/json")
         }
-        val body = try {
-            if (conn.responseCode != 200) return null
-            conn.inputStream.bufferedReader().readText()
+        return try {
+            if (conn.responseCode != 200) null else conn.inputStream.bufferedReader().readText()
         } finally { conn.disconnect() }
-        val features = JSONObject(body).optJSONArray("features") ?: return null
+    }
+
+    /** Pick the best same-name candidate within [MAX_KM]: most fitting kind first, then nearest. */
+    private fun best(name: String, lat: Double, lng: Double, cands: List<Triple<String, Int, GeoPoint>>): DoubleArray? {
         val want = OfflineSearch.placeKey(name)
-        val prefs = if (town) PHOTON_TOWN else PHOTON_QUARTER
         val here = GeoPoint(lat, lng)
-        return (0 until features.length()).mapNotNull { i ->
-            val f = features.optJSONObject(i) ?: return@mapNotNull null
-            val pr = f.optJSONObject("properties") ?: return@mapNotNull null
-            val rank = prefs.indexOf(pr.optString("osm_value")).takeIf { it >= 0 } ?: return@mapNotNull null
-            if (OfflineSearch.placeKey(pr.optString("name")) != want) return@mapNotNull null
-            val c = f.optJSONObject("geometry")?.optJSONArray("coordinates") ?: return@mapNotNull null
-            val p = GeoPoint(c.optDouble(1), c.optDouble(0))
+        return cands.mapNotNull { (n, rank, p) ->
+            if (rank < 0 || OfflineSearch.placeKey(n) != want) return@mapNotNull null
             val km = GeoPoint.distMeters(here, p) / 1000
             if (km.isNaN() || km > MAX_KM) null else Triple(rank, km, p)
         }.minWithOrNull(compareBy({ it.first }, { it.second }))?.let { doubleArrayOf(it.third.lat, it.third.lng) }
+    }
+
+    /**
+     * Nominatim settlements (if Photon can't be reached): a place node, or a boundary at its
+     * admin_centre/label point (Nominatim's point for such a relation).
+     */
+    private fun nominatim(ctx: Context, name: String, lat: Double, lng: Double, town: Boolean): DoubleArray? = try {
+        val url = "https://nominatim.openstreetmap.org/search?format=jsonv2&featureType=settlement&limit=10&q=" +
+            URLEncoder.encode(name, "UTF-8") + "&viewbox=%.4f,%.4f,%.4f,%.4f".format(Locale.ROOT, lng - 0.5, lat + 0.5, lng + 0.5, lat - 0.5)
+        val arr = get(ctx, url)?.let { JSONArray(it) }
+        val prefs = if (town) PHOTON_TOWN else PHOTON_QUARTER
+        arr?.let { a ->
+            best(name, lat, lng, (0 until a.length()).mapNotNull { i ->
+                val r = a.optJSONObject(i) ?: return@mapNotNull null
+                val la = r.optString("lat").toDoubleOrNull(); val lo = r.optString("lon").toDoubleOrNull()
+                if (la == null || lo == null) null
+                else Triple(r.optString("name"), prefs.indexOf(r.optString("addresstype")), GeoPoint(la, lo))
+            })
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "Nominatim '$name': $e"); null
+    }
+
+    /** Photon restricted to OSM place objects: the place node (or a boundary's admin_centre/label). */
+    private fun photon(ctx: Context, name: String, lat: Double, lng: Double, town: Boolean): DoubleArray? {
+        val url = "https://photon.komoot.io/api/?osm_tag=place&limit=10&location_bias_scale=0.6&q=" +
+            URLEncoder.encode(name, "UTF-8") + "&lat=%.5f&lon=%.5f".format(Locale.ROOT, lat, lng)
+        val features = get(ctx, url)?.let { JSONObject(it).optJSONArray("features") } ?: return null
+        val prefs = if (town) PHOTON_TOWN else PHOTON_QUARTER
+        return best(name, lat, lng, (0 until features.length()).mapNotNull { i ->
+            val f = features.optJSONObject(i) ?: return@mapNotNull null
+            val pr = f.optJSONObject("properties") ?: return@mapNotNull null
+            val c = f.optJSONObject("geometry")?.optJSONArray("coordinates") ?: return@mapNotNull null
+            Triple(pr.optString("name"), prefs.indexOf(pr.optString("osm_value")), GeoPoint(c.optDouble(1), c.optDouble(0)))
+        })
     }
 }

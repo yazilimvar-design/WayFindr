@@ -308,6 +308,7 @@ for n in $(seq 1 60); do sleep 3; adb shell ls "/sdcard/Android/data/$PKG/files/
 if adb pull "/sdcard/Android/data/$PKG/files/search-centre.txt" "$OUT/search-centre.txt"; then
   cat "$OUT/search-centre.txt"
   grep -q "uzaklık.*HATA" "$OUT/search-centre.txt" && echo "::error::'Mamak' destination is not the town centre"
+  grep -q "uzaklık.*UYARI" "$OUT/search-centre.txt" && echo "::warning::'Mamak' centre not found online (Photon/Nominatim unreachable?)"
   grep -q "uzaklık.*OK" "$OUT/search-centre.txt" || echo "::warning::'Mamak' centre check did not run"
 else echo "::warning::search-centre.txt not written"; fi
 
