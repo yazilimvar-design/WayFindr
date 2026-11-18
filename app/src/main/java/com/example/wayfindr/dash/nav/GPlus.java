@@ -420,6 +420,10 @@ public final class GPlus {
                             double optDouble = optJSONObject2.optDouble("latitude", Double.NaN);
                             double optDouble2 = optJSONObject2.optDouble("longitude", Double.NaN);
                             if (optDouble == optDouble && optDouble2 == optDouble2) {
+                                // An il/ilçe/mahalle comes back near its polygon's centre: use the settlement's centre.
+                                double[] centre = AreaCentre.fix(ctx, optString, optDouble, optDouble2, optJSONObject3.optJSONArray("types"));
+                                optDouble = centre[0];
+                                optDouble2 = centre[1];
                                 arrayList.add(new PlaceSearch.Hit(optString, optDouble, optDouble2, stripCountry(optJSONObject3.optString("formattedAddress")), "Google"));
                             }
                         }
@@ -461,7 +465,7 @@ public final class GPlus {
             if (obj != null) {
                 return (List) obj;
             }
-            int http = http("https://places.googleapis.com/v1/places:searchText", placesBody(trim, pair2), "places.displayName,places.formattedAddress,places.location");
+            int http = http("https://places.googleapis.com/v1/places:searchText", placesBody(trim, pair2), "places.displayName,places.formattedAddress,places.location,places.types");
             if (http != 200) {
                 httpErr(http);
                 placesFailUntil = System.currentTimeMillis() + ((http < 0 || http >= 500) ? 30000L : 600000L);

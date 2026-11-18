@@ -12,7 +12,7 @@ import kotlin.Pair;
 
 /* loaded from: classes2.dex */
 public final class SearchPlus {
-    public static int addAddresses(List list, String str, ArrayList arrayList) {
+    public static int addAddresses(Context context, List list, String str, ArrayList arrayList) {
         int i = 0;
         if (list != null) {
             try {
@@ -25,7 +25,8 @@ public final class SearchPlus {
                             if (addressLine == null || addressLine.equals(nameFor)) {
                                 addressLine = "";
                             }
-                            arrayList.add(new PlaceSearch.Hit(nameFor, address.getLatitude(), address.getLongitude(), "Google", addressLine));
+                            double[] centre = AreaCentre.fixAddress(context, address);
+                            arrayList.add(new PlaceSearch.Hit(nameFor, centre[0], centre[1], "Google", addressLine));
                             i++;
                         }
                     }
@@ -48,14 +49,14 @@ public final class SearchPlus {
                     double doubleValue = ((Number) pair.getFirst()).doubleValue();
                     double doubleValue2 = ((Number) pair.getSecond()).doubleValue();
                     double d = doubleValue + 0.5d;
-                    int addAddresses = addAddresses(geocoder.getFromLocationName(str, i, doubleValue - 0.5d, doubleValue2 - 0.7d, d, doubleValue2 + 0.7d), str, arrayList);
+                    int addAddresses = addAddresses(context, geocoder.getFromLocationName(str, i, doubleValue - 0.5d, doubleValue2 - 0.7d, d, doubleValue2 + 0.7d), str, arrayList);
                     if (addAddresses > 0) {
                         return addAddresses;
                     }
                 } catch (Exception unused) {
                 }
             }
-            return addAddresses(geocoder.getFromLocationName(str, i), str, arrayList);
+            return addAddresses(context, geocoder.getFromLocationName(str, i), str, arrayList);
         } catch (Exception unused2) {
             return 0;
         }

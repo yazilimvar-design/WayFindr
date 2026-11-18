@@ -78,6 +78,7 @@ object OfflineSearch {
         val byName = run(database, words.joinToString(" ") { "name:$it*" }, near)
         val rows = if (byName.size >= limit) byName
             else (byName + run(database, words.joinToString(" ") { "$it*" }, near)).distinctBy { Triple(it.name, it.lat, it.lng) }
+                .let { snapAdmin(it) }
 
         fun quality(r: Row): Int {
             val n = norm(r.name)
@@ -111,6 +112,52 @@ object OfflineSearch {
     /** Best single match (for a typed search or a shared place name that can't be resolved online). */
     fun best(ctx: Context, query: String, near: Pair<Double, Double>?): PlaceSearch.Hit? =
         search(ctx, query, near, 1).firstOrNull()
+
+    /**
+     * The index's il/ilçe rows sit at a point inside the boundary polygon (tr_search.py uses
+     * shapely representative_point()), e.g. "Mamak" İlçe at 39.905, 33.025 while the town is at
+     * 39.933, 32.908. Such a row takes the point of the same-name place node (Şehir/Kasaba/…)
+     * within [AREA_KM], when the index has one.
+     */
+    private fun snapAdmin(rows: List<Row>): List<Row> = rows.map { r ->
+        if (r.kind != "İl" && r.kind != "İlçe") r
+        else pickCentre(rows, placeKey(r.name), r.lat, r.lng, true, AREA_KM)
+            ?.let { c -> Row(r.name, r.kind, r.area, c.lat, c.lng, r.rank) } ?: r
+    }
+
+    private const val AREA_KM = 30.0
+    /** Kinds that come from OSM place nodes (tr_search.py PLACE), most fitting first. İl/İlçe rows are polygons. */
+    private val TOWN_KINDS = listOf("Şehir", "Kasaba", "Belde", "Semt", "Köy", "Mahalle", "Mezra")
+    private val QUARTER_KINDS = listOf("Semt", "Mahalle", "Köy", "Mezra", "Belde", "Kasaba", "Şehir")
+
+    /** Name compared for "same place": folded, without a trailing "mahallesi"/"mah.". */
+    fun placeKey(s: String): String = norm(s).removeSuffix(" mahallesi").removeSuffix(" mah").removeSuffix(" mh").trim()
+
+    private fun pickCentre(rows: List<Row>, key: String, lat: Double, lng: Double, town: Boolean, maxKm: Double): Row? {
+        val kinds = if (town) TOWN_KINDS else QUARTER_KINDS
+        val here = GeoPoint(lat, lng)
+        return rows.mapNotNull { r ->
+            val k = kinds.indexOf(r.kind)
+            if (k < 0 || placeKey(r.name) != key) return@mapNotNull null
+            val km = GeoPoint.distMeters(here, GeoPoint(r.lat, r.lng)) / 1000.0
+            if (km > maxKm) null else Triple(k, km, r)
+        }.minWithOrNull(compareBy({ it.first }, { it.second }))?.third
+    }
+
+    /**
+     * The settlement centre for an area named [name] near [lat],[lng] (e.g. a Google Places
+     * administrative area): the same-name place node in the index within [maxKm], or null.
+     * [town]: il/ilçe/şehir level (prefers Şehir/Kasaba), else semt/mahalle level. Blocking.
+     */
+    fun centre(ctx: Context, name: String, lat: Double, lng: Double, town: Boolean, maxKm: Double): PlaceSearch.Hit? {
+        val key = placeKey(name)
+        val words = key.split(' ').filter { it.isNotEmpty() }.take(6)
+        if (words.isEmpty()) return null
+        val database = open(ctx) ?: return null
+        val r = pickCentre(run(database, words.joinToString(" ") { "name:$it*" }, lat to lng), key, lat, lng, town, maxKm)
+            ?: return null
+        return PlaceSearch.Hit(r.name, r.lat, r.lng, PROVIDER, listOf(r.kind, r.area).filter { it.isNotBlank() }.joinToString(" · "))
+    }
 
     private fun run(database: SQLiteDatabase, match: String, near: Pair<Double, Double>?): List<Row> {
         val order = near?.let { (lat, lng) ->

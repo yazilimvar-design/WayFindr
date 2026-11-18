@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
             ACTION_FRAME_BENCH -> if (com.example.wayfindr.util.TestHooks.on(this)) runFrameBench()
             ACTION_OFFLINE_TEST -> if (com.example.wayfindr.util.TestHooks.on(this)) runOfflineTest(intent)
             ACTION_SAFETY_TEST -> if (com.example.wayfindr.util.TestHooks.on(this)) runSafetyTest()
+            ACTION_SEARCH_TEST -> if (com.example.wayfindr.util.TestHooks.on(this)) runSearchTest()
         }
     }
 
@@ -163,9 +164,9 @@ class MainActivity : ComponentActivity() {
         }
         report.append("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
         report.append("search: ${com.example.wayfindr.dash.offline.OfflinePack.searchFile(ctx)}\n")
-        for (q in listOf("mamak devlet hastanesi", "kizilay", "tunali hilmi", "ISTANBUL", "Çankaya")) {
+        for (q in listOf("mamak devlet hastanesi", "kizilay", "tunali hilmi", "ISTANBUL", "Çankaya", "Mamak")) {
             val hits = com.example.wayfindr.dash.offline.OfflineSearch.search(ctx, q, 39.9208 to 32.8541, 3)
-            report.append("  ara '$q': " + hits.joinToString(" | ") { "${it.name} · ${it.subtitle}" }.ifEmpty { "-" } + "\n")
+            report.append("  ara '$q': " + hits.joinToString(" | ") { "${it.name} · ${it.subtitle} %.5f,%.5f".format(java.util.Locale.ROOT, it.lat, it.lng) }.ifEmpty { "-" } + "\n")
         }
         report.append("map: ${com.example.wayfindr.dash.offline.OfflinePack.mapFile(ctx)}\n")
         val from = GeoPoint(39.9208, 32.8541); val to = GeoPoint(39.7880, 32.8060)
@@ -258,7 +259,46 @@ class MainActivity : ComponentActivity() {
         java.io.File(getExternalFilesDir(null), "safety.txt").writeText(report.toString())
     }.start()
 
+    /**
+     * Debug only (CI, needs internet): the Rota tab's suggestion → selection path for areas and a
+     * POI. Each query goes through PlaceSearch.suggestions (Google Places when a key is set), the
+     * same-name suggestion is picked with RouteViewModel.selectPlaceSuggestion, and the resulting
+     * destination is logged. Once with the offline index (if installed), once with only the online
+     * centre lookup. Writes files/search-centre.txt; "Mamak" must land within 3 km of 39.93, 32.91.
+     */
+    private fun runSearchTest() = Thread {
+        val ctx = applicationContext
+        val near = 39.9208 to 32.8541
+        val ac = com.example.wayfindr.dash.nav.AreaCentre
+        val report = StringBuilder("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}, " +
+            "Google key: ${com.example.wayfindr.dash.nav.GPlus.isReal(com.example.wayfindr.dash.nav.GPlus.key())}, " +
+            "offline index: ${com.example.wayfindr.dash.offline.OfflineSearch.available(ctx)}\n")
+        val queries = listOf("Mamak", "Çankaya", "Keçiören", "Kızılay", "Mamak Devlet Hastanesi")
+        val fold = com.example.wayfindr.dash.offline.OfflineSearch::norm
+        for (offline in listOf(true, false)) {
+            ac.useOffline = offline; ac.clearCache(); com.example.wayfindr.dash.nav.GPlus.pcache?.clear()
+            report.append("== merkez kaynağı: ${if (offline) "çevrimdışı dizin, sonra Photon" else "yalnız Photon"}\n")
+            for (q in queries) {
+                val hits = kotlinx.coroutines.runBlocking { com.example.wayfindr.dash.nav.PlaceSearch.suggestions(ctx, q, near) }
+                val pick = hits.firstOrNull { fold(it.name) == fold(q) } ?: hits.firstOrNull()
+                if (pick == null) { report.append("'$q': öneri yok (${com.example.wayfindr.dash.nav.PlaceSearch.lastError})\n"); continue }
+                runOnUiThread { routeViewModel.clearDestinations(); routeViewModel.selectPlaceSuggestion(pick) }
+                Thread.sleep(800)
+                val d = routeViewModel.state.value.destination
+                val km = if (d?.lat != null && d.lng != null) GeoPoint.distMeters(GeoPoint(d.lat, d.lng), GeoPoint(39.93, 32.91)) / 1000 else Double.NaN
+                report.append("'$q' → ${pick.name} (${pick.provider}; ${pick.subtitle}) hedef=%.5f,%.5f".format(java.util.Locale.ROOT, d?.lat, d?.lng) +
+                    (if (q == "Mamak") " uzaklık(39.93,32.91)=%.2f km %s".format(java.util.Locale.ROOT, km, if (km <= 3) "OK" else "HATA") else "") + "\n")
+            }
+            synchronized(ac.notes) { ac.notes.forEach { report.append("  $it\n") } }
+        }
+        ac.useOffline = true; ac.clearCache(); com.example.wayfindr.dash.nav.GPlus.pcache?.clear()
+        runOnUiThread { routeViewModel.clearDestinations() }
+        android.util.Log.i("SearchTest", report.toString())
+        java.io.File(getExternalFilesDir(null), "search-centre.txt").writeText(report.toString())
+    }.start()
+
     companion object {
+        const val ACTION_SEARCH_TEST = "com.example.wayfindr.SEARCH_TEST"
         const val ACTION_SAFETY_TEST = "com.example.wayfindr.SAFETY_TEST"
         const val ACTION_OFFLINE_TEST = "com.example.wayfindr.OFFLINE_TEST"
         const val ACTION_RENDER_NAV_CARD = "com.example.wayfindr.RENDER_NAV_CARD"

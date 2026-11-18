@@ -189,7 +189,7 @@ object PlaceSearch {
             com.example.wayfindr.data.ApiUsage.record(com.example.wayfindr.data.ApiUsage.GEOCODE)
             val a = Geocoder(ctx, Locale.getDefault()).getFromLocationName(q, 1)?.firstOrNull()
                 ?: run { lastError = "no match"; return@withContext null }
-            Hit(q, a.latitude, a.longitude, "Google")
+            AreaCentre.fixAddress(ctx, a).let { c -> Hit(q, c[0], c[1], "Google") }   // an area: its centre
         } catch (e: Exception) {
             lastError = "Google search failed (${e.message})"; null
         }

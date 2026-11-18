@@ -300,6 +300,17 @@ for S in overpass-api.de overpass.private.coffee; do
     "https://$S/api/interpreter" | tee -a "$OUT/safety.txt"
 done
 
+# Place search centres (needs internet): "Mamak", "Çankaya", "Keçiören", "Kızılay" and a POI through
+# the Rota tab's suggestion + selection path (debug SEARCH_TEST → files/search-centre.txt). An
+# area must land on the settlement's centre, not its boundary's middle (Mamak ≤ 3 km of 39.93, 32.91).
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity" -a com.example.wayfindr.SEARCH_TEST
+for n in $(seq 1 60); do sleep 3; adb shell ls "/sdcard/Android/data/$PKG/files/search-centre.txt" >/dev/null 2>&1 && break; done
+if adb pull "/sdcard/Android/data/$PKG/files/search-centre.txt" "$OUT/search-centre.txt"; then
+  cat "$OUT/search-centre.txt"
+  grep -q "uzaklık.*HATA" "$OUT/search-centre.txt" && echo "::error::'Mamak' destination is not the town centre"
+  grep -q "uzaklık.*OK" "$OUT/search-centre.txt" || echo "::warning::'Mamak' centre check did not run"
+else echo "::warning::search-centre.txt not written"; fi
+
 adb shell pidof "$PKG" > "$OUT/pid.txt" && echo "process alive: $(cat $OUT/pid.txt)" || echo "process NOT running"
 adb logcat -d > "$OUT/logcat.txt"
 adb pull "/sdcard/Android/data/$PKG/files/diag" "$OUT/diag" 2>/dev/null || true
@@ -310,4 +321,5 @@ if grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG"; then
 fi
 pidof_ok=$(cat "$OUT/pid.txt" 2>/dev/null)
 [ -n "$pidof_ok" ] || { echo "::error::app process died"; grep -E "AndroidRuntime|$PKG" "$OUT/logcat.txt" | tail -80; exit 1; }
+grep -q "uzaklık.*HATA" "$OUT/search-centre.txt" 2>/dev/null && exit 1
 echo "smoke OK"
