@@ -53,10 +53,10 @@ class MainActivity : ComponentActivity() {
                 val uri = intent.data?.toString() ?: return
                 routeViewModel.handleSharedText(uri)
             }
-            ACTION_RENDER_NAV_CARD -> if (BuildConfig.DEBUG) renderNavCardPreview()
-            ACTION_FRAME_BENCH -> if (BuildConfig.DEBUG) runFrameBench()
-            ACTION_OFFLINE_TEST -> if (BuildConfig.DEBUG) runOfflineTest(intent)
-            ACTION_SAFETY_TEST -> if (BuildConfig.DEBUG) runSafetyTest()
+            ACTION_RENDER_NAV_CARD -> if (com.example.wayfindr.util.TestHooks.on(this)) renderNavCardPreview()
+            ACTION_FRAME_BENCH -> if (com.example.wayfindr.util.TestHooks.on(this)) runFrameBench()
+            ACTION_OFFLINE_TEST -> if (com.example.wayfindr.util.TestHooks.on(this)) runOfflineTest(intent)
+            ACTION_SAFETY_TEST -> if (com.example.wayfindr.util.TestHooks.on(this)) runSafetyTest()
         }
     }
 
@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
         val cards = listOf(
             MapRenderer.TurnCard(g.TURN_RIGHT, 347.0, "Atatürk Bulvarı'na sağa dönün", g.TURN_LEFT),
             MapRenderer.TurnCard(g.TURN_SLIGHT_LEFT, 1240.0, "Hafif sola, Eskişehir Yolu / Konya Devlet Yolu üzerinden devam edin"),
-            MapRenderer.TurnCard(g.TURN_SHARP_RIGHT, 80.0, "Keskin sağ, 1866. Sokak"),
+            MapRenderer.TurnCard(g.TURN_SHARP_RIGHT, 80.0, "Keskin sağ, Gazi Mustafa Kemal Bulvarı"),
             MapRenderer.TurnCard(g.U_TURN_COUNTERCLOCKWISE, 150.0, "U dönüşü yapın"),
             MapRenderer.TurnCard(g.ROUNDABOUT_CLOCKWISE, 520.0, "Göbekte 2. çıkışı alın", g.TURN_SHARP_LEFT),
             MapRenderer.TurnCard(g.DESTINATION, 40.0, "Hedef sağda"),
@@ -163,7 +163,7 @@ class MainActivity : ComponentActivity() {
         }
         report.append("internet: ${com.example.wayfindr.util.InternetNetwork.validated(ctx) != null}\n")
         report.append("search: ${com.example.wayfindr.dash.offline.OfflinePack.searchFile(ctx)}\n")
-        for (q in listOf("mamak devlet hastanesi", "kizilay", "1866 sokak", "ISTANBUL", "Çankaya")) {
+        for (q in listOf("mamak devlet hastanesi", "kizilay", "tunali hilmi", "ISTANBUL", "Çankaya")) {
             val hits = com.example.wayfindr.dash.offline.OfflineSearch.search(ctx, q, 39.9208 to 32.8541, 3)
             report.append("  ara '$q': " + hits.joinToString(" | ") { "${it.name} · ${it.subtitle}" }.ifEmpty { "-" } + "\n")
         }

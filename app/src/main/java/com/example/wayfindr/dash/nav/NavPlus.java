@@ -983,7 +983,7 @@ public final class NavPlus {
     public static void fuFetch(double d, double d2) {
         JSONArray optJSONArray;
         try {
-            String ovGet = ovGet("[out:json][timeout:10];node(around:8000," + d + "," + d2 + ")[\"amenity\"=\"fuel\"];out 150;");
+            String ovGet = ovGet("[out:json][timeout:10];node(around:8000," + coarse(d) + "," + coarse(d2) + ")[\"amenity\"=\"fuel\"];out 150;");
             if (ovGet == null || (optJSONArray = new JSONObject(ovGet).optJSONArray("elements")) == null) {
                 return;
             }
@@ -2260,6 +2260,11 @@ public final class NavPlus {
         }
     }
 
+    /** ~100 m precision for wide-radius lookups (weather, fuel, cameras): no need to send the exact spot. */
+    static String coarse(double v) {
+        return String.format(java.util.Locale.ROOT, "%.3f", v);
+    }
+
     public static NowPlaying phNow() {
         try {
             Object obj = npNow;
@@ -2998,7 +3003,7 @@ public final class NavPlus {
         JSONArray optJSONArray;
         if (!safetyOn()) return;   // "Radar ve hız limiti" off: no fetching
         try {
-            String ovGet = ovGet("[out:json][timeout:10];(node(around:6000," + d + "," + d2 + ")[\"highway\"=\"speed_camera\"];node(around:6000," + d + "," + d2 + ")[\"traffic_calming\"];);out 400;");
+            String ovGet = ovGet("[out:json][timeout:10];(node(around:6000," + coarse(d) + "," + coarse(d2) + ")[\"highway\"=\"speed_camera\"];node(around:6000," + coarse(d) + "," + coarse(d2) + ")[\"traffic_calming\"];);out 400;");
             if (ovGet == null) {
                 ovGet = OfflineSafetyCache.INSTANCE.cameraJson(d, d2, 6000.0d);
             }
@@ -4212,7 +4217,7 @@ public final class NavPlus {
         JSONObject optJSONObject;
         JSONArray optJSONArray;
         try {
-            String httpGet = httpGet("https://api.open-meteo.com/v1/forecast?latitude=" + d + "&longitude=" + d2 + "&current=temperature_2m,weather_code,is_day&hourly=precipitation_probability&forecast_hours=3&timezone=auto");
+            String httpGet = httpGet("https://api.open-meteo.com/v1/forecast?latitude=" + coarse(d) + "&longitude=" + coarse(d2) + "&current=temperature_2m,weather_code,is_day&hourly=precipitation_probability&forecast_hours=3&timezone=auto");
             if (httpGet == null || (optJSONObject = (jSONObject = new JSONObject(httpGet)).optJSONObject("current")) == null) {
                 return;
             }

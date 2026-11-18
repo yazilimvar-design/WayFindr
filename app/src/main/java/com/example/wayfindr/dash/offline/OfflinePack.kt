@@ -104,14 +104,14 @@ object OfflinePack {
 
     /** Debug/CI only: use a search index already placed in offline/search/. */
     fun debugInstallSearch(ctx: Context, fileName: String, date: String) {
-        if (!com.example.wayfindr.BuildConfig.DEBUG) return
+        if (!com.example.wayfindr.util.TestHooks.on(ctx) || !com.example.wayfindr.util.TestHooks.safeName(fileName)) return
         prefs(ctx).edit().putString("search.file", fileName).putString("search.date", date).commit()
         OfflineSearch.reset()
     }
 
     /** Debug/CI only: use a map file already placed in offline/map/ (e.g. a small Ankara extract). */
     fun debugInstallMap(ctx: Context, fileName: String, date: String) {
-        if (!com.example.wayfindr.BuildConfig.DEBUG) return
+        if (!com.example.wayfindr.util.TestHooks.on(ctx) || !com.example.wayfindr.util.TestHooks.safeName(fileName)) return
         prefs(ctx).edit().putString("map.file", fileName).putString("map.date", date).commit()
         com.example.wayfindr.dash.map.VectorTiles.reset()
     }
@@ -122,7 +122,17 @@ object OfflinePack {
 
     // ── Server side ──────────────────────────────────────────────────────
 
-    private data class Remote(val name: String, val url: String, val size: Long, val stamp: String, val dest: File)
+    private data class Remote(val name: String, val url: String, val size: Long, val stamp: String, val dest: File, val sha256: String = "")
+
+    // The manifest is data from the network: only our own release files and plain file names are accepted.
+    private const val RELEASE_PREFIX = "https://github.com/yazilimvar-design/WayFindr/releases/download/"
+    private val MAP_NAME = Regex("^tr-\\d{8}\\.pmtiles$")
+    private val SEARCH_NAME = Regex("^tr-search-\\d{8}\\.sqlite$")
+    private fun checked(url: String, name: String, re: Regex): Pair<String, String> {
+        require(url.startsWith(RELEASE_PREFIX)) { "beklenmeyen indirme adresi" }
+        require(re.matches(name)) { "beklenmeyen dosya adı" }
+        return url to name
+    }
 
     private fun httpGet(ctx: Context, url: String): String {
         var u = url
@@ -160,7 +170,8 @@ object OfflinePack {
         var update = false
         if (mapFile(ctx) == null || (mapDate(ctx) ?: "") < mapDate) {
             if (mapFile(ctx) != null) update = true
-            items += Remote("map", m.getString("url"), mapSize, mapDate, File(mapDir(ctx), m.getString("file")))
+            val (u, f) = checked(m.getString("url"), m.getString("file"), MAP_NAME)
+            items += Remote("map", u, mapSize, mapDate, File(mapDir(ctx), f), m.optString("sha256"))
         }
         // Search index (manifests from before V57 have none).
         var searchSize = 0L
@@ -171,7 +182,8 @@ object OfflinePack {
             if (have == null || (p.getString("search.date", "") ?: "") < date) {
                 // An installed package without the index (V56) or with an older one: offer "Güncelle".
                 if (mapFile(ctx) != null) update = true
-                items += Remote("search", s.getString("url"), searchSize, date, File(searchDir(ctx), s.getString("file")))
+                val (u, f) = checked(s.getString("url"), s.getString("file"), SEARCH_NAME)
+                items += Remote("search", u, searchSize, date, File(searchDir(ctx), f), s.optString("sha256"))
             }
         }
         var segTotal = 0L
@@ -263,6 +275,7 @@ object OfflinePack {
                 .putString("dl.${it.name}.part", part.absolutePath)
                 .putString("dl.${it.name}.stamp", it.stamp)
                 .putLong("dl.${it.name}.size", it.size)
+                .putString("dl.${it.name}.sha", it.sha256)
             names += it.name
         }
         ed.putStringSet("dl.names", names.toSet()).apply()
@@ -294,7 +307,7 @@ object OfflinePack {
         val p = prefs(ctx)
         val ed = p.edit()
         for (n in p.getStringSet("dl.names", emptySet()).orEmpty())
-            for (k in listOf("id", "dest", "part", "stamp", "size")) ed.remove("dl.$n.$k")
+            for (k in listOf("id", "dest", "part", "stamp", "size", "sha")) ed.remove("dl.$n.$k")
         ed.remove("dl.names").apply()
     }
 
@@ -331,12 +344,38 @@ object OfflinePack {
                 return
             }
             if (allOk) {
+                // Integrity: the map and search index must match the manifest's sha256 before they replace anything.
+                val bad = kotlinx.coroutines.withContext(Dispatchers.IO) { corruptParts(ctx) }
+                if (bad.isNotEmpty()) {
+                    bad.forEach { it.delete() }
+                    clearJob(ctx)
+                    Log.w(TAG, "sha256 mismatch: ${bad.map { it.name }}")
+                    publish(ctx, null, 0, 0, "İndirme bozuk geldi, tekrar deneyin.")
+                    return
+                }
                 lock.withLock { commit(ctx) }
                 publish(ctx, null, 0, 0, "Türkiye çevrimdışı paketi hazır")
                 return
             }
         }
         publish(ctx, ids.isNotEmpty(), done, want, message)
+    }
+
+    /** Staged files whose sha256 differs from the manifest (segments have none published). */
+    private fun corruptParts(ctx: Context): List<File> {
+        val p = prefs(ctx)
+        return p.getStringSet("dl.names", emptySet()).orEmpty().mapNotNull { name ->
+            val want = p.getString("dl.$name.sha", "").orEmpty().lowercase()
+            val part = File(p.getString("dl.$name.part", null) ?: return@mapNotNull null)
+            if (want.isEmpty() || !part.exists()) return@mapNotNull null
+            val md = java.security.MessageDigest.getInstance("SHA-256")
+            part.inputStream().use { input ->
+                val buf = ByteArray(1 shl 16)
+                while (true) { val n = input.read(buf); if (n < 0) break; md.update(buf, 0, n) }
+            }
+            val got = md.digest().joinToString("") { "%02x".format(it) }
+            part.takeIf { got != want }
+        }
     }
 
     /** Every staged file is complete: move them over the old ones, then forget the job. */
@@ -350,6 +389,8 @@ object OfflinePack {
             val part = File(p.getString("dl.$name.part", null) ?: continue)
             val dest = File(p.getString("dl.$name.dest", null) ?: continue)
             if (!part.exists()) continue
+            val roots = listOf(mapDir(ctx), searchDir(ctx), segmentDir(ctx)).map { it.canonicalPath + File.separator }
+            if (roots.none { dest.canonicalPath.startsWith(it) }) { part.delete(); continue }
             dest.parentFile?.mkdirs()
             if (!part.renameTo(dest)) { part.copyTo(dest, overwrite = true); part.delete() }
             val stamp = p.getString("dl.$name.stamp", "") ?: ""

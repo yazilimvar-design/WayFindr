@@ -1259,6 +1259,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private val debugButtonRx: android.content.BroadcastReceiver? =
         if (!com.example.wayfindr.BuildConfig.DEBUG) null else object : android.content.BroadcastReceiver() {
             override fun onReceive(c: android.content.Context, intent: android.content.Intent) {
+                if (!com.example.wayfindr.util.TestHooks.on(c)) return
                 val code = intent.getIntExtra("code", -1)
                 if (code >= 0) {
                     debugInjecting = true
@@ -1310,7 +1311,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         redrawFrame(loc.latitude, loc.longitude, hdg, hdg, r?.let { it.totalMeters - progressM })
                     }
                     val dir = getApplication<android.app.Application>().getExternalFilesDir("diag")
-                    val name = intent.getStringExtra("snapname") ?: "snap"
+                    val name = intent.getStringExtra("snapname")?.takeIf { com.example.wayfindr.util.TestHooks.safeName(it) } ?: "snap"
                     frameBitmap?.let { bmp ->
                         java.io.File(dir, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
                     }
@@ -1336,8 +1337,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         debugButtonRx?.let {
             val filter = android.content.IntentFilter("com.wayfindr.DASH_BUTTON")
             val app = getApplication<android.app.Application>()
-            if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(it, filter, android.content.Context.RECEIVER_EXPORTED)
-            else app.registerReceiver(it, filter)
+            if (android.os.Build.VERSION.SDK_INT >= 33) app.registerReceiver(it, filter, "android.permission.DUMP", null, android.content.Context.RECEIVER_EXPORTED)
+            else app.registerReceiver(it, filter, "android.permission.DUMP", null)
         }
     }
 

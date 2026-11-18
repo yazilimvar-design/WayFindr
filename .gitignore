@@ -47,3 +47,5 @@ compile_log.txt
 # Local AI-assistant notes; not part of the published project.
 CLAUDE.md
 .claude/
+
+*.p12
