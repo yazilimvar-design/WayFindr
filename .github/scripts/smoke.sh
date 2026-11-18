@@ -368,7 +368,7 @@ tail -1 "$OUT/call.txt" | grep -q "ringing" && echo "caller still shown after 20
 # Answer with joystick UP (0x06) — the call has priority over the navigation prompt.
 if [ $REAL = 1 ]; then $BR --ei code 6; else $BR --ez fake_call_answer true; fi; sleep 5; cdump; snapf call-answered
 tail -1 "$OUT/call.txt" | grep -q "active" && echo "UP answered the call (no nav prompt): OK" | tee -a "$OUT/call.txt" \
-  || echo "::warning::call not active after UP" | tee -a "$OUT/call.txt"
+  || echo "::error::call not active after UP" | tee -a "$OUT/call.txt"
 $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "prompt=[a-z]*" | tee -a "$OUT/call.txt"
 if [ $REAL = 1 ]; then adb emu gsm cancel 5551234; else $BR --ez fake_call_end true; fi; sleep 5; cdump; snapf call-ended
 tail -1 "$OUT/call.txt" | grep -q "call=-" && echo "call cleared after it ended: OK" | tee -a "$OUT/call.txt" \
