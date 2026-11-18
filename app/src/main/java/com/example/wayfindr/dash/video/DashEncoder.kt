@@ -54,12 +54,13 @@ class DashEncoder(private val onEncodedData: (ByteArray, Boolean) -> Unit) {
     private var codec: MediaCodec? = null
     private var inputSurface: Surface? = null
 
-    fun prepare() {
+    /** [fps] = the cadence frames will actually be fed at (rate control sizes each frame from it). */
+    fun prepare(fps: Int = FPS) {
         val format = MediaFormat.createVideoFormat(MIME, WIDTH, HEIGHT).apply {
             setInteger(MediaFormat.KEY_COLOR_FORMAT,
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
             setInteger(MediaFormat.KEY_BIT_RATE, BITRATE)
-            setInteger(MediaFormat.KEY_FRAME_RATE, FPS)
+            setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
             setInteger(MediaFormat.KEY_PROFILE,
                 MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)

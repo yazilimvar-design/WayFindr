@@ -92,6 +92,7 @@ fun SettingsScreen(
         val showPhoneBattery by dashConfig.showPhoneBattery.collectAsState()
         val joystickTest by dashConfig.joystickTest.collectAsState()
         val mediaPlayState by dashConfig.mediaPlayState.collectAsState()
+        val smoothMap by dashConfig.smoothMap.collectAsState()
         WayfindrCard(modifier = Modifier.fillMaxWidth(), padding = 6.dp) {
             SettingRow(WayfindrIcons.Power, "Telefon ekranını kapat", "Harita konsola aktarılmaya devam eder",
                 control = { WayfindrToggle(screenOff) { screenOff = it } })
@@ -135,6 +136,11 @@ fun SettingsScreen(
             SettingRow(WayfindrIcons.Target, "Telefon pilini konsolda göster",
                 "Tahmini varış süresinin üstünde pil yüzdesi; şarj olurken şimşek simgesi",
                 control = { WayfindrToggle(showPhoneBattery) { dashConfig.setShowPhoneBattery(it) } })
+            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
+            SettingRow(WayfindrIcons.Target, "Akıcı harita (15 kare/sn)",
+                if (smoothMap) "Deneysel: hızlı giderken harita daha az zıplar · biraz daha fazla pil · sonraki bağlantıda geçerli"
+                else "Standart: saniyede 10 kare",
+                control = { WayfindrToggle(smoothMap) { dashConfig.setSmoothMap(it) } })
             WayfindrDivider(Modifier.padding(horizontal = 6.dp))
             SettingRow(WayfindrIcons.Target, "Daha keskin harita",
                 if (sharperMap) "2× çizim, yüksek çözünürlüklü harita kutucukları · daha fazla bellek" else "Standart harita kutucukları",

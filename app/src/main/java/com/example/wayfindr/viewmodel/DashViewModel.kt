@@ -443,6 +443,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         // same 200 kbps whatever the frame rate; only the per-frame budget shrinks, and small per-frame
         // motion is exactly what P-frames compress well. Field log showed 12 fps stable on this dash.
         internal const val FRAME_MS_ACTIVE = 100L  // 10 fps
+        /**
+         * "Akıcı harita" setting: 15 fps (66 ms). FrameBench (CI run 44353212824): at 90 km/h, zoom 18 the map
+         * scrolls 5.5 px per frame at 10 fps vs 3.6 px at 15 fps, with p95 step unevenness 1.0 → 0.7 px and
+         * render+encode p95 ~15 ms either way. Not yet ridden: the dash was only proven stable to 12 fps.
+         */
+        internal const val FRAME_MS_SMOOTH = 66L
         private const val FRAME_MS_IDLE   = 100L   // steady cadence while connected; avoids dash idle stalls
         private const val PREVIEW_MS = 250L        // phone preview copy cadence (a full-frame copy per frame is GC churn)
         // Stay on the fast profile this long after the last visible change, so brief pauses (e.g.
@@ -1593,7 +1599,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             outFile.writeText("HATA: rota yok / kısa (${r?.totalMeters?.toInt()} m) / zaten çalışıyor\n"); return
         }
         debugSim = true
-        location.debugFeed = true
+        LocationTracker.debugFeed = true
         googleNav.stop(); location.snappedFeed = false
         setNavPaused(false); setWallHold(false)
         progressM = 0.0; progressFixNs = 0L; drSpeedMps = 0.0; lastSnapDist = -1.0
@@ -1607,6 +1613,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             val rows = ArrayList<DoubleArray>()   // t, shown remaining, marker progress
             var lastRow = -1
             val snaps = intArrayOf(8, 20, 32, 45, 55, 66)
+            val accepted = HashMap<String, Int>(); val sent = HashMap<String, Int>()
             try {
                 while (true) {
                     val t = (android.os.SystemClock.elapsedRealtime() - t0) / 1000.0
@@ -1632,6 +1639,9 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                             if (phase != "C") { speed = (v + rnd.nextGaussian() * 0.5).toFloat(); bearing = hdg }
                         }
                         location.debugFix(loc)
+                        val ok = location.location.value === loc
+                        accepted[phase] = (accepted[phase] ?: 0) + if (ok) 1 else 0
+                        sent[phase] = (sent[phase] ?: 0) + 1
                         nextFixT += if (phase == "C") 3.0 else 1.0
                     } else if (phase == "D") nextFixT = 60.0
                     tick()
@@ -1661,11 +1671,12 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 val maxErr = rows.filter { it[0] >= 11.0 }.maxOfOrNull { kotlin.math.abs(it[2] - (50.0 + v * it[0])) } ?: -1.0
                 out.append(if (weak.size >= 40 && frozen == 0) "zayıf GPS'te donma yok: OK\n" else "HATA: zayıf GPS'te donma ($frozen pencere, ${weak.size} satır)\n")
                 out.append("işaretin doğru konumdan en büyük sapması (11 s sonrası): %.0f m\n".format(maxErr))
+                out.append("kabul edilen konum / gönderilen: " + sent.keys.sorted().joinToString(" ") { "$it ${accepted[it] ?: 0}/${sent[it]}" } + "\n")
             } catch (t: Throwable) {
                 out.append("HATA: ${t}\n")
             } finally {
                 debugSim = false
-                location.debugFeed = false
+                LocationTracker.debugFeed = false
                 outFile.writeText(out.toString())
                 com.example.wayfindr.data.RideDiagnostics.log("debug", "weak GPS sim:\n$out")
                 android.util.Log.i("DashViewModel", "DEBUG weakgps done")
@@ -2008,7 +2019,14 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
 
     // ── Video + nav loop ────────────────────────────────────────────────────
 
+    /** Frame interval / encoder fps for this stream ("Akıcı harita" read once per stream start). */
+    @Volatile private var streamFrameMs = FRAME_MS_ACTIVE
+    private val streamFps get() = (1000L / streamFrameMs).toInt()
+
     private fun startStream() {
+        streamFrameMs = if (dashConfig.smoothMap.value) FRAME_MS_SMOOTH else FRAME_MS_ACTIVE
+        session.projectionHbMs = streamFrameMs
+        com.example.wayfindr.data.RideDiagnostics.log("stream", "frame interval ${streamFrameMs} ms (${streamFps} fps)")
         com.example.wayfindr.data.RideDiagnostics.log("stream", "startStream — encoder up, RTP→dash beginning")
         videoPtsMs = 0L
         val packetizer = RtpPacketizer { rtpPkt -> session.sendRtp(rtpPkt) }
@@ -2045,7 +2063,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
             _ui.update { it.copy(frameCount = it.frameCount + 1) }
         }
         encoder?.release()
-        encoder = DashEncoder(onEncoded).also { it.prepare() }
+        encoder = DashEncoder(onEncoded).also { it.prepare(streamFps) }
 
         // Handover from the handshake ticker to the high-performance stream loop.
         tickerJob?.cancel(); tickerJob = null
@@ -2087,7 +2105,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     // Keep a steady connected-dash cadence. The dash can stop advancing its
                     // projection when the sender switches to the idle profile at standstill.
                     val active = true
-                    frameMs = FRAME_MS_ACTIVE
+                    frameMs = streamFrameMs
                     val bmp = frameBitmap
                     val enc = encoder
                     if (bmp != null && enc != null) {
@@ -2129,7 +2147,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                         // stream recovers. The fresh encoder re-emits SPS/PPS, which the
                         // NAL processor bundles into the next IDR for the dash decoder.
                         runCatching { encoder?.release() }
-                        encoder = runCatching { DashEncoder(onEncoded).also { it.prepare() } }
+                        encoder = runCatching { DashEncoder(onEncoded).also { it.prepare(streamFps) } }
                             .onFailure { android.util.Log.e("DashViewModel", "Encoder rebuild failed", it) }
                             .getOrNull()
                         lastSignature = "" // force a full redraw on the next tick
@@ -2242,7 +2260,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                 targetHeading = normalizeHeading(ns.heading)
             }
             // With the SDK, its ArrivalListener moves to the next stop instead.
-            if (streaming && navInfo == null && !drOnly && advanceWaypointIfReached(loc, ns)) {
+            if (streaming && navInfo == null && !deadReckoning && advanceWaypointIfReached(loc, ns)) {
                 // The route geometry already continues to the next leg; reset the displayed ETA
                 // immediately while the tracker carries on from the same cumulative progress.
                 smoothEtaSec = 0.0; etaArrivalMs = 0L; displayedEtaMin = null

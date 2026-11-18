@@ -18,6 +18,13 @@ class LocationTracker(context: Context) {
         private const val TAG = "LocationTracker"
         // While a GPS fix is younger than this, ignore coarse NETWORK fixes entirely.
         private const val GPS_STALE_MS = 10_000L
+        /**
+         * Debug/CI only (TestHooks): while a simulation feeds [debugFix], EVERY tracker ignores real
+         * fixes — LocPlus' provider choice is global, so another view model's tracker still taking the
+         * emulator's fixes would make it reject the simulated ones.
+         */
+        @Volatile @JvmStatic var debugFeed = false
+
         /** A fix older than this is not used for navigation (route origin, off-route, reroute). */
         const val MAX_NAV_FIX_AGE_MS = 10_000L
 
@@ -70,9 +77,6 @@ class LocationTracker(context: Context) {
         _location.value = fix
         NavPlus.onFix(fix)
     }
-
-    /** Debug/CI only (TestHooks): real fixes are ignored while a simulation feeds [debugFix]. */
-    @Volatile var debugFeed = false
 
     /** Debug/CI only: one simulated fix through the same acceptance rules as a real one. */
     fun debugFix(loc: Location) { if (debugFeed) onFix(loc) }

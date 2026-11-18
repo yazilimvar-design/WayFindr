@@ -62,6 +62,8 @@ class DashSession(private val scope: CoroutineScope) {
     @Volatile private var loggedFirstAck = false
 
     var onButton: ((Byte) -> Unit)? = null
+    /** Projection keep-alive interval: never slower than the video frame interval (set per stream). */
+    @Volatile var projectionHbMs = PROJ_HB_MS
     /**
      * Every incoming TLV that is not auth, a frame-decoded ack or 0C/0F telemetry (joystick 09 00
      * included): type, sub, value. Runs on the main thread. For the "Joystick testi" readout.
@@ -226,7 +228,8 @@ class DashSession(private val scope: CoroutineScope) {
         launchMediaInfo()
     }
 
-    fun sendRtp(packet: ByteArray) { socket?.sendRtp(packet) }
+    fun sendRtp(packet: ByteArray) { lastRtpMs = System.currentTimeMillis(); socket?.sendRtp(packet) }
+    @Volatile private var lastRtpMs = 0L
 
     fun updateRouteCard(name: String) {
         destinationName = name.ifBlank { "Himalayan450" }
@@ -532,7 +535,7 @@ class DashSession(private val scope: CoroutineScope) {
                 // to change nothing, so re-enter nav mode (same kick as at connect) and keep going.
                 val nowMs = System.currentTimeMillis()
                 if (_state.value == DashState.STREAMING && loggedFirstAck && lastAckMs > 0L &&
-                    nowMs - lastAckMs > DECODE_STALL_MS && nowMs - lastRxMs < 2_000 &&
+                    nowMs - lastAckMs > DECODE_STALL_MS && nowMs - lastRxMs < 2_000 && nowMs - lastRtpMs < 1_000 &&
                     nowMs - lastNavKickMs > NAV_REKICK_GAP_MS
                 ) {
                     lastNavKickMs = nowMs
@@ -550,7 +553,7 @@ class DashSession(private val scope: CoroutineScope) {
         projHbJob = scope.launch(Dispatchers.IO) {
             while (isActive && _state.value == DashState.STREAMING) {
                 socket?.send(DashCommands.projectionFrame())
-                delay(PROJ_HB_MS)
+                delay(projectionHbMs)
             }
         }
     }
