@@ -20,13 +20,20 @@ object CallNotifRules {
      * [type] = Notification.EXTRA_CALL_TYPE (API 31+; 0 = absent), [hasAnswerAction] = an
      * "answer/accept" button, [sameKey] = the post is the notification of the call we show now.
      */
-    fun kind(type: Int, sdk: Int, hasAnswerAction: Boolean, sameKey: Boolean, hasCall: Boolean): Kind {
-        val t = if (sdk < 31) 1 else type   // before CallStyle there's no type: assume ringing
+    fun kind(type: Int, sdk: Int, hasAnswerAction: Boolean, sameKey: Boolean, hasCall: Boolean, hasHangUpAction: Boolean = false): Kind {
+        val t = if (sdk < 31) 0 else type   // before CallStyle there's no type: go by the buttons
         return when (t) {
             1 -> Kind.INCOMING
             2, 3 -> Kind.ACTIVE
-            // No CallStyle type: ringing if it offers "answer", else an update that changes nothing.
-            0 -> if (hasAnswerAction) Kind.INCOMING else Kind.IGNORE
+            // No CallStyle type (the emulator's dialer, pre-31): "Answer" = ringing; only
+            // "Hang up" = answered (OFFHOOK); no buttons = an update that changes nothing
+            // (pre-31 with no buttons: assume ringing, as before).
+            0 -> when {
+                hasAnswerAction -> Kind.INCOMING
+                hasHangUpAction -> Kind.ACTIVE
+                sdk < 31 && !hasCall -> Kind.INCOMING
+                else -> Kind.IGNORE
+            }
             // Screening (4) / unknown: drops our call only when it's that call's own notification.
             else -> if (hasCall && !sameKey) Kind.IGNORE else Kind.CLEAR
         }

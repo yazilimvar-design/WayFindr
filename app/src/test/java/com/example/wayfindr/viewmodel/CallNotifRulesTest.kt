@@ -18,6 +18,10 @@ class CallNotifRulesTest {
         assertEquals(Kind.IGNORE, CallNotifRules.kind(4, 34, false, false, true))
         assertEquals(Kind.CLEAR, CallNotifRules.kind(4, 34, false, true, true))
         assertEquals(Kind.INCOMING, CallNotifRules.kind(0, 29, false, false, false))
+        // Emulator dialer (no CallStyle type): "Decline, Answer" ringing → "Hang up" after answering.
+        assertEquals(Kind.INCOMING, CallNotifRules.kind(0, 34, true, false, false, true))
+        assertEquals(Kind.ACTIVE, CallNotifRules.kind(0, 34, false, true, true, true))
+        assertEquals(Kind.ACTIVE, CallNotifRules.kind(0, 29, false, true, true, true))
     }
 
     @Test fun onlyTheCallsOwnNotificationEndsIt() {

@@ -40,8 +40,9 @@ class WayfindrNotificationListener : NotificationListenerService() {
         val type = if (android.os.Build.VERSION.SDK_INT >= 31) n.extras.getInt(Notification.EXTRA_CALL_TYPE, 0) else 1
         val current = CallInfoProvider.incomingCall.value
         val sameKey = sbn.key == callKey
+        val (ans0, end0) = extractActions(n, false)
         val kind = CallNotifRules.kind(type, android.os.Build.VERSION.SDK_INT,
-            extractActions(n, false).first != null, sameKey, current != null)
+            ans0 != null, sameKey, current != null, end0 != null)
         com.example.wayfindr.data.RideDiagnostics.log("media", "call notification type=$type sameKey=$sameKey → $kind")
         Log.i(TAG, "call notification type=$type sameKey=$sameKey actions=${n.actions?.joinToString { it.title.toString() }} → $kind")
         when (kind) {
