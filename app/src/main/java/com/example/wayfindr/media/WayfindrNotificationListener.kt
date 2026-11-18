@@ -43,6 +43,7 @@ class WayfindrNotificationListener : NotificationListenerService() {
         val kind = CallNotifRules.kind(type, android.os.Build.VERSION.SDK_INT,
             extractActions(n, false).first != null, sameKey, current != null)
         com.example.wayfindr.data.RideDiagnostics.log("media", "call notification type=$type sameKey=$sameKey → $kind")
+        Log.i(TAG, "call notification type=$type sameKey=$sameKey actions=${n.actions?.joinToString { it.title.toString() }} → $kind")
         when (kind) {
             CallNotifRules.Kind.IGNORE -> return
             CallNotifRules.Kind.CLEAR -> { cancelPendingClear(); callKey = null; CallInfoProvider.update(null); return }

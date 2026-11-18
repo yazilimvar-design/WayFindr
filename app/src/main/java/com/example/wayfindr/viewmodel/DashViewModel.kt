@@ -2735,6 +2735,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         val sent = c.answerIntent?.let { runCatching { it.send() }.isSuccess } ?: false
         if (!sent) callController.answer()
         com.example.wayfindr.data.RideDiagnostics.log("media", "answer (notifAction=$sent)")
+        android.util.Log.i("DashViewModel", "Call answer: notifAction=$sent")
     }
 
     /** Reject (ringing) or hang up (active) via the dialer's action; fall back to TelecomManager. */

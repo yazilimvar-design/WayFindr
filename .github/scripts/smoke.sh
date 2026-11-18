@@ -328,7 +328,7 @@ $BR --ei code 18; sleep 1; dumpnav; upck "prompt=true" "UP opens the prompt"
 $BR --ei code 20; sleep 2; snapf nav-up-paused; dumpnav; upck "paused=true.*prompt=false" "UP prompt LEFT pauses"
 $BR --ei code 18; sleep 1; snapq nav-up-prompt-resume; sleep 1; $BR --ei code 20; sleep 2
 snapf nav-up-resumed; dumpnav; upck "paused=false.*prompt=false" "UP prompt LEFT resumes"
-$BR --ei code 6; sleep 1; snapq nav-up-prompt-0x06; sleep 1; $BR --ei code 21; sleep 1; snapf nav-up-dismissed; dumpnav
+$BR --ei code 6; sleep 1; snapq nav-up-prompt-0x06; sleep 1; $BR --ei code 21; sleep 1; dumpnav; snapf nav-up-dismissed
 upck "notice=\[Vazgeçildi\].*paused=false.*prompt=false" "UP (0x06) prompt DOWN dismisses"
 pullf nav-up-prompt nav-up-prompt-resume nav-up-prompt-0x06
 sleep 4   # no DOWN pairing with the next menu_open
@@ -359,6 +359,7 @@ tap0 "Sürüşler"; sleep 5; shot rides-after-end
 : > "$OUT/call.txt"
 cdump() { $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "call=[^ ]*" | tee -a "$OUT/call.txt"; }
 adb shell cmd notification allow_listener "$PKG/com.example.wayfindr.media.WayfindrNotificationListener" || true
+adb shell pm grant "$PKG" android.permission.ANSWER_PHONE_CALLS || true
 adb emu gsm call 5551234 || true; sleep 6
 REAL=1; cdump | grep -q "ringing" || { REAL=0; echo "no dialer notification seen → fake call" | tee -a "$OUT/call.txt"; $BR --es fake_call "'Ahmet Yılmaz'"; sleep 2; }
 snapf call-ringing-6s; sleep 14; snapf call-ringing-20s; cdump
@@ -372,6 +373,7 @@ $BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops"
 if [ $REAL = 1 ]; then adb emu gsm cancel 5551234; else $BR --ez fake_call_end true; fi; sleep 5; cdump; snapf call-ended
 tail -1 "$OUT/call.txt" | grep -q "call=-" && echo "call cleared after it ended: OK" | tee -a "$OUT/call.txt" \
   || echo "::warning::call not cleared after end" | tee -a "$OUT/call.txt"
+adb logcat -d -s NsNotifListener DashViewModel | grep -E "call notification|Call answer" | tail -8 | tee -a "$OUT/call.txt"
 adb shell input keyevent KEYCODE_HOME; sleep 1
 # A ride the process never got to save: record (journal), kill the app in the background, relaunch →
 # the journal (last fix 40 min ago = over) becomes a saved ride.
