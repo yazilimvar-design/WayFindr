@@ -373,6 +373,24 @@ if [ $REAL = 1 ]; then adb emu gsm cancel 5551234; else $BR --ez fake_call_end t
 tail -1 "$OUT/call.txt" | grep -q "call=-" && echo "call cleared after it ended: OK" | tee -a "$OUT/call.txt" \
   || echo "::warning::call not cleared after end" | tee -a "$OUT/call.txt"
 adb shell input keyevent KEYCODE_HOME; sleep 1
+# A ride the process never got to save: record (journal), kill the app in the background, relaunch →
+# the journal (last fix 40 min ago = over) becomes a saved ride.
+: > "$OUT/ride-recover.txt"
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity"; sleep 5
+$BR --ez fake_ride true --ei fake_ride_age_min 40; sleep 2
+$BR --ez dump true; sleep 2; adb logcat -d -s DashViewModel | grep "DEBUG stops" | tail -1 | grep -o "recording=[a-z]*" | tee -a "$OUT/ride-recover.txt"
+adb shell run-as "$PKG" ls -l files/ride_journal.txt | tee -a "$OUT/ride-recover.txt"
+adb shell run-as "$PKG" head -2 files/ride_journal.txt | cut -c1-40 | tee -a "$OUT/ride-recover.txt"
+adb shell input keyevent KEYCODE_HOME; sleep 2
+adb shell am kill "$PKG"; sleep 2
+adb shell pidof "$PKG" && { echo "am kill left it running → force-stop" | tee -a "$OUT/ride-recover.txt"; adb shell am force-stop "$PKG"; sleep 2; }
+adb logcat -d > "$OUT/logcat-before-kill.txt"; adb logcat -c
+adb shell am start -n "$PKG/com.example.wayfindr.MainActivity"; sleep 10
+adb logcat -d -s DashViewModel | grep -E "Ride (recovered|dropped|journal)" | tee -a "$OUT/ride-recover.txt"
+adb shell run-as "$PKG" ls files/ride_journal.txt 2>&1 | tee -a "$OUT/ride-recover.txt"
+grep -q "Ride recovered" "$OUT/ride-recover.txt" && echo "killed ride recovered on relaunch: OK" | tee -a "$OUT/ride-recover.txt" \
+  || echo "::error::killed ride was not recovered" | tee -a "$OUT/ride-recover.txt"
+tap0 "Sürüşler"; sleep 5; shot rides-after-recover
 # A Google Maps short link with no internet: a clear message, not silence. (Last: it opens a
 # second MainActivity, whose view models would also answer the debug broadcasts above.)
 adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "https://maps.app.goo.gl/9wMHSeJvD6xQZbH7A" -n "$PKG/com.example.wayfindr.MainActivity"
@@ -410,6 +428,7 @@ adb logcat -d > "$OUT/logcat.txt"
 adb pull "/sdcard/Android/data/$PKG/files/diag" "$OUT/diag" 2>/dev/null || true
 adb shell run-as "$PKG" ls -R files > "$OUT/files-ls.txt" 2>&1 || true
 
+cat "$OUT/logcat-before-kill.txt" >> "$OUT/logcat.txt" 2>/dev/null || true
 if grep -A40 "FATAL EXCEPTION" "$OUT/logcat.txt" | grep -q "Process: $PKG"; then
   grep -A60 "FATAL EXCEPTION" "$OUT/logcat.txt"; echo "::error::FATAL EXCEPTION in $PKG"; exit 1
 fi

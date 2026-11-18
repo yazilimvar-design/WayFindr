@@ -545,6 +545,10 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
+        // A ride the last process didn't get to save (killed: bike off, battery saver) → save it now
+        // if it's over; a fresh one is continued by the next startRecording().
+        recorder.journal = rideJournal()
+        checkRideJournal()
         // Reflect the rider's stored dash WiFi config (SSID may be blank until discovered).
         mapDark = DarkSchedule.effective(dashConfig.mapDarkAuto.value, dashConfig.mapDarkMode.value)
         _ui.update {
@@ -895,6 +899,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun giveUp(reason: String) {
         cancelReconnectGiveup()
+        stopRecording()   // the dash is gone for good: the ride is over (saved, or dropped if trivial)
         userWantsConnection = false
         session.disconnect()
         wifiManager.disconnect()       // stops the indefinite AP reconnect loop
@@ -953,8 +958,25 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     // ── Ride recording (the connected session) ───────────────────────────────
     private fun startRecording() {
         if (recorder.isRecording) return
-        rideDestName = routeStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }
-        recorder.start()
+        val navName = routeStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }
+        val j = rideJournal()
+        // Another view model of this process (a second MainActivity) already records into it.
+        recorder.journal = if (com.example.wayfindr.data.RideRecorder.isLive(j)) null else j
+        val age = if (recorder.journal != null && j.exists()) com.example.wayfindr.data.RideRecorder.journalLastFixMs(j)?.let { System.currentTimeMillis() - it } else null
+        if (age != null && age < com.example.wayfindr.data.RideRecorder.JOURNAL_STALE_MS) {
+            // The app was killed mid-ride and is back within 30 min: the same ride goes on.
+            val name = recorder.resume(j)
+            if (name != null) {
+                rideDestName = navName ?: name.ifBlank { null }
+                com.example.wayfindr.data.RideDiagnostics.log("ride", "resumed from journal (${age / 1000}s since last fix, " +
+                    "%.2f km) name=${rideDestName ?: "-"}".format(recorder.distanceSoFarM / 1000.0))
+            } else { recoverRideJournal("unreadable"); recorder.start() }
+        } else {
+            if (age != null) recoverRideJournal("stale journal at start (${age / 60_000} min)")
+            rideDestName = navName
+            recorder.start()
+        }
+        recorder.journalName(rideDestName)
         recordJob = viewModelScope.launch {
             location.location.collect { loc ->
                 if (loc != null) {
@@ -971,13 +993,52 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
     private fun stopRecording(): Boolean {
         recordJob?.cancel(); recordJob = null
         if (!recorder.isRecording) return false
-        val ride = recorder.stop() ?: return false   // null = trivial session, don't save
-        repo.addRide(ride)   // self-scoped on the repo (survives ViewModel teardown)
-        rideDestName?.let { getApplication<android.app.Application>().getSharedPreferences("ride_names", 0).edit().putString(ride.sid, it).apply() }
-        android.util.Log.i("DashViewModel", "Ride saved: ${"%.1f".format(ride.distanceKm)} km, ${ride.durationSec}s name=${rideDestName ?: "-"}")
-        com.example.wayfindr.data.RideDiagnostics.log("ride", "saved ${ride.sid}: ${"%.1f".format(ride.distanceKm)} km name=${rideDestName ?: "-"}")
+        val ride = recorder.stop()   // null = trivial session, don't save
+        if (ride == null) {
+            com.example.wayfindr.data.RideDiagnostics.log("ride", "dropped: ${recorder.dropReason}")
+            android.util.Log.i("DashViewModel", "Ride dropped: ${recorder.dropReason}")
+            return false
+        }
+        saveRide(ride, rideDestName, "saved")
         rideDestName = null
         return true
+    }
+
+    private fun saveRide(ride: com.example.wayfindr.data.Ride, name: String?, how: String) {
+        repo.addRide(ride)   // self-scoped on the repo (survives ViewModel teardown)
+        name?.let { getApplication<android.app.Application>().getSharedPreferences("ride_names", 0).edit().putString(ride.sid, it).apply() }
+        android.util.Log.i("DashViewModel", "Ride $how: ${"%.1f".format(ride.distanceKm)} km, ${ride.durationSec}s name=${name ?: "-"}")
+        com.example.wayfindr.data.RideDiagnostics.log("ride", "$how ${ride.sid}: ${"%.1f".format(ride.distanceKm)} km name=${name ?: "-"}")
+    }
+
+    private fun rideJournal() = java.io.File(getApplication<android.app.Application>().filesDir, "ride_journal.txt")
+
+    /** App start: a journal whose last fix is ≥ 30 min old is a finished ride → save it; a fresh one
+     *  waits for startRecording() to continue it, and is saved at the 30-min mark if that never comes. */
+    private fun checkRideJournal() {
+        val j = rideJournal()
+        if (!j.exists()) return
+        viewModelScope.launch {
+            val last = withContext(Dispatchers.IO) { com.example.wayfindr.data.RideRecorder.journalLastFixMs(j) }
+            val age = last?.let { System.currentTimeMillis() - it } ?: Long.MAX_VALUE
+            if (age < com.example.wayfindr.data.RideRecorder.JOURNAL_STALE_MS) {
+                com.example.wayfindr.data.RideDiagnostics.log("ride", "journal found (${age / 1000}s old) — continued on connect, else saved in ${(com.example.wayfindr.data.RideRecorder.JOURNAL_STALE_MS - age) / 60_000} min")
+                delay(com.example.wayfindr.data.RideRecorder.JOURNAL_STALE_MS - age)
+            }
+            if (!recorder.isRecording && j.exists()) recoverRideJournal("app start, last fix ${age / 60_000} min ago")
+        }
+    }
+
+    /** Saves (or drops, if trivial) the ride in a left-over journal and deletes it. */
+    private fun recoverRideJournal(why: String) {
+        val j = rideJournal()
+        if (!j.exists() || recorder.isRecording || com.example.wayfindr.data.RideRecorder.isLive(j)) return
+        val (ride, name, reason) = com.example.wayfindr.data.RideRecorder.recover(j)
+        if (ride != null) saveRide(ride, name, "recovered ($why)")
+        else {
+            com.example.wayfindr.data.RideDiagnostics.log("ride", "journal dropped ($why): $reason")
+            android.util.Log.i("DashViewModel", "Ride journal dropped: $reason")
+        }
     }
 
     // ── Dash WiFi config (Settings) ──────────────────────────────────────────
@@ -1027,7 +1088,7 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
         }
         routeStops = validStops
         // The ride is named after where it was going (not a reverse-geocoded house number).
-        validStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }?.let { rideDestName = it }
+        validStops.lastOrNull()?.name?.takeIf { it.isNotBlank() && it != "Paylaşılan konum" }?.let { rideDestName = it; recorder.journalName(it) }
         // A new route after "Navigasyonu bitir": guidance runs again and a new ride starts.
         setNavPaused(false); setWallHold(false)
         if (rideEnded) { rideEnded = false; if (userWantsConnection) startRecording() }
@@ -1498,7 +1559,8 @@ class DashViewModel(app: Application) : AndroidViewModel(app) {
                     if (!recorder.isRecording) startRecording()
                     val l0 = location.lastKnown()
                     val lat0 = l0?.latitude ?: 39.92; val lng0 = l0?.longitude ?: 32.85
-                    val t0 = System.currentTimeMillis() - 45_000L
+                    // fake_ride_age_min: fixes that long ago (CI: a killed ride whose journal is "over").
+                    val t0 = System.currentTimeMillis() - 45_000L - intent.getIntExtra("fake_ride_age_min", 0) * 60_000L
                     for (i in 0..44) recorder.add(lat0 + i * 0.0001, lng0, 11f, 5f, t0 + i * 1_000L)
                 }
                 intent.getStringExtra("set_safety")?.let { dashConfig.setOfflineSafety(it == "true") }
