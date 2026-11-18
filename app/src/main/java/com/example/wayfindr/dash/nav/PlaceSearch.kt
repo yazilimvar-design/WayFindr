@@ -101,6 +101,7 @@ object PlaceSearch {
     @Suppress("UNCHECKED_CAST")
     suspend fun suggestions(ctx: Context, query: String, near: Pair<Double, Double>?): List<Hit> =
         withContext(Dispatchers.IO) {
+            lastOffline = false   // reset before the Google path too, or a past offline search mislabels Google hits
             (GPlus.keyCommand(ctx, query, near) as List<Hit>?)?.let { return@withContext it }
             val q = query.trim()
             if (q.length < 2) return@withContext emptyList()
