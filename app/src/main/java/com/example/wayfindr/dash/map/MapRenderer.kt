@@ -76,7 +76,7 @@ class MapRenderer(private val tiles: TileProvider) {
      * Consecutive [pill] rows share one line as side-by-side pills (the cursor still steps
      * through them one by one, like rows).
      */
-    data class MenuRow(
+    data class MenuRow @JvmOverloads constructor(   // NavPlus (Java) builds rows with 4 args
         val label: String,
         val header: Boolean = false,
         val active: Boolean = false,
