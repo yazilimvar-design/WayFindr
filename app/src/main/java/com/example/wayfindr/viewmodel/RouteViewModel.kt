@@ -532,7 +532,7 @@ class RouteViewModel(app: Application) : AndroidViewModel(app) {
     private fun fmtKm(m: Double) = "%.0f km".format(m / 1000.0)
     private fun fmtDuration(sec: Double): String {
         val total = (sec / 60.0).toInt()
-        return if (total >= 60) "${total / 60}h ${total % 60}m" else "${total}m"
+        return if (total >= 60) "${total / 60} sa ${total % 60} dk" else "$total dk"
     }
     private fun fmtEta(sec: Double): String =
         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(System.currentTimeMillis() + (sec * 1000).toLong()))

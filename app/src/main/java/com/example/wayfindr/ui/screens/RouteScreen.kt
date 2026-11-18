@@ -55,7 +55,7 @@ fun RouteScreen(
     val dest       = routeState.destination
     val sourceDestName = dest?.name
     val destName   = if (dest == null) "Hedef seçilmedi" else when (val name = dest.name.ifBlank { "" }) {
-        "", "Shared location" -> "Paylaşılan konum"
+        "", "Shared location", "Loading…" -> "Paylaşılan konum"
         "Dropped pin"         -> "Haritadan seçilen konum"
         else                  -> name
     }
@@ -94,7 +94,7 @@ fun RouteScreen(
     // Sync search query with destination name when it changes (except when resolving)
     LaunchedEffect(destName) {
         if (!routeState.isResolving && !sourceDestName.isNullOrBlank() &&
-            sourceDestName != "Shared location" && sourceDestName != "Dropped pin"
+            sourceDestName != "Shared location" && sourceDestName != "Dropped pin" && sourceDestName != "Loading…"
         ) {
             suggestionsSuppressed = true
             suggestions = emptyList()

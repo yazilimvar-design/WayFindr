@@ -72,7 +72,16 @@ fun WayfindrMap(
     val ctx = LocalContext.current
     val config = remember { DashConfig.get(ctx) }
     val mapTheme by config.mapTheme.collectAsState()
-    val styleJson = remember(mapTheme.ordinal) { onlineThemeStyleJson(ctx, mapTheme) }
+    // No internet + Türkiye paketi kurulu → the phone map draws from the downloaded map instead of a blank screen.
+    val styleJson = remember(mapTheme.ordinal) {
+        val cm = ctx.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val online = cm.getNetworkCapabilities(cm.activeNetwork)
+            ?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        val pack = com.example.wayfindr.dash.offline.OfflinePack.mapFile(ctx)
+        if (!online && pack != null) runCatching { com.example.wayfindr.dash.map.VectorTiles.styleJson(ctx, pack) }
+            .getOrElse { onlineThemeStyleJson(ctx, mapTheme) }
+        else onlineThemeStyleJson(ctx, mapTheme)
+    }
     // New style = new map view (MapLibre loads its style once per view).
     key(styleJson) {
         FreeWayfindrMap(
