@@ -310,9 +310,14 @@ object FrameBench {
             sb.append(" %s ort %.1f p95 %.1f ms;".format(if (cull) "sonra (görünen parça)" else "önce (tüm rota)", ms.average(), ms.pct(0.95)))
         }
         renderer.cullRoute = true
-        val a = System.nanoTime()
-        repeat(100) { RouteProgressMatcher.match(pts, c, pts[600], c[590], null, 25.0) }
-        sb.append(" rota eşleme %.2f ms/çağrı\n".format((System.nanoTime() - a) / 1e6 / 100))
+        // Route match per tick: on the route (local window) and 150 m off it (whole-route search).
+        val off = offset(pts[600], 150.0, 0.0)
+        for ((name, pos) in listOf("rotada" to pts[600], "rota dışı 150 m" to off)) {
+            val a = System.nanoTime()
+            repeat(50) { RouteProgressMatcher.match(pts, c, pos, c[600], null, 25.0) }
+            sb.append(" rota eşleme $name %.2f ms/çağrı;".format((System.nanoTime() - a) / 1e6 / 50))
+        }
+        sb.append("\n")
         return sb.toString()
     }
 

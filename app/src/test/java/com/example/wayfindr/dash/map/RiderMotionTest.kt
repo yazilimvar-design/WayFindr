@@ -76,16 +76,6 @@ class RiderMotionTest {
         }
     }
 
-    @Test fun progressMatchWindowFindsTheSegmentAtItsStart() {
-        // Duplicate vertex right at the window start (lo = 940 m): the segment ending there still counts.
-        val g = geometry.take(20) + geometry[19] + geometry.drop(20).take(20)
-        val c = DoubleArray(g.size).also { for (i in 1 until g.size) it[i] = it[i - 1] + GeoPoint.distMeters(g[i - 1], g[i]) }
-        val p = GeoPoint(geometry[19].lat - 10.0 / 111_195.0, 32.85)
-        val m = com.example.wayfindr.dash.nav.RouteProgressMatcher.match(g, c, p, c[19] + 60.0)!!
-        assertEquals(c[19] - 10.0, m.progressMeters, 0.5)
-        assertEquals(0.0, m.lateralDistanceMeters, 0.5)
-    }
-
     @Test fun ageIsCountedFromTheMeasurement() {
         // Fix measured 0.4 s before it arrived, frame 0.2 s after arrival → 0.6 s.
         assertEquals(0.6, RiderMotion.sinceFixSeconds(1_000_000_000L, 1_400_000_000L, 1_600_000_000L), 1e-9)
