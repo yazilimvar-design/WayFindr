@@ -29,13 +29,8 @@ done
 sleep 2
 adb pull "/sdcard/Android/data/$PKG/files/framebench.txt" "$OUT/framebench.txt" && cat "$OUT/framebench.txt" || echo "::warning::framebench.txt not written"
 adb pull "/sdcard/Android/data/$PKG/files/framebench-frames.png" "$OUT/framebench-frames.png" || echo "::warning::framebench-frames.png not written"
-for v in once sonra; do
-  adb pull "/sdcard/Android/data/$PKG/files/bench90-$v.h264" "$OUT/bench90-$v.h264" || continue
-  # The exact H.264 stream the dash would get (10 fps); mp4 + gif for viewing when ffmpeg is there.
-  if command -v ffmpeg >/dev/null 2>&1; then   # installed by the workflow
-    ffmpeg -loglevel error -y -r 10 -i "$OUT/bench90-$v.h264" -c copy "$OUT/bench90-$v.mp4" || true
-    ffmpeg -loglevel error -y -r 10 -i "$OUT/bench90-$v.h264" -vf "fps=10,scale=526:-1" "$OUT/bench90-$v.gif" || true
-  fi
+for v in once sonra; do   # mp4/gif are made from these after the emulator (build.yml)
+  adb pull "/sdcard/Android/data/$PKG/files/bench90-$v.h264" "$OUT/bench90-$v.h264" || echo "::warning::bench90-$v.h264 not written"
 done
 
 find_xy() {  # print the centre of the node whose text or content-desc is $1

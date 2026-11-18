@@ -73,12 +73,6 @@ jobs:
           name: apk-${{ github.run_number }}
           path: apk
 
-      # Turns the benchmark's H.264 recordings into mp4/gif (smoke.sh); optional.
-      - name: ffmpeg
-        continue-on-error: true
-        timeout-minutes: 5
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-
       - name: KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -96,6 +90,20 @@ jobs:
           disk-size: 6000M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash .github/scripts/smoke.sh "$(find apk -name '*.apk' | head -1)"
+
+      # The benchmark's H.264 recordings (exactly what the dash gets) as mp4 + gif; after the
+      # emulator, so the extra packages can't affect it.
+      - name: Kare kaydı → mp4/gif
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 6
+        run: |
+          ls smoke-out/bench90-*.h264 >/dev/null 2>&1 || exit 0
+          command -v ffmpeg >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg >/dev/null)
+          for f in smoke-out/bench90-*.h264; do
+            ffmpeg -loglevel error -y -r 10 -i "$f" -c copy "${f%.h264}.mp4"
+            ffmpeg -loglevel error -y -r 10 -i "$f" -vf fps=10 "${f%.h264}.gif"
+          done
 
       - if: always()
         uses: actions/upload-artifact@v4
