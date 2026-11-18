@@ -188,12 +188,8 @@ fun SettingsScreen(
             )
             WayfindrDivider(Modifier.padding(horizontal = 6.dp))
             SettingRow(WayfindrIcons.Dash, "Konsol duvar kağıdı",
-                "Beklemedeyken konsolda fotoğraf, müzik şeridi, albüm kapağı",
+                "Beklemedeyken konsolda fotoğraf, müzik şeridi",
                 control = {}, onClick = { NavPlus.offMode = 1; NavPlus.openOffline() })
-            WayfindrDivider(Modifier.padding(horizontal = 6.dp))
-            SettingRow(WayfindrIcons.Download, "Çevrimdışı harita",
-                "Harita dosyası yükle, aç/kapat, sil",
-                control = {}, onClick = { NavPlus.offMode = 0; NavPlus.openOffline() })
         }
 
         SectionLabel("Ses ve yönlendirme")
