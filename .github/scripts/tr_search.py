@@ -455,7 +455,7 @@ def build(col, out, date):
 
 def selftest(out):
     db = sqlite3.connect(out)
-    for q in ("mamak devlet hastanesi", "kizilay", "1866 sokak", "ankara", "ataturk bulvari"):
+    for q in ("mamak devlet hastanesi", "kizilay", "tunali hilmi", "ankara", "ataturk bulvari"):
         m = " ".join(f"name:{t}*" for t in norm(q).split())
         t = time.time()
         rs = db.execute(
