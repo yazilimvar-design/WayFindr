@@ -155,9 +155,9 @@ internal object RideThumbs {
         // Big views (ride detail / full screen) get a thin line so the streets under it stay readable;
         // small list thumbnails keep the bold one.
         val big = min(w, h) > 600
-        val stroke = if (big) max(2.5f * density, min(w, h) * 0.010f) else max(3f * density, min(w, h) * 0.022f)
+        val stroke = if (big) max(2f * density, min(w, h) * 0.006f) else max(3f * density, min(w, h) * 0.022f)
         val casing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = 0xB3000000.toInt(); strokeWidth = stroke * (if (big) 1.6f else 1.9f); strokeCap = Paint.Cap.ROUND
+            color = 0xB3000000.toInt(); strokeWidth = stroke * (if (big) 1.5f else 1.9f); strokeCap = Paint.Cap.ROUND
         }
         val line = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = stroke; strokeCap = Paint.Cap.ROUND; color = START }
         for (i in 1 until track.size) c.drawLine(xs[i - 1], ys[i - 1], xs[i], ys[i], casing)
@@ -166,7 +166,7 @@ internal object RideThumbs {
             c.drawLine(xs[i - 1], ys[i - 1], xs[i], ys[i], line)
         }
         val dot = Paint(Paint.ANTI_ALIAS_FLAG)
-        val r = stroke * (if (big) 1.35f else 1.7f)
+        val r = stroke * (if (big) 1.5f else 1.7f)
         for ((i, col) in listOf(0 to END, track.lastIndex to START)) { // like TripperDash: green = start, gold = finish
             dot.color = 0xE6000000.toInt(); c.drawCircle(xs[i], ys[i], r + stroke * 0.6f, dot)
             dot.color = col; c.drawCircle(xs[i], ys[i], r, dot)
