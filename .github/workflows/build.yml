@@ -89,7 +89,7 @@ jobs:
           # Room for the full Türkiye offline package (~1.1 GB) downloaded in smoke.sh.
           disk-size: 6000M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
-          script: SMOKE_QUICK=1 bash .github/scripts/smoke.sh "$(find apk -name '*.apk' | head -1)"
+          script: bash .github/scripts/smoke.sh "$(find apk -name '*.apk' | head -1)"
 
       # The benchmark's H.264 recordings (exactly what the dash gets) as mp4 + gif; after the
       # emulator, so the extra packages can't affect it.
