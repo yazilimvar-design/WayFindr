@@ -7,7 +7,8 @@ mkdir -p "$OUT"
 adb logcat -c
 adb install -r -g "$APK" | tee "$OUT/install.txt" || exit 1
 # Test entry points only work with this marker in the app's private folder (run-as = adb only).
-adb shell run-as "$PKG" sh -c 'mkdir -p files && touch files/test_hooks' || echo "::warning::test_hooks marker not created"
+adb shell "run-as $PKG sh -c 'mkdir -p files && touch files/test_hooks'"
+adb shell "run-as $PKG ls files/test_hooks" || echo "::error::test_hooks marker not created"
 adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
 sleep 20
 adb exec-out screencap -p > "$OUT/0-start.png"
