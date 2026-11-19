@@ -620,9 +620,10 @@ class DashSession(private val scope: CoroutineScope) {
                 if (title != null && (title != prevTitle || playing != prevPlaying)) {
                     // Himican: the dash's own round music bubble stays off; the phone draws its own card.
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
-                    // 05 19 = real play state, so the console's own music screen shows play / pause.
-                    runCatching { socket?.send(DashCommands.musicPlaying(playing)) }
-                    com.example.wayfindr.data.RideDiagnostics.log("media", "TX music 05 17=off, 05 19 playing=$playing")
+                    // 05 19 stays "not playing": sending the real state (V62) made the console drop and reconnect
+                    // the link while music played. The phone's own music card shows play / pause instead.
+                    runCatching { socket?.send(DashCommands.musicPlaying(false)) }
+                    com.example.wayfindr.data.RideDiagnostics.log("media", "TX music 05 17=off, 05 19=off (player playing=$playing)")
                 } else if (title == null && prevTitle != null) {
                     runCatching { socket?.send(DashCommands.musicActive(false)) }
                     loggedNp = false

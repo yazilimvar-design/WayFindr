@@ -44,8 +44,8 @@ android {
         minSdk = 29
         targetSdk = 36
         // 1.3.2 (14): two editions, standard + full (see productFlavors below).
-        versionCode = 15   // V62 (V60, V61 = 14)
-        versionName = "1.3.2"
+        versionCode = 16   // V63 (V62 = 15)
+        versionName = "1.3.3"
         // Open-source builds are marked OSS everywhere: version shown in the app ("1.3.2-OSS",
         // "1.3.2-OSS-full") and the APK names. The update check ignores the suffix.
         versionNameSuffix = "-OSS"
